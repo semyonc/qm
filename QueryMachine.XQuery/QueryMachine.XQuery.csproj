@@ -1,0 +1,122 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="3.5" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>9.0.30729</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{0FDD0A6C-E9FA-4CE2-B2A7-461C7444EEFF}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>DataEngine.XQuery</RootNamespace>
+    <AssemblyName>QueryMachine.XQuery</AssemblyName>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="CliFuncs.cs" />
+    <Compile Include="EmptyIterator.cs" />
+    <Compile Include="Parser\Tokenizer.cs" />
+    <Compile Include="VarTable.cs" />
+    <Compile Include="XQueryCommand.cs" />
+    <Compile Include="XQueryFunctionTable.cs" />
+    <Compile Include="NodeIterator.cs" />
+    <Compile Include="Descriptor.cs" />
+    <Compile Include="QNameParser.cs" />
+    <Compile Include="Core.cs" />
+    <Compile Include="XPath.cs" />
+    <Compile Include="Translator.cs" />
+    <Compile Include="XQueryCondition.cs" />
+    <Compile Include="XQueryLET.cs" />
+    <Compile Include="XmlReservedNs.cs" />
+    <Compile Include="XQueryContext.cs" />
+    <Compile Include="XQueryExpr.cs" />
+    <Compile Include="XQueryExprBase.cs" />
+    <Compile Include="XQueryFilterExpr.cs" />
+    <Compile Include="XQueryFLWOR.cs" />
+    <Compile Include="XQueryAtomicValue.cs" />
+    <Compile Include="XQueryNodeInfoTable.cs" />
+    <Compile Include="Notation.cs" />
+    <Compile Include="PageFile.cs" />
+    <Compile Include="Parser\TokenizerBase.cs" />
+    <Compile Include="Parser\XQuery.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>XQuery.y</DependentUpon>
+    </Compile>
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="XQueryDocument.cs" />
+    <Compile Include="XQueryDocumentBuilder.cs" />
+    <Compile Include="XQueryNavigator.cs" />
+    <Compile Include="Symbol.cs" />
+    <Compile Include="XmlCharType.cs" />
+    <Compile Include="XQueryException.cs" />
+    <Compile Include="Xdm.cs" />
+    <Compile Include="XQueryNodeIterator.cs" />
+    <Compile Include="XmlQualifiedNameTest.cs" />
+    <Compile Include="XQueryProduct.cs" />
+    <Compile Include="XQueryResolver.cs" />
+    <Compile Include="XQuerySchemaInfoTable.cs" />
+    <Compile Include="XQuerySequenceType.cs" />
+    <Compile Include="XQuerySorter.cs" />
+    <Compile Include="XQueryWriter.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Parser\XQuery.y">
+      <Generator>JaySourceGenerator</Generator>
+      <LastGenOutput>XQuery.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CoreServices\CoreServices.csproj">
+      <Project>{454016BE-0E1C-4DFB-A22F-2E642A1AE9A6}</Project>
+      <Name>CoreServices</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
