@@ -1,0 +1,121 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="3.5" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>9.0.30729</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{454016BE-0E1C-4DFB-A22F-2E642A1AE9A6}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>DataEngine.CoreServices</RootNamespace>
+    <AssemblyName>CoreServices</AssemblyName>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug IL|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\Debug IL\</OutputPath>
+    <DefineConstants>TRACE;DEBUG;DEBUG_IL</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug Parallel|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\Debug Parallel\</OutputPath>
+    <DefineConstants>TRACE;DEBUG;PARALLEL</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release Parallel|AnyCPU' ">
+    <OutputPath>bin\Release Parallel\</OutputPath>
+    <DefineConstants>PARALLEL</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="BinaryBoolFunc.cs" />
+    <Compile Include="ControlAndForm.cs" />
+    <Compile Include="BinaryFunc.cs" />
+    <Compile Include="CompiledLambda.cs" />
+    <Compile Include="ControlCastForm.cs" />
+    <Compile Include="ControlCondForm.cs" />
+    <Compile Include="ControlInvokeForm.cs" />
+    <Compile Include="ControlLetForm.cs" />
+    <Compile Include="ControlPrognForm.cs" />
+    <Compile Include="ControlTrapForm.cs" />
+    <Compile Include="ControlWeakForm.cs" />
+    <Compile Include="GlobalSymbols.cs" />
+    <Compile Include="LambdaExpr.cs" />
+    <Compile Include="ILConverter.cs" />
+    <Compile Include="Exceptions.cs" />
+    <Compile Include="Executive.cs" />
+    <Compile Include="FuncBase.cs" />
+    <Compile Include="FuncDef.cs" />
+    <Compile Include="FuncName.cs" />
+    <Compile Include="Funcs.cs" />
+    <Compile Include="Generation\DebugILGen.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Generation\ILGen.cs" />
+    <Compile Include="Generation\KeyedQueue.cs" />
+    <Compile Include="Generation\TypeExtensions.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="InvokeStatic.cs" />
+    <Compile Include="InvokeDelegate.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="MacroFunc.cs" />
+    <Compile Include="MethodConverter.cs" />
+    <Compile Include="LocalAccess.cs" />
+    <Compile Include="NotOperator.cs" />
+    <Compile Include="NullFunc.cs" />
+    <Compile Include="ControlOrForm.cs" />
+    <Compile Include="ControlQuoteForm.cs" />
+    <Compile Include="Resolver.cs" />
+    <Compile Include="Runtime.cs" />
+    <Compile Include="TypeConverter.cs" />
+    <Compile Include="TypeUtils.cs" />
+    <Compile Include="Lisp.cs" />
+    <Compile Include="LispParser.cs" />
+    <Compile Include="LispRecognizer.cs" />
+    <Compile Include="LispTokenizer.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Undefined.cs" />
+    <Compile Include="ValueConverter.cs" />
+    <Compile Include="SymbolLink.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
