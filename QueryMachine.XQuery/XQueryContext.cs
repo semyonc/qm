@@ -56,7 +56,7 @@ namespace DataEngine.XQuery
         {
             DefaultOrdering = XQueryOrder.Ordered;
             EmptyOrderSpec = XQueryEmptyOrderSpec.Least;
-            SearchPath = Path.GetFullPath(Assembly.GetExecutingAssembly().FullName);
+            SearchPath = String.Empty;
             
             nameTable = new NameTable();
             schemaSet = new XmlSchemaSet(nameTable);
