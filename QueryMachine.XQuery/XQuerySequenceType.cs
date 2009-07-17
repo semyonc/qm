@@ -384,7 +384,8 @@ namespace DataEngine.XQuery
                     {
                         XPathNavigator nav = item as XPathNavigator;
                         if (nav != null)
-                            return nav.NodeType == XPathNodeType.Text;
+                            return nav.NodeType == XPathNodeType.Text ||
+                                nav.NodeType == XPathNodeType.SignificantWhitespace;
                     }
                     break;
 

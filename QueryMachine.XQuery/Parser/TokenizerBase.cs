@@ -89,7 +89,8 @@ namespace DataEngine.XQuery.Parser
             ProcessingInstructionContent,
             CDataSection,
             QuotAttributeContent,
-            AposAttributeContent
+            AposAttributeContent,
+            AttributeState
         };
 
         public LexerState CurrentState { get; private set; }
@@ -2225,6 +2226,33 @@ namespace DataEngine.XQuery.Parser
                 ConsumeChar(Read());
                 m_state = LexerState.ElementContent;
             }
+            else if (XmlCharType.Instance.IsWhiteSpace(c))
+                ConsumeS();
+            else if (XmlCharType.Instance.IsStartNameChar(c))
+            {
+                ConsumeQName();
+                m_state = LexerState.AttributeState;
+            }
+        }
+
+        private void TagAttributeState()
+        {
+            if (Peek(0) == 0)
+                return;
+            char c = Peek(0);
+            BeginToken();
+            if (MatchText("/>"))
+            {
+                ConsumeChar('/');
+                m_anchor++;
+                ConsumeChar('>');
+                m_state = m_states.Pop();
+            }
+            else if (c == '>')
+            {
+                ConsumeChar(Read());
+                m_state = LexerState.ElementContent;
+            }
             else if (c == '"')
             {
                 ConsumeChar(Read());
@@ -2340,6 +2368,8 @@ namespace DataEngine.XQuery.Parser
                 while ((c = Peek(0)) != 0 && c != '<' && c != '&' && c != '{' && c != '}')
                     sb.Append(Read());
                 EndToken();
+                if (sb.Length == 0)
+                    return;
                 ConsumeToken(Token.Char, new Literal(sb.ToString()));
             }
         }
@@ -2466,7 +2496,7 @@ namespace DataEngine.XQuery.Parser
             if (c == '"' && Peek(1) != '"')
             {
                 ConsumeChar(Read());
-                m_state = LexerState.StartTag;
+                m_state = LexerState.AttributeState;
             }
             else if (MatchText("{{"))
             {
@@ -2528,6 +2558,8 @@ namespace DataEngine.XQuery.Parser
                 while ((c = Peek(0)) != 0 && c != '{' && c != '&' && c != '"')
                     sb.Append(Read());
                 EndToken();
+                if (sb.Length == 0)
+                    return;
                 ConsumeToken(Token.Char, new Literal(sb.ToString()));
             }
         }
@@ -2543,7 +2575,7 @@ namespace DataEngine.XQuery.Parser
                 Read();
                 EndToken();
                 ConsumeToken(Token.Apos);
-                m_state = LexerState.StartTag;
+                m_state = LexerState.AttributeState;
             }
             else if (MatchText("{{"))
             {
@@ -2711,6 +2743,10 @@ namespace DataEngine.XQuery.Parser
 
                 case LexerState.StartTag:
                     StartTagState();
+                    break;
+
+                case LexerState.AttributeState:
+                    TagAttributeState();
                     break;
 
                 case LexerState.ElementContent:

@@ -33,7 +33,7 @@ using System.Xml.Schema;
 
 namespace DataEngine.XQuery
 {
-    static class XPath
+    public static class XPath
     {
         public static XPathItem Clone(this XPathItem item)
         {
@@ -44,7 +44,7 @@ namespace DataEngine.XQuery
                 return item;
         }
 
-        public static XPathItem ChangeType(this XPathItem item, XQuerySequenceType destType)
+        internal static XPathItem ChangeType(this XPathItem item, XQuerySequenceType destType)
         {
             if (destType.IsNode)
             {
@@ -70,7 +70,7 @@ namespace DataEngine.XQuery
             }
         }
 
-        public static object[] GetAnnotation(this XPathItem item)
+        internal static object[] GetAnnotation(this XPathItem item)
         {
             XQueryNavigator nav = item as XQueryNavigator;
             if (nav != null)
@@ -81,7 +81,7 @@ namespace DataEngine.XQuery
             return null;
         }
 
-        public static void SetAnnotation(this XPathItem item, object[] annotation)
+        internal static void SetAnnotation(this XPathItem item, object[] annotation)
         {
             XQueryNavigator nav = item as XQueryNavigator;
             if (nav != null)

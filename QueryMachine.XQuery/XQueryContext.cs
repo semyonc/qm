@@ -291,6 +291,8 @@ namespace DataEngine.XQuery
 
         public String DefaultFunctionNS { get; set; }
 
+        public bool PreserveBoundarySpace { get; set; }
+
         public String BaseUri { get; set; }
 
         public XQueryEmptyOrderSpec EmptyOrderSpec { get; set; }
