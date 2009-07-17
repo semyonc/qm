@@ -65,6 +65,7 @@ namespace DataEngine.XQuery
         private bool _defaultOrderingDecl;
         private bool _defaultElementNsDecl;
         private bool _defaultFunctionNsDecl;
+        private bool _boundarySpaceDecl;
 
         public Translator(XQueryContext context)
         {
@@ -124,6 +125,10 @@ namespace DataEngine.XQuery
                     {
                         switch (recs[0].descriptor)
                         {
+                            case Descriptor.BoundarySpace:
+                                ProcessBoundarySpace(notation, recs[0]);
+                                break;
+
                             case Descriptor.DefaultCollation:
                                 ProcessDefaultCollation(notation, recs[0]);
                                 break;
@@ -171,6 +176,25 @@ namespace DataEngine.XQuery
                     }
                 }
             }            
+        }
+
+        private void ProcessBoundarySpace(Notation notation, Notation.Record rec)
+        {
+            if (!_boundarySpaceDecl)
+            {
+                TokenWrapper wrapper = (TokenWrapper)rec.Arg0;
+                switch (wrapper.Data)
+                {
+                    case Token.PRESERVE:
+                        _context.PreserveBoundarySpace = true;
+                        break;
+
+                    case Token.STRIP:
+                        _context.PreserveBoundarySpace = false;
+                        break;
+                }
+                _boundarySpaceDecl = true;
+            }
         }
 
         private void ProcessBaseUri(Notation notation, Notation.Record rec)
@@ -1507,7 +1531,16 @@ namespace DataEngine.XQuery
         private void WriteDirElemContent(Notation notation, Symbol sym, object builder, List<object> stmt)
         {
             if (sym.Tag == Tag.Literal)
-                stmt.Add(Lisp.List(ID.WriteString, builder, ((Literal)sym).Data));
+            {
+                Literal lit = (Literal)sym;
+                if (XmlCharType.Instance.IsOnlyWhitespace(lit.Data))
+                {
+                    if (_context.PreserveBoundarySpace)
+                        stmt.Add(Lisp.List(ID.WriteWhitespace, builder, lit.Data));
+                }
+                else
+                    stmt.Add(Lisp.List(ID.WriteString, builder, lit.Data));
+            }
             else if (sym.Tag == Tag.Constructor)
             {
                 Notation.Record[] recs = notation.Select(sym, new Descriptor[] { Descriptor.DirElemConstructor,

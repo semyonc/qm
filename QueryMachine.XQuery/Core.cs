@@ -76,6 +76,7 @@ namespace DataEngine.XQuery
         public static readonly object WriteComment = Lisp.Defatom("write-comment");
         public static readonly object WritePi = Lisp.Defatom("write-pi");
         public static readonly object WriteString = Lisp.Defatom("write-string");
+        public static readonly object WriteWhitespace = Lisp.Defatom("write-ws");
         public static readonly object WriteEntityRef = Lisp.Defatom("write-entityref");
         public static readonly object WriteCdata = Lisp.Defatom("write-cdata");
                 
@@ -161,6 +162,7 @@ namespace DataEngine.XQuery
             GlobalSymbols.DefineStaticOperator(ID.WriteCdata, typeof(Core), "CreateCdata");
             GlobalSymbols.DefineStaticOperator(ID.WriteNode, typeof(Core), "WriteNode");
             GlobalSymbols.DefineStaticOperator(ID.WriteString, typeof(Core), "WriteString");
+            GlobalSymbols.DefineStaticOperator(ID.WriteWhitespace, typeof(Core), "WriteWhitespace");
             
             GlobalSymbols.DefineStaticOperator(ID.FormatValue, typeof(Core), "FormatValue");
             GlobalSymbols.DefineStaticOperator(ID.AtomizeBody, typeof(Core), "Atomize");
@@ -473,6 +475,13 @@ namespace DataEngine.XQuery
         {
             XQueryDocumentBuilder builder = GetBuilder(o);
             builder.WriteString(text);
+            return builder;
+        }
+
+        public static object WriteWhitespace(object o, string text)
+        {
+            XQueryDocumentBuilder builder = GetBuilder(o);
+            builder.WriteWhitespace(text);
             return builder;
         }
 

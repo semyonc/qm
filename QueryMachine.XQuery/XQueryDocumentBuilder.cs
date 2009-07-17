@@ -287,8 +287,15 @@ namespace DataEngine.XQuery
         }
 
         public override void WriteWhitespace(string ws)
-        {            
-            return;
+        {
+            if (_state == WriteState.Attribute)
+                _sb.Append(ws);
+            else
+            {
+                XdmWhitespace node = new XdmWhitespace();
+                node._text = ws;
+                m_pageFile.AddNode(node);
+            }
         }
 
         public XmlNameTable NameTable { get; private set; }

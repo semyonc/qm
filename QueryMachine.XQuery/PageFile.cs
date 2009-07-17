@@ -59,6 +59,8 @@ namespace DataEngine.XQuery
 
         #region IDisposable Members
 
+        private bool _disposed = false;
+
         public void Dispose()
         {
             Dispose(true);
@@ -66,9 +68,10 @@ namespace DataEngine.XQuery
 
         public void Dispose(bool disposing)
         {
-            if (disposing)
+            if (! _disposed)
             {
                 Close();
+                _disposed = true;
             }
         }
 
@@ -250,7 +253,7 @@ namespace DataEngine.XQuery
                             break;
 
                         case XdmNodeType.Whitespace:
-                            node = new XdmComment();
+                            node = new XdmWhitespace();
                             break;
 
                         case XdmNodeType.Cdata:

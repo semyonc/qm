@@ -257,7 +257,7 @@ namespace DataEngine.XQuery
             {
                 int p = _pos + 1;
                 _document.ExpandPageFile(p);
-                if (p < _pf.Count)
+                if (p < _pf.Count && _pf[p].NodeType != XdmNodeType.ElementEnd)
                 {
                     _pos = p;
                     Read();
@@ -280,7 +280,8 @@ namespace DataEngine.XQuery
             if (_props.nodeType == XPathNodeType.Element ||
                 _props.nodeType == XPathNodeType.Comment ||
                 _props.nodeType == XPathNodeType.ProcessingInstruction ||
-                _props.nodeType == XPathNodeType.Text)
+                _props.nodeType == XPathNodeType.Text ||
+                _props.nodeType == XPathNodeType.SignificantWhitespace)
             {
                 if (_curr.NodeType == XdmNodeType.ElementStart)
                 {
@@ -344,7 +345,8 @@ namespace DataEngine.XQuery
             if (_props.nodeType == XPathNodeType.Element ||
                 _props.nodeType == XPathNodeType.Comment ||
                 _props.nodeType == XPathNodeType.ProcessingInstruction ||
-                _props.nodeType == XPathNodeType.Text)
+                _props.nodeType == XPathNodeType.Text ||
+                _props.nodeType == XPathNodeType.SignificantWhitespace)
             {
                 int p = _pos - 1;
                 if (p > 0)
@@ -426,6 +428,7 @@ namespace DataEngine.XQuery
                 XdmProcessingInstruction node = (XdmProcessingInstruction)_curr;
                 _props.nodeType = XPathNodeType.ProcessingInstruction;
                 _props.localName = node._name;
+                _props.name = node._name;                
             }
             else if (_curr.NodeType == XdmNodeType.Text ||
                      _curr.NodeType == XdmNodeType.Cdata)
