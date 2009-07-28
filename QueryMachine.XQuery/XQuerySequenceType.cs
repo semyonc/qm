@@ -199,10 +199,15 @@ namespace DataEngine.XQuery
                     case XmlTypeCode.Double:
                         return typeof(System.Double);
                     case XmlTypeCode.DateTime:
+                    case XmlTypeCode.Date:
+                    case XmlTypeCode.Time:
                         return typeof(System.DateTime);
                     case XmlTypeCode.String:
                     case XmlTypeCode.UntypedAtomic:
                         return typeof(System.String);
+                    case XmlTypeCode.Duration:
+                    case XmlTypeCode.DayTimeDuration:
+                        return typeof(System.TimeSpan);
                     default:
                         return typeof(System.Object);
                 }

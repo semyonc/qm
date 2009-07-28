@@ -231,4 +231,7 @@
   <data name="UnsupportedNormalizationForm" xml:space="preserve">
     <value>Unsupported normalization form {0}</value>
   </data>
+  <data name="FODC0004" xml:space="preserve">
+    <value>Invalid argument '{0}' to fn:collection</value>
+  </data>
 </root>

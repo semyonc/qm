@@ -68,6 +68,12 @@ namespace DataEngine.XQuery
             m_spec = spec;
         }
 
+        private IEnumerable<XPathItem> CreateEnumerable(List<XPathItem> items)
+        {
+            foreach (XQueryWrappedValue item in items)
+                yield return item.Inner;
+        }
+
         public override XQueryNodeIterator Execute(object[] parameters)
         {
             XQueryNodeIterator iter = (XQueryNodeIterator)parameters[0];
@@ -78,10 +84,8 @@ namespace DataEngine.XQuery
             if (m_stable)
                 BubbleSort(buffer, comparer); // Stable but slowly sort
             else
-                buffer.Sort(new XQueryComparer(m_spec));
-            foreach (XPathItem item in buffer)
-                item.SetAnnotation(null);
-            return new NodeIterator(buffer);
+                buffer.Sort(comparer);
+            return new NodeIterator(CreateEnumerable(buffer));
         }
 
         private void BubbleSort(List<XPathItem> buffer, XQueryComparer comparer)
@@ -121,8 +125,8 @@ namespace DataEngine.XQuery
 
             public int Compare(XPathItem x, XPathItem y)
             {
-                object[] key1 = x.GetAnnotation();
-                object[] key2 = y.GetAnnotation();
+                object[] key1 = ((XQueryWrappedValue)x).Annotation;
+                object[] key2 = ((XQueryWrappedValue)y).Annotation;
                 if (key1 == null || key2 == null)
                     throw new ArgumentException();
                 if (key1.Length != _spec.Length || key2.Length != _spec.Length)

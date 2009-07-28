@@ -89,6 +89,7 @@ namespace DataEngine.XQuery
 
         public static readonly object InstanceOf = Lisp.Defatom("instance-of");
         public static readonly object CastTo = Lisp.Defatom("cast-to");
+        public static readonly object CastToItem = Lisp.Defatom("cast-to-item");
         public static readonly object Castable = Lisp.Defatom("castable");
         public static readonly object TreatAs = Lisp.Defatom("treat-as");
 
@@ -174,7 +175,8 @@ namespace DataEngine.XQuery
 
             GlobalSymbols.DefineStaticOperator(ID.InstanceOf, typeof(Core), "InstanceOf");
             GlobalSymbols.DefineStaticOperator(ID.Castable, typeof(Core), "Castable");
-            GlobalSymbols.DefineStaticOperator(ID.CastTo, typeof(Core), "CastTo");            
+            GlobalSymbols.DefineStaticOperator(ID.CastTo, typeof(Core), "CastTo");
+            GlobalSymbols.DefineStaticOperator(ID.CastToItem, typeof(Core), "CastToItem");            
 
             GlobalSymbols.DefineStaticOperator(ID.GeneralEQ, typeof(Core), "GeneralEQ");
             GlobalSymbols.DefineStaticOperator(ID.GeneralNE, typeof(Core), "GeneralNE");
@@ -266,7 +268,7 @@ namespace DataEngine.XQuery
             string fileName = context.GetFileName(name);
             if (fileName == null)
                 throw new XQueryException(Properties.Resources.FileNotFound, name);
-            XQueryDocument doc = context.CreateDocument(context.GetFileName(name));
+            IXPathNavigable doc = context.OpenDocument(context.GetFileName(name));
             return doc.CreateNavigator();
         }
 
@@ -677,7 +679,7 @@ namespace DataEngine.XQuery
             }
             else
             {
-                XQueryNavigator nav = value as XQueryNavigator;
+                XPathNavigator nav = value as XPathNavigator;
                 if (nav == null)
                     throw new XQueryException(Properties.Resources.XPST0004, "node()");
                 return nav.Clone();
@@ -778,6 +780,7 @@ namespace DataEngine.XQuery
 
         public static object CastTo([Implict] Executive engine, object value, XQuerySequenceType destType)
         {
+            XQueryContext context = (XQueryContext)engine.Owner;
             if (destType == XQuerySequenceType.Item)
                 return value;
             if (destType.Cardinality == XmlTypeCardinality.One ||
@@ -793,24 +796,48 @@ namespace DataEngine.XQuery
                             throw new XQueryException(Properties.Resources.XPTY0004, "item()?", destType);
                         return null;
                     }
-                    XPathItem res = iter.Current.ChangeType(destType);
+                    XPathItem res = iter.Current.ChangeType(destType, context.nameTable, context.nsManager);
                     if (iter.MoveNext())
                         throw new XQueryException(Properties.Resources.MoreThanOneItem);
                     return res;
                 }
                 XPathItem item = value as XPathItem;
                 if (item == null)
-                {
-                    XQueryContext context = (XQueryContext)engine.Owner;
-                    item = context.CreateItem(value);                        
-                }
-                return item.ChangeType(destType).TypedValue;
+                    item = context.CreateItem(value);
+                return item.ChangeType(destType, context.nameTable, context.nsManager).TypedValue;
             }
             else
             {
                 XQueryNodeIterator iter = CreateSequence(engine, value);
-                return new NodeIterator(XPath.ConvertIterator(iter, destType));
+                return new NodeIterator(XPath.ConvertIterator(iter, destType, 
+                    context.nameTable, context.nsManager));
             }
+        }
+
+        public static XQueryNodeIterator CastToItem([Implict] Executive executive, 
+            object value, XQuerySequenceType destType)
+        {
+            XPathItem[] res = new XPathItem[1];
+            XQueryContext context = (XQueryContext)executive.Owner;
+            XQueryNodeIterator iter = value as XQueryNodeIterator;
+            if (iter != null)
+            {
+                iter = iter.Clone();
+                if (!iter.MoveNext())
+                {
+                    if (destType.Cardinality == XmlTypeCardinality.One)
+                        throw new XQueryException(Properties.Resources.XPTY0004, "item()?", destType);
+                    return null;
+                }
+                res[0] = iter.Current.ChangeType(destType, context.nameTable, context.nsManager);
+                if (iter.MoveNext())
+                    throw new XQueryException(Properties.Resources.MoreThanOneItem);
+            }
+            XPathItem item = value as XPathItem;
+            if (item == null)
+                item = context.CreateItem(value);
+            res[0] = item.ChangeType(destType, context.nameTable, context.nsManager);
+            return new NodeIterator(res);
         }
 
         public static bool InstanceOf([Implict] Executive engine, object value, XQuerySequenceType destType)

@@ -13,6 +13,7 @@ using DataEngine.XQuery;
 using System.Diagnostics;
 using System.Xml.XPath;
 using Microsoft.Win32;
+using System.Net;
 
 namespace SimpleTestConsole
 {
@@ -100,6 +101,7 @@ namespace SimpleTestConsole
                 stopwatch.Start();
                 using (XQueryCommand command = new XQueryCommand())
                 {
+                    command.OnResolveCollection += new ResolveCollectionEvent(command_OnResolveCollection);
                     command.BaseUri = baseUri;
                     command.SearchPath = searchPath;
                     command.Compile(textBox2.Text);
@@ -126,6 +128,19 @@ namespace SimpleTestConsole
                 textBox1.Text = sw.ToString();
                 tabControl1.SelectedTab = tabPage2;
             }
+        }
+        
+        // You can write something like this for process html data from XQuery
+        // See http://htmlagilitypack.codeplex.com/ for details
+        void command_OnResolveCollection(object sender, ResolveCollectionArgs args)
+        {
+            //WebClient client = new WebClient();
+            //client.Proxy.Credentials = CredentialCache.DefaultCredentials;
+            //String s = client.DownloadString(args.CollectionName);
+            //StringReader reader = new StringReader(s);
+            //HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
+            //doc.Load(reader);
+            //args.Navigator = doc.CreateNavigator();
         }
     }
 }

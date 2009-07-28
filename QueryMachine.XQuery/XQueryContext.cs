@@ -41,6 +41,7 @@ namespace DataEngine.XQuery
     public class XQueryContext
     {
         internal bool slave;
+        internal XQueryContext master;
         internal NameTable nameTable;
         internal XmlSchemaSet schemaSet;
         internal XQueryNodeInfoTable nodeInfoTable;
@@ -110,10 +111,12 @@ namespace DataEngine.XQuery
             FunctionTable = XQueryFunctionTable.CreateInstance();
             lispEngine = master.lispEngine;
             Resolver = master.Resolver;
+            
+            this.master = master;
             slave = true;
         }
 
-        public XmlReaderSettings GetSettings()
+        public virtual XmlReaderSettings GetSettings()
         {
             XmlReaderSettings settings = new XmlReaderSettings();
             settings.NameTable = nameTable;
@@ -150,15 +153,8 @@ namespace DataEngine.XQuery
             else
                 return new XQueryAtomicValue(value);
         }
-        
-        public virtual XQueryDocument CreateDocument()
-        {
-            XQueryDocument doc = new XQueryDocument(nameTable, nodeInfoTable, schemaInfoTable);
-            worklist.Add(doc);
-            return doc;
-        }
 
-        public string GetFileName(string name)
+        public virtual string GetFileName(string name)
         {
             if (Uri.IsWellFormedUriString(name, UriKind.Absolute))
                 return name;
@@ -167,7 +163,7 @@ namespace DataEngine.XQuery
                 if (BaseUri != null)
                 {
                     if (Uri.IsWellFormedUriString(BaseUri, UriKind.Absolute))
-                        return new Uri(new Uri(BaseUri), name).ToString();                        
+                        return new Uri(new Uri(BaseUri), name).ToString();
                     else
                     {
                         string fileName = Path.Combine(BaseUri, name);
@@ -185,23 +181,40 @@ namespace DataEngine.XQuery
             }
             return null;
         }
-
-        public XQueryDocument CreateDocument(string fileName)
+        
+        public XQueryDocument CreateDocument()
         {
-            Uri uri = new Uri(fileName);                      
-            return CreateDocument(uri);
+            XQueryDocument doc = new XQueryDocument(nameTable, nodeInfoTable, schemaInfoTable);
+            worklist.Add(doc);
+            return doc;
         }
 
-        public XQueryDocument CreateDocument(Uri uri)
+        public IXPathNavigable OpenDocument(string fileName)
         {
-            foreach (XQueryDocument doc in worklist)
+            if (slave)
+                return master.OpenDocument(fileName);
+            else
             {
-                if (doc.baseUri == uri.AbsoluteUri)
-                    return doc;
+                Uri uri = new Uri(fileName);
+                return OpenDocument(uri);
             }
-            XQueryDocument ndoc = CreateDocument();
-            ndoc.Open(uri, GetSettings(), XmlSpace.Default);
-            return ndoc;
+        }
+
+        public virtual IXPathNavigable OpenDocument(Uri uri)
+        {
+            if (slave)
+                return master.OpenDocument(uri);
+            else
+            {
+                foreach (XQueryDocument doc in worklist)
+                {
+                    if (doc.baseUri == uri.AbsoluteUri)
+                        return doc;
+                }
+                XQueryDocument ndoc = CreateDocument();
+                ndoc.Open(uri, GetSettings(), XmlSpace.Default);
+                return ndoc;
+            }
         }
 
         public virtual void Close()
@@ -212,6 +225,14 @@ namespace DataEngine.XQuery
                 foreach (XQueryDocument doc in worklist)
                     doc.Close();                
             }
+        }
+
+        public virtual XPathNavigator CreateCollection(string collection_name)
+        {
+            if (slave)
+                return master.CreateCollection(collection_name);
+            else
+                throw new XQueryException(Properties.Resources.FODC0004, collection_name);
         }
 
         public void EnterContext(IContextProvider provider)
@@ -300,5 +321,38 @@ namespace DataEngine.XQuery
         public XQueryFunctionTable FunctionTable { get; private set; }
 
         public XQueryResolver Resolver { get; private set; }
+    }
+
+    public class XPathContext : XQueryContext
+    {
+        private Dictionary<String, XPathDocument> docs;
+
+        public XPathContext()
+        {
+            docs = new Dictionary<String, XPathDocument>();
+        }
+
+        public override XmlReaderSettings GetSettings()
+        {
+            XmlReaderSettings settings = base.GetSettings();
+            settings.ValidationFlags = XmlSchemaValidationFlags.None;
+            settings.ValidationType = ValidationType.None;
+            return settings;
+        }
+
+        public override IXPathNavigable OpenDocument(Uri uri)
+        {
+            XPathDocument doc;
+            if (docs.TryGetValue(uri.AbsoluteUri, out doc))
+                return doc;
+            else
+            {
+                XmlReader reader = XmlReader.Create(uri.AbsoluteUri, GetSettings());
+                doc = new XPathDocument(reader, XmlSpace.Default);
+                reader.Close();
+                docs.Add(uri.AbsoluteUri, doc);
+                return doc;
+            }
+        }
     }
 }

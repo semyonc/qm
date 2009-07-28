@@ -729,6 +729,42 @@ namespace DataEngine.XQuery
             return new NodeIterator(StringEnumerator(res));
         }
 
+        [XQuerySignature("years-from-duration")]
+        public static int YearsFromDuration([XQueryParameter(XmlTypeCode.Duration)]TimeSpan value)
+        {
+            return value.Days / 360;
+        }
+
+        [XQuerySignature("months-from-duration")]
+        public static int MonthsFromDuration([XQueryParameter(XmlTypeCode.Duration)]TimeSpan value)
+        {
+            return value.Days / 30;
+        }
+
+        [XQuerySignature("days-from-duration")]
+        public static int DaysFromDuration([XQueryParameter(XmlTypeCode.Duration)]TimeSpan value)
+        {
+            return value.Days;
+        }
+
+        [XQuerySignature("hours-from-duration")]
+        public static int HoursFromDuration([XQueryParameter(XmlTypeCode.Duration)]TimeSpan value)
+        {
+            return value.Hours;
+        }
+
+        [XQuerySignature("minutes-from-duration")]
+        public static int MinutesFromDuration([XQueryParameter(XmlTypeCode.Duration)]TimeSpan value)
+        {
+            return value.Minutes;
+        }
+
+        [XQuerySignature("seconds-from-duration")]
+        public static int SecondsFromDuration([XQueryParameter(XmlTypeCode.Duration)]TimeSpan value)
+        {
+            return value.Seconds;
+        }
+
         [XQuerySignature("year-from-dateTime")]
         public static int YearFromDateTime([XQueryParameter(XmlTypeCode.DateTime)]DateTime value)
         {
@@ -1255,5 +1291,127 @@ namespace DataEngine.XQuery
                 return null;
             return Runtime.DynamicDiv(value, count);
         }
+
+        [XQuerySignature("collection")]
+        public static XPathNavigator GetCollection([Implict] Executive executive, String collection_name)
+        {
+            XQueryContext context = (XQueryContext)executive.Owner;
+            return context.CreateCollection(collection_name);
+        }
+
+        [XQuerySignature("collection")]
+        public static XPathNavigator GetCollection([Implict] Executive executive)
+        {
+            return GetCollection(executive, Core.StringValue(Core.Atomize(Core.Context(executive))));
+        }
+
+        [XQuerySignature("id")]
+        public static XQueryNodeIterator GetNodesById([Implict] Executive executive, [XQueryParameter(XmlTypeCode.String,
+            Cardinality=XmlTypeCardinality.ZeroOrMore)] XQueryNodeIterator arg)
+        {
+            XQueryContext context = (XQueryContext)executive.Owner;
+            XPathItem item = Core.Context(executive);
+            if (!item.IsNode)
+                throw new XQueryException(Properties.Resources.XPTY0004, "xs:anyAtomicValue", "node() in fn:id(string*)");
+            return GetNodesById(arg, (XPathNavigator)Core.Context(executive));
+        }
+
+        private static IEnumerable<XPathItem> NodesEnumerator(XQueryNodeIterator arg, XPathNavigator node)
+        {
+            foreach (XPathItem item in arg)
+            {
+                XPathNavigator curr = node.Clone();
+                if (curr.MoveToId(item.Value))
+                    yield return curr;
+            }
+        }
+
+        [XQuerySignature("id")]
+        public static XQueryNodeIterator GetNodesById([XQueryParameter(XmlTypeCode.String,
+            Cardinality = XmlTypeCardinality.ZeroOrMore)] XQueryNodeIterator arg, XPathNavigator node)
+        {
+            return new NodeIterator(NodesEnumerator(arg, node));
+        }
+
+        [XQuerySignature("dateTime")]
+        public static XQueryNodeIterator CreateDateTime([XQueryParameter(XmlTypeCode.Date)] DateTime date,
+            [XQueryParameter(XmlTypeCode.Date)] DateTime time)
+        {
+            DateTime dateTime = new DateTime(date.Year, date.Month, 
+                date.Day, time.Hour, time.Minute, time.Second);
+            XPathItem[] item = new XPathItem[] { new XQueryAtomicValue(dateTime, 
+                XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.DateTime)) };
+            return new NodeIterator(item);
+        }
+
+        [XQuerySignature("current-dateTime", Return = XmlTypeCode.DateTime, 
+            Cardinality=XmlTypeCardinality.ZeroOrMore)]
+        public static XQueryNodeIterator GetCurrentDateTime()
+        {
+            XPathItem[] item = new XPathItem [] { new XQueryAtomicValue(DateTime.Now, 
+                XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.DateTime)) };
+            return new NodeIterator(item);
+        }
+
+        [XQuerySignature("current-date", Return = XmlTypeCode.Date,
+            Cardinality = XmlTypeCardinality.ZeroOrMore)]
+        public static XQueryNodeIterator GetCurrentDate()
+        {
+            XPathItem[] item = new XPathItem[] { new XQueryAtomicValue(DateTime.Today, 
+                XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Date)) };
+            return new NodeIterator(item);
+        }
+
+        [XQuerySignature("current-time", Return = XmlTypeCode.Time,
+            Cardinality = XmlTypeCardinality.ZeroOrMore)]
+        public static XQueryNodeIterator GetCurrentTime()
+        {
+            XPathItem[] item = new XPathItem[] { new XQueryAtomicValue(DateTime.Now, 
+                XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Time)) };
+            return new NodeIterator(item);
+        }
+
+        [XQuerySignature("static-base-uri")]
+        public static String GetStaticBaseUri([Implict] Executive executive)
+        {
+            XQueryContext context = (XQueryContext)executive.Owner;
+            if (context.BaseUri == null)
+                return String.Empty;
+            return context.BaseUri;
+        }
+
+        private static void ScanLocalNamespaces(XmlNamespaceManager nsmgr, XPathNavigator node)
+        {
+            XPathNavigator parent = node.Clone();
+            if (parent.MoveToParent())
+                ScanLocalNamespaces(nsmgr, parent);
+            if (node.NodeType == XPathNodeType.Root)
+                node.MoveToChild(XPathNodeType.Element);
+            if (node.MoveToFirstNamespace(XPathNamespaceScope.Local))
+            {
+                nsmgr.PushScope();
+                do
+                {
+                    nsmgr.AddNamespace(node.Name, node.Value);
+                }
+                while (node.MoveToNextNamespace(XPathNamespaceScope.Local));
+            }
+        }
+
+        private static IEnumerable<XPathItem> PrefixEnumerator(XPathNavigator nav, XmlNameTable nameTable)
+        {            
+            XmlNamespaceManager nsmgr = new XmlNamespaceManager(nameTable);
+            ScanLocalNamespaces(nsmgr, nav.Clone());
+            foreach (KeyValuePair<string, string> kvp in nsmgr.GetNamespacesInScope(XmlNamespaceScope.ExcludeXml))
+                yield return new XQueryAtomicValue(nsmgr.LookupPrefix(kvp.Value));
+        }
+
+        [XQuerySignature("in-scope-prefixes", Return = XmlTypeCode.String, Cardinality = XmlTypeCardinality.ZeroOrMore)]
+        public static XQueryNodeIterator GetInScopePrefixes([Implict] Executive executive, XPathNavigator nav)
+        {
+            XQueryContext context = (XQueryContext)executive.Owner;
+            return new NodeIterator(PrefixEnumerator(nav, context.nameTable));
+        }
+
     }
 }

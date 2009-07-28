@@ -264,8 +264,6 @@ namespace DataEngine.XQuery
             return Convert.ToUInt64(TypedValue, provider);
         }
 
-        #endregion
-
-        public object[] Annotation { get; set; }
+        #endregion        
     }
 }
