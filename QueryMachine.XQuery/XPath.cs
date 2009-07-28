@@ -44,7 +44,8 @@ namespace DataEngine.XQuery
                 return item;
         }
 
-        internal static XPathItem ChangeType(this XPathItem item, XQuerySequenceType destType)
+        internal static XPathItem ChangeType(this XPathItem item, XQuerySequenceType destType, 
+            XmlNameTable nameTable, IXmlNamespaceResolver nsmgr)
         {
             if (destType.IsNode)
             {
@@ -65,36 +66,13 @@ namespace DataEngine.XQuery
                     if (simpleType == XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Boolean))
                         return new XQueryAtomicValue(Core.BooleanValue(item), destType);
                     else
-                        return new XQueryAtomicValue(simpleType.Datatype.ChangeType(item.Value, destType.ValueType), destType);
+                        if (item.ValueType == null && item.ValueType == typeof(System.String))
+                            return new XQueryAtomicValue(simpleType.Datatype.ParseValue(item.Value, nameTable, nsmgr));
+                        else
+                            return new XQueryAtomicValue(simpleType.Datatype.ChangeType(item.TypedValue, destType.ValueType), destType);
                 }
             }
-        }
-
-        internal static object[] GetAnnotation(this XPathItem item)
-        {
-            XQueryNavigator nav = item as XQueryNavigator;
-            if (nav != null)
-                return nav.Annotation;
-            XQueryAtomicValue value = item as XQueryAtomicValue;
-            if (value != null)
-                return value.Annotation;
-            return null;
-        }
-
-        internal static void SetAnnotation(this XPathItem item, object[] annotation)
-        {
-            XQueryNavigator nav = item as XQueryNavigator;
-            if (nav != null)
-                nav.Annotation = annotation;
-            else
-            {
-                XQueryAtomicValue value = item as XQueryAtomicValue;
-                if (value != null)
-                    value.Annotation = annotation;
-                else
-                    throw new ArgumentException("item");
-            }
-        }
+        }        
 
         internal static IEnumerable<XPathItem> NameTestIterator(XmlQualifiedNameTest nameTest, XQueryNodeIterator iter)
         {
@@ -176,7 +154,7 @@ namespace DataEngine.XQuery
         {
             foreach (XPathItem item in iter)
             {
-                XQueryNavigator nav = item as XQueryNavigator;
+                XPathNavigator nav = item as XPathNavigator;
                 if (nav != null)
                 {
                     XPathNavigator curr = nav.Clone();
@@ -432,7 +410,8 @@ namespace DataEngine.XQuery
                 yield return item;
         }
 
-        internal static IEnumerable<XPathItem> ConvertIterator(XQueryNodeIterator iter, XQuerySequenceType destType)
+        internal static IEnumerable<XPathItem> ConvertIterator(XQueryNodeIterator iter, XQuerySequenceType destType, 
+            XmlNameTable nameTable, IXmlNamespaceResolver nsmgr)
         {
             int num = 0;
             XQuerySequenceType itemType = new XQuerySequenceType(destType);
@@ -445,7 +424,7 @@ namespace DataEngine.XQuery
                         destType.Cardinality == XmlTypeCardinality.One)
                         throw new XQueryException(Properties.Resources.XPTY0004, "item()+", destType);
                 }
-                yield return item.ChangeType(itemType);
+                yield return item.ChangeType(itemType, nameTable, nsmgr);
                 num++;
                 if (num == 0)
                 {

@@ -47,6 +47,7 @@
     <Compile Include="EmptyIterator.cs" />
     <Compile Include="Parser\Tokenizer.cs" />
     <Compile Include="VarTable.cs" />
+    <Compile Include="XQueryWrappedValue.cs" />
     <Compile Include="XQueryCommand.cs" />
     <Compile Include="XQueryFunctionTable.cs" />
     <Compile Include="NodeIterator.cs" />

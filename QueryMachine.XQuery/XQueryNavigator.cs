@@ -58,7 +58,6 @@ namespace DataEngine.XQuery
             public string prefix;
             public string localName;
             public string namespaceUri;
-            public object[] annotation;            
         }
 
         internal int _pos;
@@ -417,6 +416,7 @@ namespace DataEngine.XQuery
             {
                 XdmNamespace ns = (XdmNamespace)_curr;
                 _props.nodeType = XPathNodeType.Namespace;
+                _props.name = ns._name;
                 _props.localName = ns._name;
             }
             else if (_curr.NodeType == XdmNodeType.Document)
@@ -533,19 +533,6 @@ namespace DataEngine.XQuery
                     return attr._schemaInfo;
                 }                
                 return null;
-            }
-        }
-
-        public object[] Annotation
-        {
-            get
-            {
-                return _props.annotation;
-            }
-
-            set
-            {
-                _props.annotation = value;
             }
         }
 
@@ -688,8 +675,8 @@ namespace DataEngine.XQuery
 
         public int Compare(XPathItem x, XPathItem y)
         {
-            XQueryNavigator nav1 = x as XQueryNavigator;
-            XQueryNavigator nav2 = y as XQueryNavigator;
+            XPathNavigator nav1 = x as XPathNavigator;
+            XPathNavigator nav2 = y as XPathNavigator;
             if (nav1 != null && nav2 != null)
                 switch (nav1.ComparePosition(nav2))
                 {
@@ -704,9 +691,9 @@ namespace DataEngine.XQuery
 
                     default:
                         {
-                            if (nav1.Document.GetHashCode() < nav2.Document.GetHashCode())
+                            if (nav1.GetHashCode() < nav2.GetHashCode())
                                 return -1;
-                            else if (nav1.Document.GetHashCode() > nav2.Document.GetHashCode())
+                            else if (nav1.GetHashCode() > nav2.GetHashCode())
                                 return 1;
                             else
                                 return 0;
@@ -735,12 +722,17 @@ namespace DataEngine.XQuery
         }
 
         public int GetHashCode(XPathItem obj)
-        {
-            XQueryNavigator nav = obj as XQueryNavigator;
-            if (nav != null)
-                return nav.Document.GetHashCode() << 8 ^ nav._pos;
+        {            
+            if (obj.IsNode)
+            {
+                XQueryNavigator nav = obj as XQueryNavigator;
+                if (nav != null)
+                    return nav.Document.GetHashCode() << 8 ^ nav._pos;
+                else
+                    return XPathNavigator.NavigatorComparer.GetHashCode(obj);
+            }
             else
-                throw new XQueryException(Properties.Resources.XPTY0004, "xs:anyAtomicType", 
+                throw new XQueryException(Properties.Resources.XPTY0004, "xs:anyAtomicType",
                     "node()* in function op:union,op:intersect and op:except");
         }
 

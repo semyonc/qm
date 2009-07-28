@@ -129,11 +129,7 @@ namespace DataEngine.XQuery
                         foreach (XPathItem item in iter)
                         {
                             if (annotation != null)
-                            {
-                                XPathItem item2 = item.Clone();
-                                item2.SetAnnotation(annotation);
-                                yield return item2;
-                            }
+                                yield return new XQueryWrappedValue(item, annotation);
                             else
                                 yield return item;
                         }
@@ -144,11 +140,7 @@ namespace DataEngine.XQuery
                         if (item == null)
                             item = QueryContext.CreateItem(res);
                         if (annotation != null)
-                        {
-                            XPathItem item2 = item.Clone();
-                            item2.SetAnnotation(annotation);
-                            yield return item2;
-                        }
+                            yield return new XQueryWrappedValue(item, annotation);
                         else
                             yield return item;
                     }

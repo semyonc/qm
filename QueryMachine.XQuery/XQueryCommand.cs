@@ -26,21 +26,71 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Xml.XPath;
 
 using DataEngine.XQuery.Parser;
 
 namespace DataEngine.XQuery
 {
+    public class ResolveCollectionArgs : EventArgs
+    {
+        public String CollectionName { get; internal set; }
+        public XPathNavigator Navigator { get; set; }
+    }
+
+    public delegate void ResolveCollectionEvent(object sender, ResolveCollectionArgs args);
+
     public class XQueryCommand: IDisposable
     {
-        protected XQueryContext m_context;
+        protected WorkContext m_context;
         protected bool m_compiled;
         protected XQueryExprBase m_res;
         protected bool m_disposed = false;
 
+        protected class WorkContext : XQueryContext
+        {
+            private XQueryCommand m_command;
+            private Dictionary<string, XPathNavigator> m_dict;
+
+            public WorkContext(XQueryCommand command)
+            {
+                m_command = command;
+                m_dict = new Dictionary<string, XPathNavigator>();
+            }
+
+            public override XPathNavigator CreateCollection(string collection_name)
+            {
+                lock (m_dict)
+                {
+                    XPathNavigator res;
+                    if (m_dict.TryGetValue(collection_name, out res))
+                        return res.Clone();
+                    ResolveCollectionArgs args = new ResolveCollectionArgs();
+                    args.CollectionName = collection_name;
+                    if (m_command.OnResolveCollection != null)
+                    {
+                        m_command.OnResolveCollection(m_command, args);
+                        if (args.Navigator != null)
+                        {
+                            m_dict.Add(collection_name, args.Navigator.Clone());
+                            return args.Navigator;
+                        }
+                    }
+                    throw new XQueryException(Properties.Resources.FODC0004, collection_name);
+                }
+            }
+
+            public override void Close()
+            {
+                base.Close();
+                m_dict = null;
+            }
+        }
+
+
         public XQueryCommand()
         {
-            m_context = new XQueryContext();
+            m_context = new WorkContext(this);
             m_compiled = false;
             
             BaseUri = null;
@@ -95,6 +145,8 @@ namespace DataEngine.XQuery
 
         public String BaseUri { get; set; }
         public String SearchPath { get; set; }
+
+        public event ResolveCollectionEvent OnResolveCollection;
 
         #region IDisposable Members
 

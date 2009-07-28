@@ -209,8 +209,9 @@ namespace DataEngine.XQuery
 
         internal void ExpandPageFile(int pos)
         {
-            while (pos >= pagefile.Count && input != null)
-                Read();
+            lock (internalLockObject)
+                while (pos >= pagefile.Count && input != null)
+                    Read();
         }
 
         internal void ExpandUtilElementEnd(int pos)
@@ -222,8 +223,9 @@ namespace DataEngine.XQuery
 
         public void Fill()
         {
-            while (input != null)
-                Read();
+            lock (internalLockObject)
+                while (input != null)
+                    Read();
         }        
     }
 }

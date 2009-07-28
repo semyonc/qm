@@ -1414,7 +1414,7 @@ namespace DataEngine.XQuery
                     throw new XQueryException(Properties.Resources.XPST0017,
                         identity.Name, 1, XmlReservedNs.NsXs);
                 XQuerySequenceType seqtype = new XQuerySequenceType(schemaType, XmlTypeCardinality.One, null);
-                return Lisp.List(ID.CastTo, arg[1], seqtype);
+                return Lisp.List(ID.CastToItem, arg[1], seqtype);
             }
             else
             {
@@ -2150,7 +2150,8 @@ namespace DataEngine.XQuery
                     }
             }
             if (destType.TypeCode == XmlTypeCode.String &&
-                type.TypeCode != XmlTypeCode.String)
+                type.TypeCode != XmlTypeCode.String && 
+                destType.Cardinality == XmlTypeCardinality.ZeroOrOne)
                 return Lisp.List(ID.String, expr);
             if (destType.TypeCode == XmlTypeCode.Double &&
                 type.TypeCode != XmlTypeCode.Double)
