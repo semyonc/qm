@@ -251,10 +251,24 @@ namespace DataEngine.XQuery
             if (name is XmlQualifiedName)
                 return (XmlQualifiedName)name;
             else if (name is String)
-                return QNameParser.Parse((string)name, context.NamespaceManager);
+            {
+                string prefix;
+                string localName;
+                string qname = (string)name;
+                QNameParser.Split(qname, out prefix, out localName);
+                if (!String.IsNullOrEmpty(prefix))
+                {
+                    string ns = context.NamespaceManager.LookupNamespace(prefix);
+                    if (ns == null)
+                        throw new XQueryException(Properties.Resources.XPST0081, prefix);
+                    return new XmlQualifiedName(qname, ns);
+                }
+                else
+                    return new XmlQualifiedName(qname, context.DefaultElementNS);
+            }
             else
                 throw new XQueryException(Properties.Resources.XPST0004,
-                    "xsd:string | xsd:untypedAtomic | xsd:QName");
+                    "xs:string | xs:untypedAtomic | xs:QName");
         }
 
         private static XQueryDocumentBuilder GetBuilder(object builder)
@@ -354,8 +368,10 @@ namespace DataEngine.XQuery
             XmlQualifiedName qname = GetQualifiedName(name, context);
             XQueryDocument doc = context.CreateDocument();
             XQueryDocumentBuilder builder = new XQueryDocumentBuilder(doc);
-            builder.WriteStartElement(context.NamespaceManager.LookupPrefix(qname.Namespace), 
-                qname.Name, qname.Namespace);
+            string prefix;
+            string localName;
+            QNameParser.Split(qname.Name, out prefix, out localName);
+            builder.WriteStartElement(prefix, localName, qname.Namespace);
             if (body != null)
                 WriteNode(executive, builder, body);
             builder.WriteEndElement();
@@ -369,8 +385,10 @@ namespace DataEngine.XQuery
             XQueryDocument doc = context.CreateDocument();
             XQueryDocumentBuilder builder = new XQueryDocumentBuilder(doc);
             builder.WriteStartElement("dummy");
-            builder.WriteStartAttribute(context.NamespaceManager.LookupPrefix(qname.Namespace), 
-                qname.Name, qname.Namespace);
+            string prefix;
+            string localName;
+            QNameParser.Split(qname.Name, out prefix, out localName);
+            builder.WriteStartAttribute(prefix, localName, qname.Namespace);
             builder.WriteString(value);
             builder.WriteEndAttribute();
             builder.WriteEndElement();

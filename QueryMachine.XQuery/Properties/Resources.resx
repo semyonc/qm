@@ -234,4 +234,7 @@
   <data name="FODC0004" xml:space="preserve">
     <value>Invalid argument '{0}' to fn:collection</value>
   </data>
+  <data name="FOCA0002" xml:space="preserve">
+    <value>Invalid lexical value {0}</value>
+  </data>
 </root>
