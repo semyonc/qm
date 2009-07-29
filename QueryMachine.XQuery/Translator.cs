@@ -1644,7 +1644,7 @@ namespace DataEngine.XQuery
                                 else
                                     name = ProcessQName(notation, (Qname)recs[0].args[0], String.Empty);
                             else
-                                name = Lisp.List(ID.FormatValue, ProcessExprList(notation, recs[0].args[0]));
+                                name = Lisp.List(ID.Atomize, ProcessExprList(notation, recs[0].args[0]));
                             object expr = null;
                             if (recs[0].args[1] != null)
                                 expr = ProcessExprList(notation, recs[0].args[1]);

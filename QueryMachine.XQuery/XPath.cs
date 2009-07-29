@@ -67,7 +67,7 @@ namespace DataEngine.XQuery
                         return new XQueryAtomicValue(Core.BooleanValue(item), destType);
                     else
                         if (item.ValueType == null && item.ValueType == typeof(System.String))
-                            return new XQueryAtomicValue(simpleType.Datatype.ParseValue(item.Value, nameTable, nsmgr));
+                            return new XQueryAtomicValue(simpleType.Datatype.ParseValue(item.Value, nameTable, nsmgr), destType);
                         else
                             return new XQueryAtomicValue(simpleType.Datatype.ChangeType(item.TypedValue, destType.ValueType), destType);
                 }

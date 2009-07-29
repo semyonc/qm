@@ -1413,5 +1413,80 @@ namespace DataEngine.XQuery
             return new NodeIterator(PrefixEnumerator(nav, context.nameTable));
         }
 
+        [XQuerySignature("namespace-uri-for-prefix", Return = XmlTypeCode.String, Cardinality = XmlTypeCardinality.ZeroOrMore)]
+        public static XQueryNodeIterator GetNamespaceUriForPrefix([Implict] Executive executive, string prefix, XPathNavigator nav)
+        {
+            XQueryContext context = (XQueryContext)executive.Owner;
+            XmlNamespaceManager nsmgr = new XmlNamespaceManager(context.nameTable);
+            ScanLocalNamespaces(nsmgr, nav.Clone());
+            string ns = nsmgr.LookupNamespace(prefix);
+            if (ns == null)
+                return EmptyIterator.Shared;
+            XPathItem[] item = new XPathItem[] { new XQueryAtomicValue(ns) };
+            return new NodeIterator(item);            
+        }
+
+        [XQuerySignature("resolve-QName", Return = XmlTypeCode.QName, Cardinality = XmlTypeCardinality.ZeroOrMore)]
+        public static XQueryNodeIterator ResolveQName([Implict] Executive executive, string qname, XPathNavigator nav)
+        {
+            XQueryContext context = (XQueryContext)executive.Owner;
+            XmlNamespaceManager nsmgr = new XmlNamespaceManager(context.nameTable);
+            ScanLocalNamespaces(nsmgr, nav.Clone());
+            XmlSchemaType simpleType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.QName);
+            XPathItem[] item = new XPathItem[] { new XQueryAtomicValue(simpleType.Datatype.ParseValue(
+                qname, context.nameTable, nsmgr), simpleType) };
+            return new NodeIterator(item);            
+        }
+
+        [XQuerySignature("QName", Return = XmlTypeCode.QName, Cardinality = XmlTypeCardinality.ZeroOrMore)]
+        public static XQueryNodeIterator CreateQName([Implict] Executive executive, string ns, string qname)
+        {
+            XQueryContext context = (XQueryContext)executive.Owner;
+            string prefix;
+            string localName;
+            QNameParser.Split(qname, out prefix, out localName);
+            if (prefix != "" && ns == "")
+                throw new XQueryException(Properties.Resources.FOCA0002, qname);
+            XmlQualifiedName qualifiedName = new XmlQualifiedName(qname, ns);
+            XmlSchemaType simpleType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.QName);
+            XPathItem[] item = new XPathItem[] { new XQueryAtomicValue(qualifiedName, simpleType) };
+            return new NodeIterator(item);            
+        }
+
+        [XQuerySignature("prefix-from-QName")]
+        public static String PrefixFromQName([XQueryParameter(XmlTypeCode.QName)] object qname)
+        {
+            if (!(qname is XmlQualifiedName))
+                throw new XQueryException(Properties.Resources.XPTY0004, 
+                    new XQuerySequenceType(qname.GetType(), XmlTypeCardinality.One), "QName");
+            XmlQualifiedName qualifiedName = (XmlQualifiedName)qname;
+            string prefix;
+            string localName;
+            QNameParser.Split(qualifiedName.Name, out prefix, out localName);
+            return prefix;
+        }
+
+        [XQuerySignature("local-name-from-QName")]
+        public static String LocalNameFromQName([XQueryParameter(XmlTypeCode.QName)] object qname)
+        {
+            if (!(qname is XmlQualifiedName))
+                throw new XQueryException(Properties.Resources.XPTY0004,
+                    new XQuerySequenceType(qname.GetType(), XmlTypeCardinality.One), "QName");
+            XmlQualifiedName qualifiedName = (XmlQualifiedName)qname;
+            string prefix;
+            string localName;
+            QNameParser.Split(qualifiedName.Name, out prefix, out localName);
+            return localName;
+        }
+
+        [XQuerySignature("namespace-uri-from-QName")]
+        public static String NamespaceUriFromQName([XQueryParameter(XmlTypeCode.QName)] object qname)
+        {
+            if (!(qname is XmlQualifiedName))
+                throw new XQueryException(Properties.Resources.XPTY0004,
+                    new XQuerySequenceType(qname.GetType(), XmlTypeCardinality.One), "QName");
+            XmlQualifiedName qualifiedName = (XmlQualifiedName)qname;
+            return qualifiedName.Namespace;
+        }
     }
 }

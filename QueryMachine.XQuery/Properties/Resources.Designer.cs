@@ -142,6 +142,15 @@ namespace DataEngine.XQuery.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Invalid lexical value {0}.
+        /// </summary>
+        internal static string FOCA0002 {
+            get {
+                return ResourceManager.GetString("FOCA0002", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Invalid argument &apos;{0}&apos; to fn:collection.
         /// </summary>
         internal static string FODC0004 {
