@@ -58,14 +58,11 @@ namespace DataEngine.CoreServices
                             return Convert.ToSingle(arg1) + Convert.ToSingle(arg2);
 
                         case TypeCode.Double:
-                            return Convert.ToDouble(arg1) + Convert.ToDouble(arg2);
+                            return Convert.ToDouble(arg1, CultureInfo.InvariantCulture) +
+                                Convert.ToDouble(arg2, CultureInfo.InvariantCulture);
 
                         case TypeCode.Decimal:
                             return Convert.ToDecimal(arg1) + Convert.ToDecimal(arg2);
-
-                        case TypeCode.String:
-                            return Convert.ToDouble(arg1, CultureInfo.InvariantCulture) +
-                                Convert.ToDouble(arg2, CultureInfo.InvariantCulture);
 
                         default:
                             throw new InvalidCastException();
@@ -100,14 +97,11 @@ namespace DataEngine.CoreServices
                             return Convert.ToSingle(arg1) - Convert.ToSingle(arg2);
 
                         case TypeCode.Double:
-                            return Convert.ToDouble(arg1) - Convert.ToDouble(arg2);
+                            return Convert.ToDouble(arg1, CultureInfo.InvariantCulture) -
+                                Convert.ToDouble(arg2, CultureInfo.InvariantCulture);
 
                         case TypeCode.Decimal:
                             return Convert.ToDecimal(arg1) - Convert.ToDecimal(arg2);
-
-                        case TypeCode.String:
-                            return Convert.ToDouble(arg1, CultureInfo.InvariantCulture) -
-                                Convert.ToDouble(arg2, CultureInfo.InvariantCulture);
 
                         default:
                             throw new InvalidCastException();
@@ -142,14 +136,11 @@ namespace DataEngine.CoreServices
                             return Convert.ToSingle(arg1) * Convert.ToSingle(arg2);
 
                         case TypeCode.Double:
-                            return Convert.ToDouble(arg1) * Convert.ToDouble(arg2);
+                            return Convert.ToDouble(arg1, CultureInfo.InvariantCulture) * 
+                                Convert.ToDouble(arg2, CultureInfo.InvariantCulture);
 
                         case TypeCode.Decimal:
                             return Convert.ToDecimal(arg1) * Convert.ToDecimal(arg2);
-
-                        case TypeCode.String:
-                            return Convert.ToDouble(arg1, CultureInfo.InvariantCulture) * 
-                                Convert.ToDouble(arg2, CultureInfo.InvariantCulture);
 
                         default:
                             throw new InvalidCastException();
@@ -184,14 +175,11 @@ namespace DataEngine.CoreServices
                             return Convert.ToSingle(arg1) / Convert.ToSingle(arg2);
 
                         case TypeCode.Double:
-                            return Convert.ToDouble(arg1) / Convert.ToDouble(arg2);
+                            return Convert.ToDouble(arg1, CultureInfo.InvariantCulture) /
+                                Convert.ToDouble(arg2, CultureInfo.InvariantCulture);
 
                         case TypeCode.Decimal:
                             return Convert.ToDecimal(arg1) / Convert.ToDecimal(arg2);
-
-                        case TypeCode.String:
-                            return Convert.ToDouble(arg1, CultureInfo.InvariantCulture) / 
-                                Convert.ToDouble(arg2, CultureInfo.InvariantCulture);
 
                         default:
                             throw new InvalidCastException();

@@ -58,6 +58,7 @@ namespace DataEngine.XQuery
             DefaultOrdering = XQueryOrder.Ordered;
             EmptyOrderSpec = XQueryEmptyOrderSpec.Least;
             SearchPath = String.Empty;
+            ValidatedParser = true;
             
             nameTable = new NameTable();
             schemaSet = new XmlSchemaSet(nameTable);
@@ -125,9 +126,12 @@ namespace DataEngine.XQuery
             XmlUrlResolver resolver = new XmlUrlResolver();
             resolver.Credentials = CredentialCache.DefaultCredentials;
             settings.XmlResolver = resolver;
-            settings.ValidationFlags = XmlSchemaValidationFlags.ProcessSchemaLocation |
-                XmlSchemaValidationFlags.ProcessInlineSchema;
-            settings.ValidationType = ValidationType.Schema;
+            if (ValidatedParser)
+            {
+                settings.ValidationFlags = XmlSchemaValidationFlags.ProcessSchemaLocation |
+                    XmlSchemaValidationFlags.ProcessInlineSchema;
+                settings.ValidationType = ValidationType.Schema;
+            }
             return settings;
         }
 
@@ -227,6 +231,13 @@ namespace DataEngine.XQuery
             }
         }
 
+        public void CopyNamespaces(IXmlNamespaceResolver nsmgr)
+        {
+            IDictionary<string, string> nss = nsmgr.GetNamespacesInScope(XmlNamespaceScope.All);
+            foreach (KeyValuePair<string, string> kvp in nss)
+                nsManager.AddNamespace(kvp.Key, kvp.Value);
+        }
+
         public virtual XPathNavigator CreateCollection(string collection_name)
         {
             if (slave)
@@ -321,6 +332,8 @@ namespace DataEngine.XQuery
         public XQueryFunctionTable FunctionTable { get; private set; }
 
         public XQueryResolver Resolver { get; private set; }
+
+        public bool ValidatedParser { get; set; }
     }
 
     public class XPathContext : XQueryContext

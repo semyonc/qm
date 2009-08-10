@@ -95,6 +95,7 @@ namespace DataEngine.XQuery
             
             BaseUri = null;
             SearchPath = null;
+            ValidatedParser = true;
         }
 
         ~XQueryCommand()
@@ -128,6 +129,7 @@ namespace DataEngine.XQuery
                 m_context.BaseUri = BaseUri;
             if (SearchPath != null)
                 m_context.SearchPath = SearchPath;
+            m_context.ValidatedParser = ValidatedParser;
             Translator translator = new Translator(m_context);            
             m_res = translator.Process(notation);
             m_compiled = true;
@@ -145,7 +147,8 @@ namespace DataEngine.XQuery
 
         public String BaseUri { get; set; }
         public String SearchPath { get; set; }
-
+        public bool ValidatedParser { get; set; }
+        
         public event ResolveCollectionEvent OnResolveCollection;
 
         #region IDisposable Members

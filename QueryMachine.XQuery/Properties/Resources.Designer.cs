@@ -187,6 +187,15 @@ namespace DataEngine.XQuery.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Input string {0} has invalid format for type {1}.
+        /// </summary>
+        internal static string InvalidFormat {
+            get {
+                return ResourceManager.GetString("InvalidFormat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to The target xml is invalid for processing instruction.
         /// </summary>
         internal static string InvalidPITarget {

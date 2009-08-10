@@ -47,6 +47,12 @@ namespace DataEngine.CoreServices
         {
             Type = type;
         }
+
+        public void Assign(SymbolLink src)
+        {
+            Value = src.Value;
+            Type = src.Type;
+        }
         
         public Object Value { get; set; }
         public Type Type { get; private set; }

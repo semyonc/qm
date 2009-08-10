@@ -40,59 +40,94 @@ namespace DataEngine.XQuery
 {
     public class CliFuncs
     {
-        [XQuerySignature("name")]
-        public static string GetNodeName([Implict] Executive executive)
+        [XQuerySignature("name", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static string GetName([Implict] Executive executive)
         {
-            return GetNodeName(Core.NodeValue(Core.Context(executive)));
+            return GetName(Core.NodeValue(Core.Context(executive)));
         }
 
-        [XQuerySignature("name")]
-        public static string GetNodeName(XPathNavigator nav)
+        [XQuerySignature("name", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static string GetName([XQueryParameter(XmlTypeCode.Node,
+            Cardinality = XmlTypeCardinality.ZeroOrOne)] object node)
         {
+            if (node == Undefined.Value)
+                return String.Empty;
+            XPathNavigator nav = node as XPathNavigator;
+            if (nav == null)
+                throw new XQueryException(Properties.Resources.XPTY0004,
+                    new XQuerySequenceType(node.GetType(), XmlTypeCardinality.ZeroOrOne), "node()? in fn:name()");
             return nav.Name;
         }
 
-        [XQuerySignature("node-name", Return = XmlTypeCode.QName)]
-        public static string GetNodeName2(XPathNavigator nav)
+        [XQuerySignature("node-name", Return = XmlTypeCode.QName, Cardinality = XmlTypeCardinality.ZeroOrMore)]
+        public static XQueryNodeIterator GetNodeName([Implict] Executive executive, [XQueryParameter(XmlTypeCode.Node,
+            Cardinality = XmlTypeCardinality.ZeroOrOne)] object node)
         {
-            return nav.Name;
+            if (node == Undefined.Value)
+                return EmptyIterator.Shared;
+            XPathNavigator nav = node as XPathNavigator;
+            if (nav == null)
+                throw new XQueryException(Properties.Resources.XPTY0004,
+                    new XQuerySequenceType(node.GetType(), XmlTypeCardinality.ZeroOrOne), "node()? in fn:node-name()");
+            return CreateQName(executive, nav.NamespaceURI, nav.Name);
         }
 
-        [XQuerySignature("local-name")]
+        [XQuerySignature("local-name", Cardinality = XmlTypeCardinality.ZeroOrOne)]
         public static string GetLocalName([Implict] Executive executive)
         {
             return GetLocalName(Core.NodeValue(Core.Context(executive)));
         }
 
-        [XQuerySignature("local-name")]
-        public static string GetLocalName(XPathNavigator nav)
+        [XQuerySignature("local-name", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static string GetLocalName([XQueryParameter(XmlTypeCode.Node,
+            Cardinality = XmlTypeCardinality.ZeroOrOne)] object node)
         {
+            if (node == Undefined.Value)
+                return String.Empty;
+            XPathNavigator nav = node as XPathNavigator;
+            if (nav == null)
+                throw new XQueryException(Properties.Resources.XPTY0004,
+                    new XQuerySequenceType(node.GetType(), XmlTypeCardinality.ZeroOrOne), "node()? in fn:local-name()");
             return nav.LocalName;
         }
 
-        [XQuerySignature("namespace-uri", Return = XmlTypeCode.AnyUri)]
+        [XQuerySignature("namespace-uri", Return = XmlTypeCode.AnyUri, Cardinality = XmlTypeCardinality.ZeroOrOne)]
         public static string GetNamespaceUri([Implict] Executive executive)
         {
             return GetNamespaceUri(Core.NodeValue(Core.Context(executive)));
         }
 
-        [XQuerySignature("namespace-uri", Return = XmlTypeCode.AnyUri)]
-        public static string GetNamespaceUri(XPathNavigator nav)
+        [XQuerySignature("namespace-uri", Return = XmlTypeCode.AnyUri, Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static string GetNamespaceUri([XQueryParameter(XmlTypeCode.Node,
+            Cardinality = XmlTypeCardinality.ZeroOrOne)] object node)
         {
+            if (node == Undefined.Value)
+                return String.Empty;
+            XPathNavigator nav = node as XPathNavigator;
+            if (nav == null)
+                throw new XQueryException(Properties.Resources.XPTY0004,
+                    new XQuerySequenceType(node.GetType(), XmlTypeCardinality.ZeroOrOne), "node()? in fn:local-name()");
             return nav.NamespaceURI;
         }
 
-        [XQuerySignature("nilled")]
-        public static bool GetNilled(XPathNavigator nav)
+        [XQuerySignature("nilled", Return = XmlTypeCode.Boolean, Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static bool GetNilled([XQueryParameter(XmlTypeCode.Node, Cardinality = XmlTypeCardinality.ZeroOrOne)] XPathNavigator nav)
         {
             if (nav.SchemaInfo != null)
                 return nav.SchemaInfo.IsNil;
             return false;
         }
 
-        [XQuerySignature("base-uri", Return = XmlTypeCode.AnyUri)]
-        public static string GetBaseUri(XPathNavigator nav)
+        [XQuerySignature("base-uri", Return = XmlTypeCode.AnyUri, Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static object GetBaseUri([XQueryParameter(XmlTypeCode.Node,
+            Cardinality = XmlTypeCardinality.ZeroOrOne)] object node)
         {
+            if (node == Undefined.Value)
+                return node;
+            XPathNavigator nav = node as XPathNavigator;
+            if (nav == null)
+                throw new XQueryException(Properties.Resources.XPTY0004,
+                    new XQuerySequenceType(node.GetType(), XmlTypeCardinality.ZeroOrOne), "node()? in fn:base-uri()");
             Uri uri = new Uri(nav.BaseURI);
             if (uri.IsFile)
                 return uri.LocalPath;
@@ -100,26 +135,39 @@ namespace DataEngine.XQuery
                 return nav.BaseURI;
         }
 
-        [XQuerySignature("base-uri", Return = XmlTypeCode.AnyUri)]
-        public static string GetBaseUri([Implict] Executive executive)
+        [XQuerySignature("base-uri", Return = XmlTypeCode.AnyUri, Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static object GetBaseUri([Implict] Executive executive)
         {
             return GetBaseUri(Core.NodeValue(Core.Context(executive)));
         }
 
-        [XQuerySignature("document-uri", Return = XmlTypeCode.AnyUri)]
-        public static string DocumentUri(XPathNavigator nav)
+        [XQuerySignature("document-uri", Return = XmlTypeCode.AnyUri, Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static object DocumentUri([XQueryParameter(XmlTypeCode.Node,
+            Cardinality = XmlTypeCardinality.ZeroOrOne)] object node)
         {
-            return GetBaseUri(nav);
+            if (node == Undefined.Value)
+                return node;
+            XPathNavigator nav = node as XPathNavigator;
+            if (nav == null)
+                throw new XQueryException(Properties.Resources.XPTY0004,
+                    new XQuerySequenceType(node.GetType(), XmlTypeCardinality.ZeroOrOne), "node()? in fn:document-uri()");
+            if (nav.NodeType != XPathNodeType.Root)
+                return Undefined.Value;
+            Uri uri = new Uri(nav.BaseURI);
+            if (uri.IsFile)
+                return uri.LocalPath;
+            else
+                return nav.BaseURI;            
         }
 
         [XQuerySignature("doc-available")]
         public static bool IsDocAvailable([Implict] Executive engine, [XQueryParameter(XmlTypeCode.String,
-            Cardinality = XmlTypeCardinality.ZeroOrOne)] string name)
+            Cardinality = XmlTypeCardinality.ZeroOrOne)] object name)
         {
             XQueryContext context = (XQueryContext)engine.Owner;
-            if (name == null)
+            if (name == Undefined.Value)
                 return false;
-            return context.GetFileName(name) != null;
+            return context.GetFileName((String)name) != null;
         }
 
         [XQuerySignature("trace")]
@@ -159,7 +207,7 @@ namespace DataEngine.XQuery
         {
             StringBuilder sb = new StringBuilder();
             foreach (object arg in args)
-                if (arg != null)
+                if (arg != Undefined.Value)
                     sb.Append(arg.ToString());
             return sb.ToString();
         }
@@ -179,41 +227,43 @@ namespace DataEngine.XQuery
          
         [XQuerySignature("substring")]
         public static string Substring([XQueryParameter(XmlTypeCode.String,
-            Cardinality = XmlTypeCardinality.ZeroOrOne)] string source, double startingLoc)
+            Cardinality = XmlTypeCardinality.ZeroOrOne)] object item, double startingLoc)
         {
-            if (source == null)
+            if (item == Undefined.Value)
                 return String.Empty;
-            int pos = Convert.ToInt32(Math.Round(startingLoc)) - 1;
-            if (pos < source.Length)
-                return source.Substring(pos);
+            string value = (string)item;
+            int pos = Convert.ToInt32(Math.Round(startingLoc)) - 1;            
+            if (pos < value.Length)
+                return value.Substring(pos);
             else
                 return String.Empty;
         }
 
         [XQuerySignature("substring")]
         public static string Substring([XQueryParameter(XmlTypeCode.String,
-            Cardinality = XmlTypeCardinality.ZeroOrOne)] string source, double startingLoc, double length)
+            Cardinality = XmlTypeCardinality.ZeroOrOne)] object item, double startingLoc, double length)
         {
-            if (source == null)
+            if (item == Undefined.Value)
                 return String.Empty;
+            string value = (string)item;
             int pos = Convert.ToInt32(Math.Round(startingLoc)) - 1;
-            if (pos < source.Length)
+            if (pos < value.Length)
             {
                 int len = Convert.ToInt32(Math.Round(length));
-                if (pos + len > source.Length)
-                    len = source.Length - pos;
-                return source.Substring(pos, len);
+                if (pos + len > value.Length)
+                    len = value.Length - pos;
+                return value.Substring(pos, len);
             }
             return String.Empty;
         }
 
         [XQuerySignature("string-length")]
         public static int StringLength([XQueryParameter(XmlTypeCode.String,
-            Cardinality = XmlTypeCardinality.ZeroOrOne)] string source)
+            Cardinality = XmlTypeCardinality.ZeroOrOne)] object source)
         {
-            if (source == null)
+            if (source == Undefined.Value)
                 return 0;
-            return source.Length;
+            return ((string)source).Length;
         }
 
         [XQuerySignature("string-length")]
@@ -224,10 +274,11 @@ namespace DataEngine.XQuery
 
         [XQuerySignature("normalize-space")]
         public static string NormalizeSpace([XQueryParameter(XmlTypeCode.String,
-            Cardinality = XmlTypeCardinality.ZeroOrOne)] string value)
+            Cardinality = XmlTypeCardinality.ZeroOrOne)] object item)
         {
-            if (value == null)
+            if (item == Undefined.Value)
                 return String.Empty;
+            string value = (string)item;
             StringBuilder builder;
             int length = 0;
             while (length < value.Length)
@@ -306,20 +357,20 @@ namespace DataEngine.XQuery
 
         [XQuerySignature("upper-case")]
         public static string UpperCase([XQueryParameter(XmlTypeCode.String,
-            Cardinality = XmlTypeCardinality.ZeroOrOne)] string value)
+            Cardinality = XmlTypeCardinality.ZeroOrOne)] object value)
         {
-            if (value == null)
+            if (value == Undefined.Value)
                 return String.Empty;
-            return value.ToUpper();
+            return ((string)value).ToUpper();
         }
 
         [XQuerySignature("lower-case")]
         public static string LowerCase([XQueryParameter(XmlTypeCode.String,
-            Cardinality = XmlTypeCardinality.ZeroOrOne)] string value)
+            Cardinality = XmlTypeCardinality.ZeroOrOne)] object value)
         {
-            if (value == null)
+            if (value == Undefined.Value)
                 return String.Empty;
-            return value.ToLower();
+            return ((string)value).ToLower();
         }
 
         private static Dictionary<int, int> CreateMapping(string mapString, string translateString)
@@ -370,10 +421,11 @@ namespace DataEngine.XQuery
 
         [XQuerySignature("translate")]
         public static string Translate([XQueryParameter(XmlTypeCode.String,
-            Cardinality = XmlTypeCardinality.ZeroOrOne)] string value, string mapString, string transString)
+            Cardinality = XmlTypeCardinality.ZeroOrOne)] object item, string mapString, string transString)
         {
-            if (value == null)
+            if (item == Undefined.Value)
                 return String.Empty;
+            string value = (string)item;
             StringBuilder builder = new StringBuilder(value.Length);
             Dictionary<int, int> mapping = CreateMapping(mapString, transString);
             for (int i = 0; i < value.Length; i++)
@@ -401,19 +453,20 @@ namespace DataEngine.XQuery
 
         [XQuerySignature("encode-for-uri")]
         public static string EncodeForUri([XQueryParameter(XmlTypeCode.String,
-            Cardinality = XmlTypeCardinality.ZeroOrOne)] string value)
+            Cardinality = XmlTypeCardinality.ZeroOrOne)] object value)
         {
-            if (value == null)
+            if (value == Undefined.Value)
                 return String.Empty;
-            return Uri.EscapeDataString(value);
+            return Uri.EscapeDataString((string)value);
         }
 
         [XQuerySignature("iri-to-uri")]
         public static string IriToUri([XQueryParameter(XmlTypeCode.String,
-            Cardinality = XmlTypeCardinality.ZeroOrOne)] string value)
+            Cardinality = XmlTypeCardinality.ZeroOrOne)] object item)
         {
-            if (value == null)
+            if (item == Undefined.Value)
                 return String.Empty;
+            string value = (string)item;
             char[] chArray = new char[3];
             chArray[0] = '%';
             StringBuilder builder = new StringBuilder();
@@ -439,10 +492,11 @@ namespace DataEngine.XQuery
 
         [XQuerySignature("escape-html-uri")]
         public static string EscapeHtmlUri([XQueryParameter(XmlTypeCode.String,
-            Cardinality = XmlTypeCardinality.ZeroOrOne)] string value)
-        {
-            if (value == null)
+            Cardinality = XmlTypeCardinality.ZeroOrOne)] object item)
+        {            
+            if (item == Undefined.Value)
                 return String.Empty;
+            string value = (string)item;
             StringBuilder builder = new StringBuilder(value.Length);
             foreach (byte num in Encoding.UTF8.GetBytes(value))
             {
@@ -465,89 +519,113 @@ namespace DataEngine.XQuery
         [XQuerySignature("contains")]
         public static bool Contains(
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string str,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg1,
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string substr)
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg2)
         {
-            if (str == null)
+            string str;
+            if (arg1 == Undefined.Value)
                 str = String.Empty;
-            if (substr == null)
+            else
+                str = (string)arg1;
+            string substr;
+            if (arg2 == Undefined.Value)
                 substr = String.Empty;
+            else
+                substr = (string)arg2;
             return str.Contains(substr);
         }
 
         [XQuerySignature("contains")]
         public static bool Contains(
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string str,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg1,
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string substr,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg2,
             string collation)
         {
-            return Contains(str, substr);
+            return Contains(arg1, arg2);
         }
 
         [XQuerySignature("starts-with")]
         public static bool StartsWith(
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string str,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg1,
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string substr)
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg2)
         {
-            if (str == null)
+            string str;
+            if (arg1 == Undefined.Value)
                 str = String.Empty;
-            if (substr == null)
+            else
+                str = (string)arg1;
+            string substr;
+            if (arg2 == Undefined.Value)
                 substr = String.Empty;
+            else
+                substr = (string)arg2;
             return str.StartsWith(substr);
         }
 
         [XQuerySignature("starts-with")]
         public static bool StartsWith(
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string str,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg1,
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string substr,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg2,
             string collation)
         {
-            return StartsWith(str, substr);
+            return StartsWith(arg1, arg2);
         }
 
         [XQuerySignature("ends-with")]
         public static bool EndsWith(
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string str,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg1,
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string substr)
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg2)
         {
-            if (str == null)
+            string str;
+            if (arg1 == Undefined.Value)
                 str = String.Empty;
-            if (substr == null)
+            else
+                str = (string)arg1;
+            string substr;
+            if (arg2 == Undefined.Value)
                 substr = String.Empty;
+            else
+                substr = (string)arg2;
             return str.EndsWith(substr);
         }
 
         [XQuerySignature("ends-with")]
         public static bool EndsWith(
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string str,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg1,
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string substr,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg2,
             string collation)
         {
-            return EndsWith(str, substr);
+            return EndsWith(arg1, arg2);
         }
 
         [XQuerySignature("substring-before")]
         public static string SubstringBefore(
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string str,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg1,
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string substr)
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg2)
         {
-            if (str == null)
+            string str;
+            if (arg1 == Undefined.Value)
                 str = String.Empty;
-            if (substr == null)
+            else
+                str = (string)arg1;
+            string substr;
+            if (arg2 == Undefined.Value)
                 substr = String.Empty;
+            else
+                substr = (string)arg2;
             int index = str.IndexOf(substr);
             if (index >= 0)
                 return str.Substring(0, index);
@@ -557,25 +635,31 @@ namespace DataEngine.XQuery
         [XQuerySignature("substring-before")]
         public static string SubstringBefore(
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string str,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg1,
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string substr,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg2,
             string collation)
         {
-            return SubstringBefore(str, substr);
+            return SubstringBefore(arg1, arg2);
         }
 
         [XQuerySignature("substring-after")]
         public static string SubstringAfter(
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string str,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg1,
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string substr)
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg2)
         {
-            if (str == null)
+            string str;
+            if (arg1 == Undefined.Value)
                 str = String.Empty;
-            if (substr == null)
+            else
+                str = (string)arg1;
+            string substr;
+            if (arg2 == Undefined.Value)
                 substr = String.Empty;
+            else
+                substr = (string)arg2;
             int index = str.IndexOf(substr);
             if (index >= 0)
                 return str.Substring(index + substr.Length);
@@ -585,12 +669,12 @@ namespace DataEngine.XQuery
         [XQuerySignature("substring-after")]
         public static string SubstringAfter(
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string str,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg1,
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string substr,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg2,
             string collation)
         {
-            return SubstringAfter(str, substr);
+            return SubstringAfter(arg1, arg2);
         }
 
         private static bool ParseFlags(string flagString, out RegexOptions flags)
@@ -626,15 +710,21 @@ namespace DataEngine.XQuery
         [XQuerySignature("matches")]
         public static bool Matches(
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string input,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg1,
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string pattern,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg2,
             string flagString)
         {
-            if (input == null)
+            string input;
+            if (arg1 == Undefined.Value)
                 input = String.Empty;
-            if (pattern == null)
+            else
+                input = (string)arg1;
+            string pattern;
+            if (arg2 == Undefined.Value)
                 pattern = String.Empty;
+            else
+                pattern = (string)arg2;
             RegexOptions flags;
             if (!ParseFlags(flagString, out flags))
                 throw new XQueryException(Properties.Resources.InvalidRegularExpressionFlags, flagString);
@@ -644,30 +734,42 @@ namespace DataEngine.XQuery
         [XQuerySignature("matches")]
         public static bool Matches(
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string input,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg1,
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string pattern)
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg2)
         {
-            if (input == null)
+            string input;
+            if (arg1 == Undefined.Value)
                 input = String.Empty;
-            if (pattern == null)
+            else
+                input = (string)arg1;
+            string pattern;
+            if (arg2 == Undefined.Value)
                 pattern = String.Empty;
+            else
+                pattern = (string)arg2; 
             return Regex.IsMatch(input, pattern);
         }
 
         [XQuerySignature("replace")]
         public static string Replace(
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string input,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg1,
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string pattern,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg2,
             string replacement,
             string flagString)
         {
-            if (input == null)
+            string input;
+            if (arg1 == Undefined.Value)
                 input = String.Empty;
-            if (pattern == null)
+            else
+                input = (string)arg1;
+            string pattern;
+            if (arg2 == Undefined.Value)
                 pattern = String.Empty;
+            else
+                pattern = (string)arg2;
             RegexOptions flags;
             if (!ParseFlags(flagString, out flags))
                 throw new XQueryException(Properties.Resources.InvalidRegularExpressionFlags, flagString);
@@ -677,15 +779,21 @@ namespace DataEngine.XQuery
         [XQuerySignature("replace")]
         public static string Replace(
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string input,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg1,
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string pattern,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg2,
             string replacement)
         {
-            if (input == null)
+            string input;
+            if (arg1 == Undefined.Value)
                 input = String.Empty;
-            if (pattern == null)
+            else
+                input = (string)arg1;
+            string pattern;
+            if (arg2 == Undefined.Value)
                 pattern = String.Empty;
+            else
+                pattern = (string)arg2;
             return Regex.Replace(input, pattern, replacement);
         }
 
@@ -698,15 +806,21 @@ namespace DataEngine.XQuery
         [XQuerySignature("tokenize", Return = XmlTypeCode.String, Cardinality = XmlTypeCardinality.ZeroOrMore)]
         public static XQueryNodeIterator Tokenize(
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string input,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg1,
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string pattern,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg2,
             string flagString)
         {
-            if (input == null)
+            string input;
+            if (arg1 == Undefined.Value)
                 input = String.Empty;
-            if (pattern == null)
+            else
+                input = (string)arg1;
+            string pattern;
+            if (arg2 == Undefined.Value)
                 pattern = String.Empty;
+            else
+                pattern = (string)arg2;
             RegexOptions flags;
             if (!ParseFlags(flagString, out flags))
                 throw new XQueryException(Properties.Resources.InvalidRegularExpressionFlags, flagString);
@@ -717,158 +831,165 @@ namespace DataEngine.XQuery
         [XQuerySignature("tokenize", Return = XmlTypeCode.String, Cardinality = XmlTypeCardinality.ZeroOrMore)]
         public static XQueryNodeIterator Tokenize(
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string input,
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg1,
             [XQueryParameter(XmlTypeCode.String,
-                Cardinality = XmlTypeCardinality.ZeroOrOne)] string pattern)
+                Cardinality = XmlTypeCardinality.ZeroOrOne)] object arg2)
         {
-            if (input == null)
+            string input;
+            if (arg1 == Undefined.Value)
                 input = String.Empty;
-            if (pattern == null)
+            else
+                input = (string)arg1;
+            string pattern;
+            if (arg2 == Undefined.Value)
                 pattern = String.Empty;
+            else
+                pattern = (string)arg2;
             string[] res = Regex.Split(input, pattern);
             return new NodeIterator(StringEnumerator(res));
         }
 
-        [XQuerySignature("years-from-duration")]
-        public static int YearsFromDuration([XQueryParameter(XmlTypeCode.Duration)]TimeSpan value)
+        [XQuerySignature("years-from-duration", Cardinality=XmlTypeCardinality.ZeroOrOne)]
+        public static int YearsFromDuration([XQueryParameter(XmlTypeCode.Duration, Cardinality = XmlTypeCardinality.ZeroOrOne)]TimeSpan value)
         {
             return value.Days / 360;
         }
 
-        [XQuerySignature("months-from-duration")]
-        public static int MonthsFromDuration([XQueryParameter(XmlTypeCode.Duration)]TimeSpan value)
+        [XQuerySignature("months-from-duration", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static int MonthsFromDuration([XQueryParameter(XmlTypeCode.Duration, Cardinality = XmlTypeCardinality.ZeroOrOne)]TimeSpan value)
         {
             return value.Days / 30;
         }
 
-        [XQuerySignature("days-from-duration")]
-        public static int DaysFromDuration([XQueryParameter(XmlTypeCode.Duration)]TimeSpan value)
+        [XQuerySignature("days-from-duration", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static int DaysFromDuration([XQueryParameter(XmlTypeCode.Duration, Cardinality = XmlTypeCardinality.ZeroOrOne)]TimeSpan value)
         {
             return value.Days;
         }
 
-        [XQuerySignature("hours-from-duration")]
-        public static int HoursFromDuration([XQueryParameter(XmlTypeCode.Duration)]TimeSpan value)
+        [XQuerySignature("hours-from-duration", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static int HoursFromDuration([XQueryParameter(XmlTypeCode.Duration, Cardinality = XmlTypeCardinality.ZeroOrOne)]TimeSpan value)
         {
             return value.Hours;
         }
 
-        [XQuerySignature("minutes-from-duration")]
-        public static int MinutesFromDuration([XQueryParameter(XmlTypeCode.Duration)]TimeSpan value)
+        [XQuerySignature("minutes-from-duration", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static int MinutesFromDuration([XQueryParameter(XmlTypeCode.Duration, Cardinality = XmlTypeCardinality.ZeroOrOne)]TimeSpan value)
         {
             return value.Minutes;
         }
 
-        [XQuerySignature("seconds-from-duration")]
-        public static int SecondsFromDuration([XQueryParameter(XmlTypeCode.Duration)]TimeSpan value)
+        [XQuerySignature("seconds-from-duration", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static int SecondsFromDuration([XQueryParameter(XmlTypeCode.Duration, Cardinality = XmlTypeCardinality.ZeroOrOne)]TimeSpan value)
         {
             return value.Seconds;
         }
 
-        [XQuerySignature("year-from-dateTime")]
-        public static int YearFromDateTime([XQueryParameter(XmlTypeCode.DateTime)]DateTime value)
+        [XQuerySignature("year-from-dateTime", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static int YearFromDateTime([XQueryParameter(XmlTypeCode.DateTime, Cardinality = XmlTypeCardinality.ZeroOrOne)]DateTime value)
         {
             return value.Year;
         }
 
-        [XQuerySignature("month-from-dateTime")]
-        public static int MonthFromDateTime([XQueryParameter(XmlTypeCode.DateTime)] DateTime value)
+        [XQuerySignature("month-from-dateTime", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static int MonthFromDateTime([XQueryParameter(XmlTypeCode.DateTime, Cardinality = XmlTypeCardinality.ZeroOrOne)] DateTime value)
         {
             return value.Month;
         }
 
-        [XQuerySignature("day-from-dateTime")]
-        public static int DayFromDateTime([XQueryParameter(XmlTypeCode.DateTime)] DateTime value)
+        [XQuerySignature("day-from-dateTime", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static int DayFromDateTime([XQueryParameter(XmlTypeCode.DateTime, Cardinality = XmlTypeCardinality.ZeroOrOne)] DateTime value)
         {
             return value.Day;
         }
 
-        [XQuerySignature("hours-from-dateTime")]
-        public static int HoursFromDateTime([XQueryParameter(XmlTypeCode.DateTime)] DateTime value)
+        [XQuerySignature("hours-from-dateTime", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static int HoursFromDateTime([XQueryParameter(XmlTypeCode.DateTime, Cardinality = XmlTypeCardinality.ZeroOrOne)] DateTime value)
         {
             return value.Hour;
         }
 
-        [XQuerySignature("minutes-from-dateTime")]
-        public static int MinutesFromDateTime([XQueryParameter(XmlTypeCode.DateTime)] DateTime value)
+        [XQuerySignature("minutes-from-dateTime", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static int MinutesFromDateTime([XQueryParameter(XmlTypeCode.DateTime, Cardinality = XmlTypeCardinality.ZeroOrOne)] DateTime value)
         {
             return value.Minute;
         }
 
-        [XQuerySignature("seconds-from-dateTime")]
-        public static int SecondsFromDateTime([XQueryParameter(XmlTypeCode.DateTime)] DateTime value)
+        [XQuerySignature("seconds-from-dateTime", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static int SecondsFromDateTime([XQueryParameter(XmlTypeCode.DateTime, Cardinality = XmlTypeCardinality.ZeroOrOne)] DateTime value)
         {
             return value.Second;
         }
 
-        [XQuerySignature("year-from-date")]
-        public static int YearFromDate([XQueryParameter(XmlTypeCode.Date)] DateTime value)
+        [XQuerySignature("year-from-date", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static int YearFromDate([XQueryParameter(XmlTypeCode.Date, Cardinality = XmlTypeCardinality.ZeroOrOne)] DateTime value)
         {
             return value.Year;
         }
 
-        [XQuerySignature("month-from-date")]
-        public static int MonthFromDate([XQueryParameter(XmlTypeCode.Date)] DateTime value)
+        [XQuerySignature("month-from-date", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static int MonthFromDate([XQueryParameter(XmlTypeCode.Date, Cardinality = XmlTypeCardinality.ZeroOrOne)] DateTime value)
         {
             return value.Month;
         }
 
-        [XQuerySignature("day-from-date")]
-        public static int DayFromDate([XQueryParameter(XmlTypeCode.Date)] DateTime value)
+        [XQuerySignature("day-from-date", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static int DayFromDate([XQueryParameter(XmlTypeCode.Date, Cardinality = XmlTypeCardinality.ZeroOrOne)] DateTime value)
         {
             return value.Day;
         }
 
-        [XQuerySignature("hours-from-time")]
-        public static int HoursFromTime([XQueryParameter(XmlTypeCode.Time)] DateTime value)
+        [XQuerySignature("hours-from-time", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static int HoursFromTime([XQueryParameter(XmlTypeCode.Time, Cardinality = XmlTypeCardinality.ZeroOrOne)] DateTime value)
         {
             return value.Hour;
         }
 
-        [XQuerySignature("minutes-from-time")]
-        public static int MinutesFromTime([XQueryParameter(XmlTypeCode.Time)] DateTime value)
+        [XQuerySignature("minutes-from-time", Cardinality=XmlTypeCardinality.ZeroOrOne)]
+        public static int MinutesFromTime([XQueryParameter(XmlTypeCode.Time, Cardinality = XmlTypeCardinality.ZeroOrOne)] DateTime value)
         {
             return value.Minute;
         }
 
-        [XQuerySignature("seconds-from-time")]
-        public static int SecondsFromTime([XQueryParameter(XmlTypeCode.Time)] DateTime value)
+        [XQuerySignature("seconds-from-time", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static int SecondsFromTime([XQueryParameter(XmlTypeCode.Time, Cardinality = XmlTypeCardinality.ZeroOrOne)] DateTime value)
         {
             return value.Second;
         }
 
-        [XQuerySignature("abs")]
-        public static double GetAbs(double value)
+        [XQuerySignature("abs", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static double GetAbs([XQueryParameter(XmlTypeCode.Double, Cardinality = XmlTypeCardinality.ZeroOrOne)] double value)
         {
             return Math.Abs(value);
         }
 
-        [XQuerySignature("ceiling")]
-        public static double GetCeiling(double value)
+        [XQuerySignature("ceiling", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static double GetCeiling([XQueryParameter(XmlTypeCode.Double, Cardinality = XmlTypeCardinality.ZeroOrOne)] double value)
         {
             return Math.Ceiling(value);
         }
 
-        [XQuerySignature("floor")]
-        public static double GetFloor(double value)
+        [XQuerySignature("floor", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static double GetFloor([XQueryParameter(XmlTypeCode.Double, Cardinality = XmlTypeCardinality.ZeroOrOne)] double value)
         {
             return Math.Floor(value);
         }
 
-        [XQuerySignature("round")]
-        public static double GetRound(double value)
+        [XQuerySignature("round", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static double GetRound([XQueryParameter(XmlTypeCode.Double, Cardinality = XmlTypeCardinality.ZeroOrOne)] double value)
         {
             return Math.Round(value, MidpointRounding.AwayFromZero);
         }
 
-        [XQuerySignature("round-half-to-even")]
-        public static double GetRoundHalfToEven(double value)
+        [XQuerySignature("round-half-to-even", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static double GetRoundHalfToEven([XQueryParameter(XmlTypeCode.Double, Cardinality = XmlTypeCardinality.ZeroOrOne)] double value)
         {
             return Math.Round(value, MidpointRounding.ToEven);
         }
 
-        [XQuerySignature("compare")]
-        public static int Compare(string a, string b)
+        [XQuerySignature("compare", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static int Compare([XQueryParameter(XmlTypeCode.String, Cardinality = XmlTypeCardinality.ZeroOrOne)] string a,
+            [XQueryParameter(XmlTypeCode.String, Cardinality = XmlTypeCardinality.ZeroOrOne)] string b)
         {
             return String.Compare(a, b);
         }
@@ -917,7 +1038,7 @@ namespace DataEngine.XQuery
                     return pos;
                 pos++;
             }
-            return null;
+            return Undefined.Value;
         }
 
         [XQuerySignature("remove")]
@@ -951,37 +1072,36 @@ namespace DataEngine.XQuery
             return iter.Clone();
         }
 
-        [XQuerySignature("zero-or-one", Return=XmlTypeCode.Item, Cardinality=XmlTypeCardinality.ZeroOrOne)]
-        public static object ZeroOrOne(XQueryNodeIterator iter)
+        [XQuerySignature("zero-or-one")]
+        public static XQueryNodeIterator ZeroOrOne(XQueryNodeIterator iter)
         {
-            iter = iter.Clone();
-            if (!iter.MoveNext())
-                return null;
-            object res = iter.Current.TypedValue;
-            if (iter.MoveNext())
-                throw new XQueryException(Properties.Resources.FORG0003);
-            return res;
+            XQueryNodeIterator probe = iter.Clone();
+            if (probe.MoveNext())
+            {
+                if (probe.MoveNext())
+                    throw new XQueryException(Properties.Resources.FORG0003);
+            }
+            return iter.Clone();
         }
 
-        [XQuerySignature("one-or-more", Return = XmlTypeCode.Item, Cardinality = XmlTypeCardinality.OneOrMore)]
+        [XQuerySignature("one-or-more")]
         public static XQueryNodeIterator OneOrMore(XQueryNodeIterator iter)
         {
-            iter = iter.Clone();
-            if (!iter.MoveNext())
+            XQueryNodeIterator probe = iter.Clone();
+            if (!probe.MoveNext())
                 throw new XQueryException(Properties.Resources.FORG0004);
             return iter.Clone();
         }
 
-        [XQuerySignature("exactly-one", Return = XmlTypeCode.Item, Cardinality = XmlTypeCardinality.One)]
-        public static object ExactlyOne(XQueryNodeIterator iter)
+        [XQuerySignature("exactly-one")]
+        public static XQueryNodeIterator ExactlyOne(XQueryNodeIterator iter)
         {
-            iter = iter.Clone();
-            if (!iter.MoveNext())
+            XQueryNodeIterator probe = iter.Clone();
+            if (!probe.MoveNext())
                 throw new XQueryException(Properties.Resources.FORG0005);
-            object res = iter.Current.TypedValue;
-            if (iter.MoveNext())
+            if (probe.MoveNext())
                 throw new XQueryException(Properties.Resources.FORG0005);
-            return res;
+            return iter.Clone();
         }
 
         [XQuerySignature("index-of", Return = XmlTypeCode.Integer, Cardinality = XmlTypeCardinality.ZeroOrOne)]
@@ -1200,13 +1320,15 @@ namespace DataEngine.XQuery
             {
                 object curr;
                 if (item.XmlType == null || 
-                    item.XmlType == XQueryAtomicValue.UntypedAtomic)
+                    item.XmlType == XQuerySequenceType.UntypedAtomic)
                     curr = Core.Number(item.Value);
                 else
                     curr = item.TypedValue;
                 if (value == null || Runtime.DynamicGt(curr, value) != null)
                     value = curr;
             }
+            if (value == null)
+                return Undefined.Value;
             return value;
         }
 
@@ -1226,13 +1348,15 @@ namespace DataEngine.XQuery
             {
                 object curr;
                 if (item.XmlType == null || 
-                    item.XmlType == XQueryAtomicValue.UntypedAtomic)
+                    item.XmlType == XQuerySequenceType.UntypedAtomic)
                     curr = Core.Number(item.Value);
                 else
                     curr = item.TypedValue;
                 if (value == null || Runtime.DynamicGt(value, curr) != null)
                     value = curr;
             }
+            if (value == null)
+                return Undefined.Value;
             return value;
         }
 
@@ -1288,21 +1412,25 @@ namespace DataEngine.XQuery
                 count = count + 1;
             }
             if (value == null)
-                return null;
+                return Undefined.Value;
             return Runtime.DynamicDiv(value, count);
         }
 
         [XQuerySignature("collection")]
-        public static XPathNavigator GetCollection([Implict] Executive executive, String collection_name)
+        public static XPathNavigator GetCollection([Implict] Executive executive, 
+            [XQueryParameter(XmlTypeCode.AnyAtomicType, Cardinality = XmlTypeCardinality.ZeroOrOne)] object collection_name)
         {
             XQueryContext context = (XQueryContext)executive.Owner;
-            return context.CreateCollection(collection_name);
+            if (collection_name == Undefined.Value)
+                return context.CreateCollection(Core.StringValue(Core.Atomize(Core.Context(executive))));
+            else
+                return context.CreateCollection((string)collection_name);
         }
 
         [XQuerySignature("collection")]
         public static XPathNavigator GetCollection([Implict] Executive executive)
         {
-            return GetCollection(executive, Core.StringValue(Core.Atomize(Core.Context(executive))));
+            return GetCollection(executive, Undefined.Value);
         }
 
         [XQuerySignature("id")]
@@ -1414,12 +1542,17 @@ namespace DataEngine.XQuery
         }
 
         [XQuerySignature("namespace-uri-for-prefix", Return = XmlTypeCode.String, Cardinality = XmlTypeCardinality.ZeroOrMore)]
-        public static XQueryNodeIterator GetNamespaceUriForPrefix([Implict] Executive executive, string prefix, XPathNavigator nav)
+        public static XQueryNodeIterator GetNamespaceUriForPrefix([Implict] Executive executive, 
+            [XQueryParameter(XmlTypeCode.String, Cardinality=XmlTypeCardinality.ZeroOrOne)] object prefix, XPathNavigator nav)
         {
             XQueryContext context = (XQueryContext)executive.Owner;
             XmlNamespaceManager nsmgr = new XmlNamespaceManager(context.nameTable);
             ScanLocalNamespaces(nsmgr, nav.Clone());
-            string ns = nsmgr.LookupNamespace(prefix);
+            string ns;
+            if (prefix == Undefined.Value)
+                ns = nsmgr.DefaultNamespace;
+            else
+                ns = nsmgr.LookupNamespace((string)prefix);
             if (ns == null)
                 return EmptyIterator.Shared;
             XPathItem[] item = new XPathItem[] { new XQueryAtomicValue(ns) };
@@ -1427,35 +1560,43 @@ namespace DataEngine.XQuery
         }
 
         [XQuerySignature("resolve-QName", Return = XmlTypeCode.QName, Cardinality = XmlTypeCardinality.ZeroOrMore)]
-        public static XQueryNodeIterator ResolveQName([Implict] Executive executive, string qname, XPathNavigator nav)
+        public static XQueryNodeIterator ResolveQName([Implict] Executive executive,
+            [XQueryParameter(XmlTypeCode.String, Cardinality = XmlTypeCardinality.ZeroOrOne)] object qname, XPathNavigator nav)
         {
+            if (qname == Undefined.Value)
+                return EmptyIterator.Shared;
             XQueryContext context = (XQueryContext)executive.Owner;
             XmlNamespaceManager nsmgr = new XmlNamespaceManager(context.nameTable);
             ScanLocalNamespaces(nsmgr, nav.Clone());
             XmlSchemaType simpleType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.QName);
             XPathItem[] item = new XPathItem[] { new XQueryAtomicValue(simpleType.Datatype.ParseValue(
-                qname, context.nameTable, nsmgr), simpleType) };
+                (string)qname, context.nameTable, nsmgr), simpleType) };
             return new NodeIterator(item);            
         }
 
         [XQuerySignature("QName", Return = XmlTypeCode.QName, Cardinality = XmlTypeCardinality.ZeroOrMore)]
-        public static XQueryNodeIterator CreateQName([Implict] Executive executive, string ns, string qname)
+        public static XQueryNodeIterator CreateQName([Implict] Executive executive,
+            [XQueryParameter(XmlTypeCode.String, Cardinality = XmlTypeCardinality.ZeroOrOne)] object ns, string qname)
         {
+            if (ns == Undefined.Value)
+                ns = String.Empty;
             XQueryContext context = (XQueryContext)executive.Owner;
             string prefix;
             string localName;
             QNameParser.Split(qname, out prefix, out localName);
-            if (prefix != "" && ns == "")
+            if (prefix != "" && ((string)ns) == "")
                 throw new XQueryException(Properties.Resources.FOCA0002, qname);
-            XmlQualifiedName qualifiedName = new XmlQualifiedName(qname, ns);
+            XmlQualifiedName qualifiedName = new XmlQualifiedName(qname, (string)ns);
             XmlSchemaType simpleType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.QName);
             XPathItem[] item = new XPathItem[] { new XQueryAtomicValue(qualifiedName, simpleType) };
             return new NodeIterator(item);            
         }
 
-        [XQuerySignature("prefix-from-QName")]
-        public static String PrefixFromQName([XQueryParameter(XmlTypeCode.QName)] object qname)
+        [XQuerySignature("prefix-from-QName", Return = XmlTypeCode.String, Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static object PrefixFromQName([XQueryParameter(XmlTypeCode.QName, Cardinality = XmlTypeCardinality.ZeroOrOne)] object qname)        
         {
+            if (qname == Undefined.Value)
+                return qname;
             if (!(qname is XmlQualifiedName))
                 throw new XQueryException(Properties.Resources.XPTY0004, 
                     new XQuerySequenceType(qname.GetType(), XmlTypeCardinality.One), "QName");
@@ -1466,9 +1607,11 @@ namespace DataEngine.XQuery
             return prefix;
         }
 
-        [XQuerySignature("local-name-from-QName")]
-        public static String LocalNameFromQName([XQueryParameter(XmlTypeCode.QName)] object qname)
+        [XQuerySignature("local-name-from-QName", Return = XmlTypeCode.String, Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static object LocalNameFromQName([XQueryParameter(XmlTypeCode.QName, Cardinality = XmlTypeCardinality.ZeroOrOne)] object qname)
         {
+            if (qname == Undefined.Value)
+                return qname;
             if (!(qname is XmlQualifiedName))
                 throw new XQueryException(Properties.Resources.XPTY0004,
                     new XQuerySequenceType(qname.GetType(), XmlTypeCardinality.One), "QName");
@@ -1479,9 +1622,11 @@ namespace DataEngine.XQuery
             return localName;
         }
 
-        [XQuerySignature("namespace-uri-from-QName")]
-        public static String NamespaceUriFromQName([XQueryParameter(XmlTypeCode.QName)] object qname)
+        [XQuerySignature("namespace-uri-from-QName", Return = XmlTypeCode.String, Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static object NamespaceUriFromQName([XQueryParameter(XmlTypeCode.QName, Cardinality = XmlTypeCardinality.ZeroOrOne)] object qname)
         {
+            if (qname == Undefined.Value)
+                return qname;
             if (!(qname is XmlQualifiedName))
                 throw new XQueryException(Properties.Resources.XPTY0004,
                     new XQuerySequenceType(qname.GetType(), XmlTypeCardinality.One), "QName");

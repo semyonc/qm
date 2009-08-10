@@ -64,26 +64,28 @@ namespace DataEngine.XQuery
             m_varType = varType;            
             m_pos = pos;
 
-            m_body = body;
-            m_compiledBody = new SymbolLink();
-
+            m_body = body;            
             m_value = new SymbolLink(varType.ValueType);
             if (m_pos != null)
                 m_posValue = new SymbolLink(typeof(System.Int32));
         }
 
-        private IEnumerable<XPathItem> CreateEnumerator(XQueryNodeIterator baseIter)
+        private IEnumerable<XPathItem> CreateEnumerator(XQueryNodeIterator baseIter, object exprStack)
         {
-            SymbolLink old_value = QueryContext.Resolver.SetValue(m_var, m_value);
-            SymbolLink old_posValue = null;
-            if (m_pos != null)
-                old_posValue = QueryContext.Resolver.SetValue(m_pos, m_posValue);
             int index = 1;
             foreach (XPathItem curr in baseIter)
             {
                 m_value.Value = Core.CastTo(QueryContext.Engine, curr, m_varType);
                 if (m_pos != null)
                     m_posValue.Value = index++;
+                if (m_compiledBody == null)
+                {
+                    m_compiledBody = new SymbolLink();
+                    QueryContext.Resolver.RevertToStack(exprStack);
+                    QueryContext.Resolver.SetValue(m_var, m_value);
+                    if (m_pos != null)
+                        QueryContext.Resolver.SetValue(m_pos, m_posValue);
+                }
                 object res = QueryContext.Engine.Apply(null, null,
                     m_body, null, m_compiledBody);
                 if (res != Undefined.Value)
@@ -101,16 +103,14 @@ namespace DataEngine.XQuery
                     }
                 }
             }
-            QueryContext.Resolver.SetValue(m_var, old_value);
-            if (m_pos != null)
-                QueryContext.Resolver.SetValue(m_pos, old_posValue);
         }
 
         public override XQueryNodeIterator Execute(Object[] parameters)
         {
             if (parameters.Length != 1)
                 throw new InvalidOperationException();            
-            return new NodeIterator(CreateEnumerator(Core.CreateSequence(QueryContext.Engine, parameters[0])));
+            return new NodeIterator(CreateEnumerator(Core.CreateSequence(QueryContext.Engine, parameters[0]), 
+                QueryContext.Resolver.GetCurrentStack()));
         }
 
 #if DEBUG

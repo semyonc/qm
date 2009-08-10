@@ -31,6 +31,10 @@ using System.Xml;
 using System.Xml.XPath;
 using System.Xml.Schema;
 
+using DataEngine.CoreServices;
+using DataEngine.XQuery.Parser;
+using System.Globalization;
+
 namespace DataEngine.XQuery
 {
     public static class XPath
@@ -42,6 +46,56 @@ namespace DataEngine.XQuery
                 return nav.Clone();
             else
                 return item;
+        }
+
+        private class SelfProvider : IContextProvider
+        {
+            XPathNavigator m_node;
+
+            public SelfProvider(XPathNavigator node)
+            {
+                m_node = node;
+            }
+
+            #region IContextProvider Members
+
+            public XPathItem Context
+            {
+                get { return m_node; }
+            }
+
+            public int CurrentPosition
+            {
+                get { return 1; }
+            }
+
+            public int LastPosition
+            {
+                get { return 1; }
+            }
+
+            #endregion
+        }
+
+
+        public static XQueryNodeIterator Select2(this XPathNavigator node, string xquery, IXmlNamespaceResolver nsmgr)
+        {
+            XPathContext context = new XPathContext();
+            if (nsmgr != null)
+                context.CopyNamespaces(nsmgr);
+            TokenizerBase tok = new Tokenizer(xquery);
+            Notation notation = new Notation();
+            YYParser parser = new YYParser(notation);
+            parser.yyparseSafe(tok);
+            context.EnterContext(new SelfProvider(node));
+            Translator translator = new Translator(context);
+            XQueryExprBase res = translator.Process(notation);
+            return res.Execute(null);
+        }
+
+        public static XQueryNodeIterator Select2(this XPathNavigator node, string xquery)
+        {
+            return Select2(node, xquery, null);
         }
 
         internal static XPathItem ChangeType(this XPathItem item, XQuerySequenceType destType, 
@@ -66,10 +120,27 @@ namespace DataEngine.XQuery
                     if (simpleType == XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Boolean))
                         return new XQueryAtomicValue(Core.BooleanValue(item), destType);
                     else
-                        if (item.ValueType == null && item.ValueType == typeof(System.String))
-                            return new XQueryAtomicValue(simpleType.Datatype.ParseValue(item.Value, nameTable, nsmgr), destType);
-                        else
-                            return new XQueryAtomicValue(simpleType.Datatype.ChangeType(item.TypedValue, destType.ValueType), destType);
+                    {
+                        try
+                        {
+                            if (item.ValueType == null || item.ValueType == typeof(System.String))
+                                return new XQueryAtomicValue(simpleType.Datatype.ParseValue(item.Value, nameTable, nsmgr), destType);
+                            else if (destType.IsNumeric && TypeConverter.IsNumberType(item.ValueType))
+                                return new XQueryAtomicValue(Convert.ChangeType(item.TypedValue, destType.ValueType,
+                                   CultureInfo.InvariantCulture), destType.SchemaType);
+                            else
+                                return new XQueryAtomicValue(simpleType.Datatype.ChangeType(item.TypedValue, destType.ValueType), destType);
+                        }
+                        catch (XmlSchemaException ex)
+                        {
+                            throw new XQueryException(ex.Message, ex);
+                        }
+                        catch (InvalidCastException)
+                        {
+                            throw new XQueryException(Properties.Resources.XPTY0004,
+                                new XQuerySequenceType(item.XmlType, XmlTypeCardinality.One, null), destType);
+                        }
+                    }
                 }
             }
         }        

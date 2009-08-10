@@ -57,7 +57,7 @@ namespace DataEngine.XQuery
 
         public bool Nillable { get; set; }
 
-        public Type OriginalType { get; set; }
+        public Type ParameterType { get; set; }
 
         public XQuerySequenceType(XmlTypeCode typeCode)
             : this(typeCode, XmlQualifiedNameTest.Wildcard)
@@ -74,7 +74,7 @@ namespace DataEngine.XQuery
             : this(typeCode, XmlQualifiedNameTest.Wildcard)
         {
             Cardinality = cardinality;
-            OriginalType = clrType;
+            ParameterType = clrType;
             if (TypeCode != XmlTypeCode.Item && !IsNode)
                 SchemaType = XmlSchemaType.GetBuiltInSimpleType(TypeCode);
         }
@@ -120,6 +120,7 @@ namespace DataEngine.XQuery
             TypeCode = schemaType.TypeCode;
             SchemaType = schemaType;
             Cardinality = cardinality;
+            ParameterType = clrType;
         }
 
         public XQuerySequenceType(Type clrType, XmlTypeCardinality cardinality)
@@ -127,8 +128,8 @@ namespace DataEngine.XQuery
             TypeCode = GetXmlTypeCode(clrType);
             if (TypeCode != XmlTypeCode.Item && !IsNode)
                 SchemaType = XmlSchemaType.GetBuiltInSimpleType(TypeCode);
-            OriginalType = clrType;
-            Cardinality = cardinality;
+            ParameterType = clrType;
+            Cardinality = cardinality;            
         }
 
         public XQuerySequenceType(XmlTypeCode typeCode, IXmlSchemaInfo schemaInfo, Type clrType)
@@ -139,7 +140,7 @@ namespace DataEngine.XQuery
             SchemaType = schemaInfo.SchemaType;
             SchemaElement = schemaInfo.SchemaElement;
             SchemaAttribute = schemaInfo.SchemaAttribute;
-            OriginalType = clrType;
+            ParameterType = clrType;
         }
 
         public XQuerySequenceType(XQuerySequenceType src)
@@ -151,7 +152,7 @@ namespace DataEngine.XQuery
             SchemaElement = src.SchemaElement;
             SchemaAttribute = src.SchemaAttribute;
             Nillable = src.Nillable;
-            OriginalType = src.OriginalType;
+            ParameterType = src.ParameterType;
         }
 
         public Type ValueType
@@ -163,7 +164,9 @@ namespace DataEngine.XQuery
                     return typeof(XQueryNodeIterator);
                 if (IsNode)
                     return typeof(XPathNavigator);
-                return ItemType;
+                if (Cardinality == XmlTypeCardinality.One)
+                    return ItemType;
+                return typeof(System.Object);
             }
         }
 
@@ -173,8 +176,6 @@ namespace DataEngine.XQuery
             {
                 switch (TypeCode)
                 {
-                    case XmlTypeCode.Boolean:
-                        return typeof(System.Boolean);
                     case XmlTypeCode.Short:
                         return typeof(System.Int16);
                     case XmlTypeCode.Int:
@@ -275,7 +276,7 @@ namespace DataEngine.XQuery
                     return !item.IsNode;
 
                 case XmlTypeCode.UntypedAtomic:
-                    return !item.IsNode && item.XmlType == XQueryAtomicValue.UntypedAtomic;
+                    return !item.IsNode && item.XmlType == UntypedAtomic;
 
                 case XmlTypeCode.Document:
                     {
@@ -284,11 +285,11 @@ namespace DataEngine.XQuery
                         {
                             if (nav.NodeType == XPathNodeType.Root)
                             {
-                                XPathNavigator cur = nav.Clone();
-                                cur.MoveToFirstChild();
+                                XPathNavigator cur = nav.Clone();                                
                                 if (SchemaElement == null)
                                 {
-                                    if ((NameTest.IsNamespaceWildcard || NameTest.Namespace == cur.NamespaceURI) &&
+                                    if (cur.MoveToChild(XPathNodeType.Element) &&
+                                        (NameTest.IsNamespaceWildcard || NameTest.Namespace == cur.NamespaceURI) &&
                                         (NameTest.IsNameWildcard || NameTest.Name == cur.LocalName))
                                     {
                                         if (SchemaType == null)
@@ -303,6 +304,8 @@ namespace DataEngine.XQuery
                                 }
                                 else
                                 {
+                                    if (!cur.MoveToChild(XPathNodeType.Element))
+                                        return false;
                                     IXmlSchemaInfo schemaInfo = cur.SchemaInfo;
                                     if (schemaInfo != null)
                                         return schemaInfo.SchemaElement.QualifiedName == SchemaElement.QualifiedName;
@@ -430,7 +433,7 @@ namespace DataEngine.XQuery
                     break;
 
                 case XmlTypeCode.Document:
-                    sb.Append("document(");
+                    sb.Append("document-node(");
                     if (SchemaElement == null)
                     {
                         if (!NameTest.IsWildcard || SchemaType != null)
@@ -444,6 +447,8 @@ namespace DataEngine.XQuery
                                 if (Nillable)
                                     sb.Append("?");
                             }
+                            else
+                                sb.Append(", xs:untyped");
                             sb.Append(")");
                         }
                     }
@@ -468,6 +473,8 @@ namespace DataEngine.XQuery
                             if (Nillable)
                                 sb.Append("?");
                         }
+                        else
+                            sb.Append(", xs:untyped");
                     }
                     else
                     {
@@ -725,6 +732,8 @@ namespace DataEngine.XQuery
 
         public static XmlTypeCode GetXmlTypeCode(Type type)
         {
+            if (type == typeof(XPathNavigator))
+                return XmlTypeCode.Node;            
             TypeCode typeCode = Type.GetTypeCode(type);
             switch (typeCode)
             {
@@ -760,6 +769,79 @@ namespace DataEngine.XQuery
                 default:
                     return XmlTypeCode.Item;
             }
+        }
+
+        public bool IsDerivedFrom(XQuerySequenceType src)
+        {
+            switch (src.TypeCode)
+            {
+                case XmlTypeCode.Node:
+                    if (!IsNode)
+                        return false;
+                    break;
+
+                case XmlTypeCode.AnyAtomicType:
+                case XmlTypeCode.UntypedAtomic:
+                    if (IsNode)
+                        return false;
+                    break;
+
+                case XmlTypeCode.Document:
+                    if (TypeCode != XmlTypeCode.Document ||
+                        SchemaElement != src.SchemaElement)
+                        return false;
+                    break;
+
+                case XmlTypeCode.Element:
+                    if (TypeCode != XmlTypeCode.Element ||
+                        SchemaElement != src.SchemaElement)
+                        return false;
+                    break;
+
+                case XmlTypeCode.Attribute:
+                    if (TypeCode != XmlTypeCode.Attribute ||
+                        SchemaAttribute != src.SchemaAttribute)
+                        return false;
+                    break;
+
+                case XmlTypeCode.ProcessingInstruction:
+                    if (TypeCode != XmlTypeCode.ProcessingInstruction)
+                        return false;
+                    break;
+
+                case XmlTypeCode.Comment:
+                    if (TypeCode != XmlTypeCode.Comment)
+                        return false;
+                    break;
+
+                case XmlTypeCode.Text:
+                    if (TypeCode != XmlTypeCode.Text)
+                        return false;
+                    break;
+            }
+            if (SchemaType != null || src.SchemaType != null)
+            {
+                if (SchemaType != null && src.SchemaType != null)
+                {
+                    if (!XmlSchemaType.IsDerivedFrom(SchemaType, src.SchemaType, XmlSchemaDerivationMethod.Empty))
+                        return false;
+                }
+                else
+                    return false;
+            }
+
+            if (Cardinality != src.Cardinality)
+            {
+                if ((Cardinality == XmlTypeCardinality.ZeroOrOne ||
+                     Cardinality == XmlTypeCardinality.ZeroOrMore) &&
+                     (src.Cardinality == XmlTypeCardinality.One ||
+                      src.Cardinality == XmlTypeCardinality.OneOrMore))
+                    return false;
+                if (Cardinality == XmlTypeCardinality.One &&
+                    src.Cardinality == XmlTypeCardinality.OneOrMore)
+                    return false;
+            }
+            return true;
         }
 
         // See XQuery & XPath 2.0 functions & operators section 17.
@@ -938,8 +1020,7 @@ namespace DataEngine.XQuery
                     SchemaElement == dest.SchemaElement &&
                     SchemaAttribute == dest.SchemaAttribute &&
                     SchemaType == dest.SchemaType &&
-                    Cardinality == dest.Cardinality &&
-                    OriginalType == dest.OriginalType;
+                    Cardinality == dest.Cardinality;
             return false;
         }
 
@@ -993,15 +1074,19 @@ namespace DataEngine.XQuery
             }
         }
 
+        public static XmlSchemaType AnyType = XmlSchemaType.GetBuiltInComplexType(new XmlQualifiedName("anyType", XmlReservedNs.NsXs));
+        public static XmlSchemaType AnyAtomicType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.AnyAtomicType);
+        public static XmlSchemaType UntypedAtomic = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.UntypedAtomic);
+
         #region build-in
 
-        internal static XQuerySequenceType Void = new XQuerySequenceType(XmlTypeCode.None);       
+        internal static XQuerySequenceType Void = new XQuerySequenceType(XmlTypeCode.None);
         internal static XQuerySequenceType Item = new XQuerySequenceType(XmlTypeCode.Item);
-        internal static XQuerySequenceType ItemS = new XQuerySequenceType(XmlTypeCode.Item, XmlTypeCardinality.ZeroOrMore);       
+        internal static XQuerySequenceType ItemS = new XQuerySequenceType(XmlTypeCode.Item, XmlTypeCardinality.ZeroOrMore);
         internal static XQuerySequenceType Node = new XQuerySequenceType(XmlTypeCode.Node);
         internal static XQuerySequenceType ProcessingInstruction = new XQuerySequenceType(XmlTypeCode.ProcessingInstruction);
         internal static XQuerySequenceType Text = new XQuerySequenceType(XmlTypeCode.Text);
-        internal static XQuerySequenceType Comment = new XQuerySequenceType(XmlTypeCode.Comment);       
+        internal static XQuerySequenceType Comment = new XQuerySequenceType(XmlTypeCode.Comment);
         internal static XQuerySequenceType Element = new XQuerySequenceType(XmlTypeCode.Element);
         internal static XQuerySequenceType Attribute = new XQuerySequenceType(XmlTypeCode.Attribute);
         internal static XQuerySequenceType Document = new XQuerySequenceType(XmlTypeCode.Document);

@@ -52,6 +52,7 @@ namespace DataEngine.XQuery
 
         public XQueryOrder QueryOrder { get; set; }
         public object[] Annotation { get; set; }
+        public bool FunctionExpr { get; set; }
 
         public XQueryExpr(XQueryContext context, object[] expr)
             : base(context)
@@ -159,20 +160,23 @@ namespace DataEngine.XQuery
         public override XQueryNodeIterator Execute(object[] parameters)
         {
             object[] currentValues = null;
-            if (QueryContext.Engine.CurrentLambda != null &&
-                QueryContext.Engine.CurrentLambda.Arity > 0)
+            if (FunctionExpr)
             {
-                CompiledLambda lambda = QueryContext.Engine.CurrentLambda;
-                if (m_parameter == null)
+                if (QueryContext.Engine.CurrentLambda != null &&
+                    QueryContext.Engine.CurrentLambda.Arity > 0)
                 {
-                    m_parameter = lambda.Parameters;
-                    m_parameterValues = new SymbolLink[lambda.Arity];
+                    CompiledLambda lambda = QueryContext.Engine.CurrentLambda;
+                    if (m_parameter == null)
+                    {
+                        m_parameter = lambda.Parameters;
+                        m_parameterValues = new SymbolLink[lambda.Arity];
+                        for (int k = 0; k < lambda.Arity; k++)
+                            m_parameterValues[k] = new SymbolLink(lambda.Values[k].Type);
+                    }
+                    currentValues = new object[lambda.Arity];
                     for (int k = 0; k < lambda.Arity; k++)
-                        m_parameterValues[k] = new SymbolLink(lambda.Values[k].Type);                
+                        currentValues[k] = lambda.Values[k].Value;
                 }
-                currentValues = new object[lambda.Arity];
-                for (int k = 0; k < lambda.Arity; k++)
-                    currentValues[k] = lambda.Values[k].Value;
             }
             return new NodeIterator(CreateEnumerator(currentValues));
         }
