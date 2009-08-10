@@ -69,6 +69,8 @@ namespace DataEngine.XQuery
                 _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Byte);
             else if (value is Byte)
                 _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.UnsignedByte);
+            else if (value is TimeSpan)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Duration);
         }
 
         public XQueryAtomicValue(object value, XQuerySequenceType destType)
@@ -173,9 +175,6 @@ namespace DataEngine.XQuery
                 return _xmlType;
             }
         }
-
-        public static XmlSchemaType AnyAtomicType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.AnyAtomicType);
-        public static XmlSchemaType UntypedAtomic = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.UntypedAtomic);
 
         #region IConvertible Members
 

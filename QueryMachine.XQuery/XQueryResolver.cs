@@ -38,12 +38,19 @@ namespace DataEngine.XQuery
     {
         private Dictionary<object, SymbolLink> m_values = new Dictionary<object, SymbolLink>();
 
-        public SymbolLink SetValue(object atom, SymbolLink link)
+        public void SetValue(object atom, SymbolLink link)
         {
-            SymbolLink old_link;
-            m_values.TryGetValue(atom, out old_link);
             m_values[atom] = link;
-            return old_link;
+        }
+
+        public object GetCurrentStack()
+        {
+            return new Dictionary<object, SymbolLink>(m_values);
+        }
+
+        public void RevertToStack(object state)
+        {
+            m_values = new Dictionary<object, SymbolLink>((IDictionary<object, SymbolLink>)state);
         }
 
         #region Resolver Members

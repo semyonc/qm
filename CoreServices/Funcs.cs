@@ -39,6 +39,7 @@ namespace DataEngine.CoreServices
         public static readonly object Prog1 = Lisp.Defatom("prog1");
         public static readonly object Cast = Lisp.Defatom("cast");
         public static readonly object If = Lisp.Defatom("if");
+        public static readonly object LambdaQuote = Lisp.Defatom("lambda-qoute");
 
         public static readonly object Let1 = Lisp.Defatom("let");
         public static readonly object Let2 = Lisp.Defatom("let*");

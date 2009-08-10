@@ -43,13 +43,17 @@ namespace DataEngine.XQuery
         public XQueryLET(XQueryContext context, object var, XQuerySequenceType varType, object body)
             : base(context, var, varType, body)
         {
-            m_compiledBody = new SymbolLink();
             m_value = new SymbolLink(varType.ValueType);
         }
 
-        private IEnumerable<XPathItem> Iterator(object value)
+        private IEnumerable<XPathItem> Iterator(object value, object exprStack)
         {
-            SymbolLink old_value = QueryContext.Resolver.SetValue(m_var, m_value);
+            if (m_compiledBody == null)
+            {
+                m_compiledBody = new SymbolLink();
+                QueryContext.Resolver.RevertToStack(exprStack);
+                QueryContext.Resolver.SetValue(m_var, m_value);
+            }
             m_value.Value = value;
             object res = QueryContext.Engine.Apply(null, null,
                 m_body, null, m_compiledBody);
@@ -67,14 +71,14 @@ namespace DataEngine.XQuery
                     yield return item;
                 }
             }
-            QueryContext.Resolver.SetValue(m_var, old_value);
         }
 
         public override XQueryNodeIterator Execute(object[] parameters)
         {
             if (parameters.Length != 1)
                 throw new InvalidOperationException();
-            return new NodeIterator(Iterator(Core.CastTo(QueryContext.Engine, parameters[0], m_varType)));
+            return new NodeIterator(Iterator(Core.CastTo(QueryContext.Engine, parameters[0], m_varType),
+                QueryContext.Resolver.GetCurrentStack()));
         }
 
 #if DEBUG

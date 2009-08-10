@@ -239,7 +239,8 @@ namespace DataEngine.CoreServices
             Defmacro("cadr", "(a)", "(list 'cdr (list 'car a))");
             Defmacro("cdar", "(a)", "(list 'car (list 'cdr a))");
             Defmacro("cddr", "(a)", "(list 'cdr (list 'cdr a))");
-            Defmacro(Funcs.If, "(a b c)", "(list 'cond (list a b) (list 't c))");            
+            Defmacro(Funcs.If, "(a b c)", "(list 'cond (list a b) (list 't c))");
+            Defmacro(Funcs.LambdaQuote, "(a)", "(list (list 'lambda nil a))");
         }
 
         private GlobalSymbols()

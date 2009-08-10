@@ -271,6 +271,7 @@ namespace DataEngine.CoreServices
             }
             try
             {
+                //Console.WriteLine("[{1}] Compile: {0}", expr, expr.GetHashCode());
 #endif
                 while (true)
                 {
@@ -622,7 +623,6 @@ namespace DataEngine.CoreServices
 
         public object Apply(object id, Parameter[] parameters, object lval, object[] args, SymbolLink dynamicFunc)
         {
-            LinkedList<CompiledLambda> list = null;
             object res = Undefined.Value;
             if (dynamicFunc != null && dynamicFunc.Value != null)
             {
@@ -636,8 +636,6 @@ namespace DataEngine.CoreServices
                 if (dynamicFunc != null)
                     dynamicFunc.Value = lambda;
                 res = lambda.Invoke(args);
-                if (list != null && res != Undefined.Value)
-                    list.AddFirst(lambda);
             }
             return res;
         }

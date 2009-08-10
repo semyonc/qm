@@ -25,8 +25,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
+using System.Globalization;
 
 namespace DataEngine.CoreServices
 {
@@ -68,18 +68,21 @@ namespace DataEngine.CoreServices
                 return typecode1;
             else if (typecode1 == TypeCode.Object || typecode2 == TypeCode.Object)
                 return TypeCode.Object;
+            else if ((typecode1 == TypeCode.String && IsNumberTypeCode(typecode2)) || 
+                     (typecode2 == TypeCode.String && IsNumberTypeCode(typecode1)))
+                return TypeCode.Double;
             else
             {
                 int index1 = -1;
-                for(int k = 0; k < _typeSeniority.Length; k++)
+                for (int k = 0; k < _typeSeniority.Length; k++)
                     if (_typeSeniority[k] == typecode1)
                     {
                         index1 = k;
                         break;
                     }
                 if (index1 == -1)
-                    throw new InvalidCastException();
-                
+                    return TypeCode.Object;
+
                 int index2 = -1;
                 for (int k = 0; k < _typeSeniority.Length; k++)
                     if (_typeSeniority[k] == typecode2)
@@ -88,7 +91,7 @@ namespace DataEngine.CoreServices
                         break;
                     }
                 if (index2 == -1)
-                    throw new InvalidCastException();
+                    return TypeCode.Object;
 
                 TypeCode typecode;
                 if (index1 > index2)
@@ -106,7 +109,7 @@ namespace DataEngine.CoreServices
                     case TypeCode.Byte:
                     case TypeCode.UInt16:
                     case TypeCode.UInt32:
-                        return TypeCode.UInt32;                    
+                        return TypeCode.UInt32;
 
                     default:
                         return typecode;
@@ -171,6 +174,33 @@ namespace DataEngine.CoreServices
                 return 0;
         }
 
+        public static bool IsNumberTypeCode(TypeCode typeCode)
+        {
+            switch (typeCode)
+            {
+                case TypeCode.Int16:
+                case TypeCode.Int32:
+                case TypeCode.Int64:
+                case TypeCode.UInt16:
+                case TypeCode.UInt32:
+                case TypeCode.UInt64:
+                case TypeCode.SByte:
+                case TypeCode.Byte:
+                case TypeCode.Single:
+                case TypeCode.Decimal:
+                case TypeCode.Double:
+                    return true;
+                
+                default:
+                    return false;
+            }
+        }
+
+        public static bool IsNumberType(Type type)
+        {
+            return IsNumberTypeCode(Type.GetTypeCode(type));
+        }
+
         public static object ChangeType(object value, TypeCode typeCode)
         {
             switch (typeCode)
@@ -202,7 +232,8 @@ namespace DataEngine.CoreServices
                 case TypeCode.Decimal:
                     return Convert.ChangeType(value, typeof(System.Decimal));
                 case TypeCode.Double:
-                    return Convert.ChangeType(value, typeof(System.Double));
+                    return Convert.ChangeType(value, typeof(System.Double), 
+                        CultureInfo.InvariantCulture);
                 case TypeCode.Char:
                     return Convert.ChangeType(value, typeof(System.Char));
                 case TypeCode.String:

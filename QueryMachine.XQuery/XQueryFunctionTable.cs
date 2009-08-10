@@ -116,6 +116,12 @@ namespace DataEngine.XQuery
 
         public void Register(object id, MethodInfo method)
         {
+            XQueryFunctionRecord rec = new XQueryFunctionRecord();
+            rec.id = id;
+            object[] attrs = method.GetCustomAttributes(typeof(XQuerySignatureAttribute), false);
+            XQuerySignatureAttribute sig = null;
+            if (attrs.Length > 0)
+                sig = (XQuerySignatureAttribute)attrs[0];
             ParameterInfo[] parameter_info = method.GetParameters();
             List<XQuerySequenceType> type_list = new List<XQuerySequenceType>();
             foreach (ParameterInfo pi in parameter_info)
@@ -131,28 +137,18 @@ namespace DataEngine.XQuery
                         type_list.Add(new XQuerySequenceType(xattr.TypeCode, xattr.Cardinality, pi.ParameterType));
                         continue;
                     }
-                }
-                if (pi.ParameterType == typeof(XPathNavigator))
-                    type_list.Add(new XQuerySequenceType(XmlTypeCode.Node, XmlTypeCardinality.ZeroOrOne, pi.ParameterType));
-                else if (pi.ParameterType == typeof(XQueryNodeIterator))
-                    type_list.Add(new XQuerySequenceType(XmlTypeCode.Node, XmlTypeCardinality.ZeroOrMore, pi.ParameterType));
+                }                
+                if (pi.ParameterType == typeof(XQueryNodeIterator))
+                    type_list.Add(new XQuerySequenceType(XmlTypeCode.Item, XmlTypeCardinality.ZeroOrMore, pi.ParameterType));
                 else
                     type_list.Add(new XQuerySequenceType(pi.ParameterType, XmlTypeCardinality.One));
             }
-            XQueryFunctionRecord rec = new XQueryFunctionRecord();
-            rec.id = id;
-            object[] attrs = method.GetCustomAttributes(typeof(XQuerySignatureAttribute), false);
-            XQuerySignatureAttribute sig = null;
-            if (attrs.Length > 0)
-                sig = (XQuerySignatureAttribute)attrs[0];
             if (sig != null && sig.Return != XmlTypeCode.None)
                 rec.returnType = new XQuerySequenceType(sig.Return, sig.Cardinality, method.ReturnType);
             else
             {
-                if (method.ReturnType == typeof(XPathNavigator))
-                    rec.returnType = new XQuerySequenceType(XmlTypeCode.Node, XmlTypeCardinality.ZeroOrOne, method.ReturnType);
-                else if (method.ReturnType == typeof(XQueryNodeIterator))
-                    rec.returnType = new XQuerySequenceType(XmlTypeCode.Node, XmlTypeCardinality.ZeroOrMore, method.ReturnType);
+                if (method.ReturnType == typeof(XQueryNodeIterator))
+                    rec.returnType = new XQuerySequenceType(XmlTypeCode.Item, XmlTypeCardinality.ZeroOrMore, method.ReturnType);
                 else
                     rec.returnType = new XQuerySequenceType(method.ReturnType, XmlTypeCardinality.One);
             }

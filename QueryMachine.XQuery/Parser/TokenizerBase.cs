@@ -2068,11 +2068,6 @@ namespace DataEngine.XQuery.Parser
                 ConsumeChar(Read());
                 m_state = LexerState.CloseKindTest;
             }
-            else if (XmlCharType.Instance.IsNameChar(c))
-            {
-                ConsumeQName();
-                m_state = LexerState.CloseKindTest;
-            }
             else if (MatchIdentifer("element", "("))
             {
                 EndToken("element");
@@ -2088,6 +2083,11 @@ namespace DataEngine.XQuery.Parser
                 BeginToken(m_bookmark[1]);
                 ConsumeChar('(');
                 m_states.Push(LexerState.KindTest);
+            }
+            else if (XmlCharType.Instance.IsNameChar(c))
+            {
+                ConsumeQName();
+                m_state = LexerState.CloseKindTest;
             }
             else if (MatchText("(:"))
             {

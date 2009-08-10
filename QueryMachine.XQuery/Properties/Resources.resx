@@ -237,4 +237,7 @@
   <data name="FOCA0002" xml:space="preserve">
     <value>Invalid lexical value {0}</value>
   </data>
+  <data name="InvalidFormat" xml:space="preserve">
+    <value>Input string {0} has invalid format for type {1}</value>
+  </data>
 </root>
