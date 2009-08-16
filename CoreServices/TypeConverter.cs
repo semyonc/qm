@@ -68,7 +68,7 @@ namespace DataEngine.CoreServices
                 return typecode1;
             else if (typecode1 == TypeCode.Object || typecode2 == TypeCode.Object)
                 return TypeCode.Object;
-            else if ((typecode1 == TypeCode.String && IsNumberTypeCode(typecode2)) || 
+            else if ((typecode1 == TypeCode.String && IsNumberTypeCode(typecode2)) ||
                      (typecode2 == TypeCode.String && IsNumberTypeCode(typecode1)))
                 return TypeCode.Double;
             else
