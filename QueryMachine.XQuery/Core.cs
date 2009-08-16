@@ -608,9 +608,9 @@ namespace DataEngine.XQuery
                     builder.WriteString(context.CreateItem(node).Value);
                 }
             return builder;
-        }       
-
-        public static bool BooleanValue(object value)        
+        }
+        
+        public static bool BooleanValue([XQueryParameter(XmlTypeCode.Item, Cardinality=XmlTypeCardinality.ZeroOrMore)] object value)        
         {
             if (value == null || 
                 value == DataEngine.CoreServices.Generation.RuntimeOps.False)
@@ -773,6 +773,9 @@ namespace DataEngine.XQuery
             else
                 if (arg1 is IConvertible && arg2 is IConvertible)
                 {
+                    if (arg1 is String || arg2 is String)
+                        return Convert.ToDouble(arg1, CultureInfo.InvariantCulture) +
+                            Convert.ToDouble(arg2, CultureInfo.InvariantCulture);
                     switch (TypeConverter.GetTypeCode(arg1, arg2))
                     {
                         case TypeCode.Int32:
@@ -1161,7 +1164,7 @@ namespace DataEngine.XQuery
             return false;
         }
 
-        public static bool Not(object value)
+        public static bool Not([XQueryParameter(XmlTypeCode.Item, Cardinality = XmlTypeCardinality.ZeroOrMore)] object value)
         {
             return !BooleanValue(value);
         }

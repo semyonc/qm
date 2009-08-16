@@ -40,6 +40,9 @@ namespace DataEngine.CoreServices
             else
                 if (arg1 is IConvertible && arg2 is IConvertible)
                 {
+                    if (arg1 is String || arg2 is  String)
+                        return Convert.ToDouble(arg1, CultureInfo.InvariantCulture) +
+                            Convert.ToDouble(arg2, CultureInfo.InvariantCulture);
                     switch (TypeConverter.GetTypeCode(arg1, arg2))
                     {
                         case TypeCode.Int32:
@@ -79,6 +82,9 @@ namespace DataEngine.CoreServices
             else
                 if (arg1 is IConvertible && arg2 is IConvertible)
                 {
+                    if (arg1 is String || arg2 is String)
+                        return Convert.ToDouble(arg1, CultureInfo.InvariantCulture) -
+                            Convert.ToDouble(arg2, CultureInfo.InvariantCulture);
                     switch (TypeConverter.GetTypeCode(arg1, arg2))
                     {
                         case TypeCode.Int32:
@@ -118,6 +124,9 @@ namespace DataEngine.CoreServices
             else
                 if (arg1 is IConvertible && arg2 is IConvertible)
                 {
+                    if (arg1 is String || arg2 is String)
+                        return Convert.ToDouble(arg1, CultureInfo.InvariantCulture) *
+                            Convert.ToDouble(arg2, CultureInfo.InvariantCulture);
                     switch (TypeConverter.GetTypeCode(arg1, arg2))
                     {
                         case TypeCode.Int32:
@@ -157,6 +166,9 @@ namespace DataEngine.CoreServices
             else
                 if (arg1 is IConvertible && arg2 is IConvertible)
                 {
+                    if (arg1 is String || arg2 is String)
+                        return Convert.ToDouble(arg1, CultureInfo.InvariantCulture) /
+                            Convert.ToDouble(arg2, CultureInfo.InvariantCulture);
                     switch (TypeConverter.GetTypeCode(arg1, arg2))
                     {
                         case TypeCode.Int32:
