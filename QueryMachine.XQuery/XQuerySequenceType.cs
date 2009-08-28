@@ -908,6 +908,27 @@ namespace DataEngine.XQuery
                     }
                     return false;
 
+                case XmlTypeCode.Int:
+                case XmlTypeCode.PositiveInteger:
+                case XmlTypeCode.Integer:
+                    switch (dst)
+                    {
+                        case XmlTypeCode.Int:
+                        case XmlTypeCode.Integer:
+                        case XmlTypeCode.PositiveInteger:
+                        case XmlTypeCode.NegativeInteger:
+                        case XmlTypeCode.NonPositiveInteger:
+                        case XmlTypeCode.UnsignedInt:
+                        case XmlTypeCode.UnsignedLong:
+                        case XmlTypeCode.Long:
+                        case XmlTypeCode.Float:
+                        case XmlTypeCode.Double:
+                        case XmlTypeCode.Decimal:
+                        case XmlTypeCode.Boolean:
+                            return true;
+                    }
+                    return false;
+
                 case XmlTypeCode.Float:
                 case XmlTypeCode.Double:
                     goto case XmlTypeCode.Decimal;
@@ -984,19 +1005,9 @@ namespace DataEngine.XQuery
                 case XmlTypeCode.Id:
                 case XmlTypeCode.Idref:
                 case XmlTypeCode.Entity:
-                case XmlTypeCode.Integer:
-                case XmlTypeCode.NonPositiveInteger:
-                case XmlTypeCode.NegativeInteger:
                 case XmlTypeCode.Long:
-                case XmlTypeCode.Int:
                 case XmlTypeCode.Short:
                 case XmlTypeCode.Byte:
-                case XmlTypeCode.NonNegativeInteger:
-                case XmlTypeCode.UnsignedLong:
-                case XmlTypeCode.UnsignedInt:
-                case XmlTypeCode.UnsignedShort:
-                case XmlTypeCode.UnsignedByte:
-                case XmlTypeCode.PositiveInteger:
                     throw new NotImplementedException();
 
                 // xdt:*

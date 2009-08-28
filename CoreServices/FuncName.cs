@@ -165,38 +165,42 @@ namespace DataEngine.CoreServices
 
         public bool Match(FuncName name, bool anyType)
         {
-            if (name.ID == ID && (name.Arity == Arity || (VariableLength && Arity < name.Arity)))
+            if (name.ID == ID)
             {
-                for (int k = 0; k < Signature.Length; k++)
-                    if (anyType)
-                    {
-                        if (!Signature[k].IsAssignableFrom(name.Signature[k]))
-                            return false;
-                    }
-                    else
-                    {
-                        if (Signature[k] != name.Signature[k])
-                            return false;
-                    }
-                if (VariableLength && Arity < name.Arity)
+                if (name.Arity == Arity || (VariableLength && Arity < name.Arity))
                 {
-                    int last = Signature.Length - 1;
-                    for (int k = Signature.Length; k < name.Arity; k++)
+                    for (int k = 0; k < Signature.Length; k++)
                         if (anyType)
                         {
-                            if (!Signature[last].IsAssignableFrom(name.Signature[k]))
+                            if (!Signature[k].IsAssignableFrom(name.Signature[k]))
                                 return false;
                         }
                         else
                         {
-                            if (Signature[last] != name.Signature[k])
+                            if (Signature[k] != name.Signature[k])
                                 return false;
                         }
+                    if (VariableLength && Arity < name.Arity)
+                    {
+                        int last = Signature.Length - 1;
+                        for (int k = Signature.Length; k < name.Arity; k++)
+                            if (anyType)
+                            {
+                                if (!Signature[last].IsAssignableFrom(name.Signature[k]))
+                                    return false;
+                            }
+                            else
+                            {
+                                if (Signature[last] != name.Signature[k])
+                                    return false;
+                            }
+                    }
+                    return true;
                 }
-                return true;
+                if (VariableLength && Arity == 1 && name.Arity == 0)
+                    return true;
             }
-            else
-                return false;
+            return false;
         }
     }
 

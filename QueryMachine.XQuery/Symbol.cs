@@ -46,6 +46,7 @@ namespace DataEngine.XQuery
         Literal,
         Integer,
         Double,
+        Decimal,
         Qname,
         VarName,
         Parameter,
@@ -235,6 +236,28 @@ namespace DataEngine.XQuery
         public override object Clone()
         {
             return new DoublelValue(Data);
+        }
+    }
+
+    public class DecimalValue : Value
+    {
+        public DecimalValue(object data)
+            : base(data)
+        {
+            tag = Tag.Decimal;
+        }
+
+        new public decimal Data
+        {
+            get
+            {
+                return (decimal)data;
+            }
+        }
+
+        public override object Clone()
+        {
+            return new DecimalValue(data);
         }
     }
 

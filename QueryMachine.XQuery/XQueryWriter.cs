@@ -1294,7 +1294,9 @@ namespace DataEngine.XQuery
             else if (sym.Tag == Tag.Integer)
                 WriteInteger((IntegerValue)sym);
             else if (sym.Tag == Tag.Double)
-                WriteDecimal((DoublelValue)sym);
+                WriteDouble((DoublelValue)sym);
+            else if (sym.Tag == Tag.Decimal)
+                WriteDecimal((DecimalValue)sym);
             else if (sym.Tag == Tag.VarName)
             {
                 WriteText('$');
@@ -1855,9 +1857,14 @@ namespace DataEngine.XQuery
             WriteQName((Qname)sym);
         }
 
-        public virtual void WriteDecimal(DoublelValue decimalValue)
+        public virtual void WriteDecimal(DecimalValue decimalValue)
         {
             WriteText(decimalValue.Data.ToString(CultureInfo.InvariantCulture));
+        }
+
+        public virtual void WriteDouble(DoublelValue doubleValue)
+        {
+            WriteText(doubleValue.Data.ToString("E03", CultureInfo.InvariantCulture));
         }
 
         public virtual void WriteInteger(IntegerValue integerValue)

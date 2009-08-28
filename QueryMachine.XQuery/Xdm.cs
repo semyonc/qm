@@ -323,7 +323,7 @@ namespace DataEngine.XQuery
         {
             _linkHead = pagefile.ReadInt32();
             if (pagefile.HasSchemaInfo)
-                pagefile.WriteSchemaInfo(_schemaInfo);
+                _schemaInfo = pagefile.ReadSchemaInfo();
         }
 
         public override void Store(PageFile pagefile)

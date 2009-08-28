@@ -35,11 +35,19 @@ using System.Xml.Schema;
 using System.Xml.XPath;
 
 using DataEngine.CoreServices;
+using System.Diagnostics;
 
 namespace DataEngine.XQuery
 {
     public class XQueryContext
     {
+        public class VariableRecord
+        {
+            public object expr;
+            public XQuerySequenceType varType;
+            public SymbolLink link;
+        }
+
         internal bool slave;
         internal XQueryContext master;
         internal NameTable nameTable;
@@ -49,9 +57,11 @@ namespace DataEngine.XQuery
         internal XmlNamespaceManager nsManager;
         internal Executive lispEngine;
         internal List<XQueryDocument> worklist;
-        internal Stack<IContextProvider> providers;
         internal Stack<XQueryOrder> queryOrdering;
         internal List<String> moduleList;
+        internal List<VariableRecord> variables;
+        internal Dictionary<object, XQuerySequenceType> externalVars;
+        internal Dictionary<XmlQualifiedName, string> option;
 
         public XQueryContext()
         {
@@ -66,10 +76,12 @@ namespace DataEngine.XQuery
             schemaInfoTable = new XQuerySchemaInfoTable();
             nsManager = new XmlNamespaceManager(nameTable);
             worklist = new List<XQueryDocument>();
-            providers = new Stack<IContextProvider>();
             queryOrdering = new Stack<XQueryOrder>();  
             Resolver = new XQueryResolver();
             moduleList = new List<string>();
+            variables = new List<VariableRecord>();
+            externalVars = new Dictionary<object, XQuerySequenceType>();
+            option = new Dictionary<XmlQualifiedName, string>();
             
             Core.Init();
             FunctionTable = XQueryFunctionTable.CreateInstance();
@@ -79,10 +91,6 @@ namespace DataEngine.XQuery
             lispEngine.Enter(Resolver);            
             
             nsManager.AddNamespace("xml", XmlReservedNs.NsXml);
-            nsManager.AddNamespace("xs", XmlReservedNs.NsXs);
-            nsManager.AddNamespace("xsi", XmlReservedNs.NsXsi);
-            nsManager.AddNamespace("fn", XmlReservedNs.NsXQueryFunc);
-            nsManager.AddNamespace("local", XmlReservedNs.NsXQueryLocalFunc);            
         }
 
         internal XQueryContext(XQueryContext master)
@@ -96,16 +104,14 @@ namespace DataEngine.XQuery
             schemaSet = master.schemaSet;
             nodeInfoTable = master.nodeInfoTable;
             schemaInfoTable = master.schemaInfoTable;
+            variables = master.variables;
+            externalVars = master.externalVars;
+            option = new Dictionary<XmlQualifiedName, string>();
 
             nsManager = new XmlNamespaceManager(nameTable);
             nsManager.AddNamespace("xml", XmlReservedNs.NsXml);
-            nsManager.AddNamespace("xs", XmlReservedNs.NsXs);
-            nsManager.AddNamespace("xsi", XmlReservedNs.NsXsi);
-            nsManager.AddNamespace("fn", XmlReservedNs.NsXQueryFunc);
-            nsManager.AddNamespace("local", XmlReservedNs.NsXQueryLocalFunc);            
 
             worklist = master.worklist;
-            providers = master.providers;
             queryOrdering = master.queryOrdering;
             moduleList = new List<string>();
 
@@ -126,6 +132,7 @@ namespace DataEngine.XQuery
             XmlUrlResolver resolver = new XmlUrlResolver();
             resolver.Credentials = CredentialCache.DefaultCredentials;
             settings.XmlResolver = resolver;
+            settings.ValidationEventHandler += new ValidationEventHandler(settings_ValidationEventHandler);
             if (ValidatedParser)
             {
                 settings.ValidationFlags = XmlSchemaValidationFlags.ProcessSchemaLocation |
@@ -133,6 +140,28 @@ namespace DataEngine.XQuery
                 settings.ValidationType = ValidationType.Schema;
             }
             return settings;
+        }
+
+        public virtual void InitNamespaces()
+        {
+            if (nsManager.LookupPrefix(XmlReservedNs.NsXs) == null)
+                nsManager.AddNamespace("xs", XmlReservedNs.NsXs);
+            if (nsManager.LookupPrefix(XmlReservedNs.NsXsi) == null)
+                nsManager.AddNamespace("xsi", XmlReservedNs.NsXsi);
+            if (nsManager.LookupPrefix(XmlReservedNs.NsXQueryFunc) == null)
+                nsManager.AddNamespace("fn", XmlReservedNs.NsXQueryFunc);
+            if (nsManager.LookupPrefix(XmlReservedNs.NsXQueryLocalFunc) == null)
+                nsManager.AddNamespace("local", XmlReservedNs.NsXQueryLocalFunc);            
+        }
+
+        private void settings_ValidationEventHandler(object sender, ValidationEventArgs e)
+        {
+            ValidationError((XmlReader)sender, e);
+        }
+
+        protected virtual void ValidationError(XmlReader sender, ValidationEventArgs e)
+        {
+            Trace.WriteLine(e.Message);
         }
 
         public XmlReader CreateReader(Stream stream)
@@ -185,6 +214,14 @@ namespace DataEngine.XQuery
             }
             return null;
         }
+
+        public virtual Literal[] ResolveModuleImport(string prefix, string targetNamespace)
+        {
+            if (slave)
+                return master.ResolveModuleImport(prefix, targetNamespace);
+            else
+                throw new XQueryException(Properties.Resources.XQST0059, targetNamespace);
+        }
         
         public XQueryDocument CreateDocument()
         {
@@ -227,7 +264,7 @@ namespace DataEngine.XQuery
             {
                 lispEngine.Leave();
                 foreach (XQueryDocument doc in worklist)
-                    doc.Close();                
+                    doc.Close();
             }
         }
 
@@ -244,16 +281,6 @@ namespace DataEngine.XQuery
                 return master.CreateCollection(collection_name);
             else
                 throw new XQueryException(Properties.Resources.FODC0004, collection_name);
-        }
-
-        public void EnterContext(IContextProvider provider)
-        {
-            providers.Push(provider);
-        }
-
-        public void LeaveContext()
-        {
-            providers.Pop();
         }
 
         public bool IsOrdered
@@ -279,14 +306,35 @@ namespace DataEngine.XQuery
             queryOrdering.Pop();
         }
 
-        public IContextProvider ContextProvider
+        internal void AddExternalVariable(object var, XQuerySequenceType varType)
         {
-            get
-            {
-                if (providers.Count == 0)
-                    throw new XQueryException(Properties.Resources.XPDY0002);
-                return providers.Peek();
-            }
+            externalVars.Add(var, varType);
+        }
+
+        internal void AddVariable(object expr, XQuerySequenceType varType, SymbolLink link)
+        {
+            VariableRecord rec = new VariableRecord();
+            rec.expr = expr;
+            rec.varType = varType;
+            rec.link = link;
+            variables.Add(rec);
+        }
+
+        public VariableRecord[] GetVariables()
+        {
+            return variables.ToArray();
+        }
+
+        public void SetExternalVariable(object var, object value)
+        {
+            XQuerySequenceType varType;
+            if (!externalVars.TryGetValue(var, out varType))
+                throw new XQueryException(Properties.Resources.UnknownExternalVariable, var);
+            SymbolLink link = lispEngine.Get(var);
+            if (varType == XQuerySequenceType.Item)
+                link.Value = value;
+            else
+                link.Value = Core.CastTo(lispEngine, value, varType);            
         }
 
         public XmlSchemaSet SchemaSet
@@ -334,6 +382,14 @@ namespace DataEngine.XQuery
         public XQueryResolver Resolver { get; private set; }
 
         public bool ValidatedParser { get; set; }
+
+        public IDictionary<XmlQualifiedName, string> Option
+        {
+            get
+            {
+                return option;
+            }
+        }
     }
 
     public class XPathContext : XQueryContext

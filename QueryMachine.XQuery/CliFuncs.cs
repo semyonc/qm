@@ -41,9 +41,9 @@ namespace DataEngine.XQuery
     public class CliFuncs
     {
         [XQuerySignature("name", Cardinality = XmlTypeCardinality.ZeroOrOne)]
-        public static string GetName([Implict] Executive executive)
+        public static string GetName(IContextProvider provider)
         {
-            return GetName(Core.NodeValue(Core.Context(executive)));
+            return GetName(Core.NodeValue(Core.ContextNode(provider)));
         }
 
         [XQuerySignature("name", Cardinality = XmlTypeCardinality.ZeroOrOne)]
@@ -73,9 +73,9 @@ namespace DataEngine.XQuery
         }
 
         [XQuerySignature("local-name", Cardinality = XmlTypeCardinality.ZeroOrOne)]
-        public static string GetLocalName([Implict] Executive executive)
+        public static string GetLocalName(IContextProvider provider)
         {
-            return GetLocalName(Core.NodeValue(Core.Context(executive)));
+            return GetLocalName(Core.NodeValue(Core.ContextNode(provider)));
         }
 
         [XQuerySignature("local-name", Cardinality = XmlTypeCardinality.ZeroOrOne)]
@@ -92,9 +92,9 @@ namespace DataEngine.XQuery
         }
 
         [XQuerySignature("namespace-uri", Return = XmlTypeCode.AnyUri, Cardinality = XmlTypeCardinality.ZeroOrOne)]
-        public static string GetNamespaceUri([Implict] Executive executive)
+        public static string GetNamespaceUri(IContextProvider provider)
         {
-            return GetNamespaceUri(Core.NodeValue(Core.Context(executive)));
+            return GetNamespaceUri(Core.NodeValue(Core.ContextNode(provider)));
         }
 
         [XQuerySignature("namespace-uri", Return = XmlTypeCode.AnyUri, Cardinality = XmlTypeCardinality.ZeroOrOne)]
@@ -136,9 +136,9 @@ namespace DataEngine.XQuery
         }
 
         [XQuerySignature("base-uri", Return = XmlTypeCode.AnyUri, Cardinality = XmlTypeCardinality.ZeroOrOne)]
-        public static object GetBaseUri([Implict] Executive executive)
+        public static object GetBaseUri(IContextProvider provider)
         {
-            return GetBaseUri(Core.NodeValue(Core.Context(executive)));
+            return GetBaseUri(Core.NodeValue(Core.ContextNode(provider)));
         }
 
         [XQuerySignature("document-uri", Return = XmlTypeCode.AnyUri, Cardinality = XmlTypeCardinality.ZeroOrOne)]
@@ -267,9 +267,9 @@ namespace DataEngine.XQuery
         }
 
         [XQuerySignature("string-length")]
-        public static int StringLength([Implict] Executive executive)
+        public static int StringLength(IContextProvider provider)
         {
-            return StringLength(Core.StringValue(Core.Atomize(Core.Context(executive))));
+            return StringLength(Core.StringValue(Core.Atomize(Core.ContextNode(provider))));
         }
 
         [XQuerySignature("normalize-space")]
@@ -334,9 +334,9 @@ namespace DataEngine.XQuery
         }
 
         [XQuerySignature("normalize-space")]
-        public static string NormalizeSpace([Implict] Executive executive)
+        public static string NormalizeSpace(IContextProvider provider)
         {
-            return NormalizeSpace(Core.StringValue(Core.Atomize(Core.Context(executive))));
+            return NormalizeSpace(Core.StringValue(Core.Atomize(Core.ContextNode(provider))));
         }
 
         [XQuerySignature("normalize-unicode")]
@@ -989,9 +989,23 @@ namespace DataEngine.XQuery
 
         [XQuerySignature("compare", Cardinality = XmlTypeCardinality.ZeroOrOne)]
         public static int Compare([XQueryParameter(XmlTypeCode.String, Cardinality = XmlTypeCardinality.ZeroOrOne)] string a,
+            [XQueryParameter(XmlTypeCode.String, Cardinality = XmlTypeCardinality.ZeroOrOne)] string b, string collation)
+        {
+            return Compare(a, b);
+        }
+
+        [XQuerySignature("compare", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static int Compare([XQueryParameter(XmlTypeCode.String, Cardinality = XmlTypeCardinality.ZeroOrOne)] string a,
             [XQueryParameter(XmlTypeCode.String, Cardinality = XmlTypeCardinality.ZeroOrOne)] string b)
         {
             return String.Compare(a, b);
+        }
+
+        [XQuerySignature("codepoint-equal", Cardinality = XmlTypeCardinality.ZeroOrOne)]
+        public static bool CodepointEqual([XQueryParameter(XmlTypeCode.String, Cardinality = XmlTypeCardinality.ZeroOrOne)] string a,
+            [XQueryParameter(XmlTypeCode.String, Cardinality = XmlTypeCardinality.ZeroOrOne)] string b)
+        {
+            return String.Compare(a, b) == 0;
         }
 
         [XQuerySignature("empty")]
@@ -1421,10 +1435,10 @@ namespace DataEngine.XQuery
             [XQueryParameter(XmlTypeCode.AnyAtomicType, Cardinality = XmlTypeCardinality.ZeroOrOne)] object collection_name)
         {
             XQueryContext context = (XQueryContext)executive.Owner;
-            if (collection_name == Undefined.Value)
-                return context.CreateCollection(Core.StringValue(Core.Atomize(Core.Context(executive))));
-            else
-                return context.CreateCollection((string)collection_name);
+            //if (collection_name == Undefined.Value)
+            //    return context.CreateCollection(Core.StringValue(Core.Atomize(Core.Context(executive))));
+            //else
+            return context.CreateCollection((string)collection_name);
         }
 
         [XQuerySignature("collection")]
@@ -1434,14 +1448,14 @@ namespace DataEngine.XQuery
         }
 
         [XQuerySignature("id")]
-        public static XQueryNodeIterator GetNodesById([Implict] Executive executive, [XQueryParameter(XmlTypeCode.String,
-            Cardinality=XmlTypeCardinality.ZeroOrMore)] XQueryNodeIterator arg)
+        public static XQueryNodeIterator GetNodesById([Implict] Executive executive, IContextProvider provider, 
+            [XQueryParameter(XmlTypeCode.String, Cardinality=XmlTypeCardinality.ZeroOrMore)] XQueryNodeIterator arg)
         {
             XQueryContext context = (XQueryContext)executive.Owner;
-            XPathItem item = Core.Context(executive);
+            XPathItem item = Core.ContextNode(provider);
             if (!item.IsNode)
                 throw new XQueryException(Properties.Resources.XPTY0004, "xs:anyAtomicValue", "node() in fn:id(string*)");
-            return GetNodesById(arg, (XPathNavigator)Core.Context(executive));
+            return GetNodesById(arg, (XPathNavigator)item);
         }
 
         private static IEnumerable<XPathItem> NodesEnumerator(XQueryNodeIterator arg, XPathNavigator node)

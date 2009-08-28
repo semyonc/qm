@@ -116,6 +116,7 @@ namespace DataEngine.XQuery
 
         public void Register(object id, MethodInfo method)
         {
+            bool context = false;
             XQueryFunctionRecord rec = new XQueryFunctionRecord();
             rec.id = id;
             object[] attrs = method.GetCustomAttributes(typeof(XQuerySignatureAttribute), false);
@@ -126,22 +127,41 @@ namespace DataEngine.XQuery
             List<XQuerySequenceType> type_list = new List<XQuerySequenceType>();
             foreach (ParameterInfo pi in parameter_info)
             {
-                object[] pi_attrs = pi.GetCustomAttributes(false);
-                if (pi_attrs.Length > 0)
+                if (pi.ParameterType == typeof(IContextProvider))
                 {
-                    if (pi_attrs[0] is ImplictAttribute && pi.Position == 0)
-                        continue;
-                    else if (pi_attrs[0] is XQueryParameterAttribute)
+                    if (context)
+                        throw new ArgumentException(pi.Name);
+                    context = true;
+                    continue;
+                }
+                bool customized = false;
+                bool variableParam = false;
+                object[] pi_attrs = pi.GetCustomAttributes(false);
+                foreach (object pi_atr in pi_attrs)
+                {
+                    if (pi_atr is System.ParamArrayAttribute)
+                        variableParam = true;
+                    else if (pi_atr is ImplictAttribute)
+                        customized = true;
+                    else
                     {
-                        XQueryParameterAttribute xattr = (XQueryParameterAttribute)pi_attrs[0];
-                        type_list.Add(new XQuerySequenceType(xattr.TypeCode, xattr.Cardinality, pi.ParameterType));
-                        continue;
+                        XQueryParameterAttribute xattr = pi_atr as XQueryParameterAttribute;
+                        if (xattr != null)
+                        {
+                            type_list.Add(new XQuerySequenceType(xattr.TypeCode, xattr.Cardinality, variableParam ?
+                                pi.ParameterType.GetElementType() : pi.ParameterType));
+                            customized = true;
+                            break;
+                        }
                     }
-                }                
-                if (pi.ParameterType == typeof(XQueryNodeIterator))
-                    type_list.Add(new XQuerySequenceType(XmlTypeCode.Item, XmlTypeCardinality.ZeroOrMore, pi.ParameterType));
-                else
-                    type_list.Add(new XQuerySequenceType(pi.ParameterType, XmlTypeCardinality.One));
+                }
+                if (!customized)
+                {
+                    if (pi.ParameterType == typeof(XQueryNodeIterator))
+                        type_list.Add(new XQuerySequenceType(XmlTypeCode.Item, XmlTypeCardinality.ZeroOrMore, pi.ParameterType));
+                    else
+                        type_list.Add(new XQuerySequenceType(pi.ParameterType, XmlTypeCardinality.One));
+                }
             }
             if (sig != null && sig.Return != XmlTypeCode.None)
                 rec.returnType = new XQuerySequenceType(sig.Return, sig.Cardinality, method.ReturnType);
@@ -161,6 +181,30 @@ namespace DataEngine.XQuery
                 sock.next = next;
             m_table[rec.id] = sock;
             GlobalSymbols.DefineStaticOperator(rec.id, method);
+            if (context)
+            {
+                object[] body = new object[parameter_info.Length + 2];
+                Executive.Parameter[] parameters = new Executive.Parameter[parameter_info.Length - 1];
+                int k = 0;
+                int i = 2;
+                body[0] = Funcs.List;
+                body[1] = Lisp.List(Lisp.QUOTE, rec.id);
+                foreach (ParameterInfo pi in parameter_info)
+                {
+                    if (pi.ParameterType != typeof(IContextProvider))
+                    {
+                        parameters[k] = new Executive.Parameter();
+                        parameters[k].ID = Lisp.Defatom(String.Format("p{0}", k + 1));
+                        parameters[k].Type = typeof(System.Object);
+                        parameters[k].VariableParam = false;
+                        body[i++] = parameters[k].ID;
+                        k++;
+                    }
+                    else
+                        body[i++] = Lisp.List(Lisp.QUOTE, ID.Context);
+                }
+                GlobalSymbols.Defmacro(rec.id, parameters, Lisp.List(body));
+            }
         }
 
         public bool IsRegistered(object id, int arity)

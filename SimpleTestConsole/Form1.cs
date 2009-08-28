@@ -8,12 +8,14 @@ using System.Text;
 using System.Windows.Forms;
 using System.IO;
 using System.Reflection;
-
-using DataEngine.XQuery;
-using System.Diagnostics;
-using System.Xml.XPath;
 using Microsoft.Win32;
 using System.Net;
+using System.Diagnostics;
+using System.Xml;
+using System.Xml.Schema;
+using System.Xml.XPath;
+
+using DataEngine.XQuery;
 
 namespace SimpleTestConsole
 {
@@ -43,7 +45,7 @@ namespace SimpleTestConsole
             dialog.Filter = "XQuery File (*.xq,*.xquery)|*.xq;*.xquery|All files (*.*)|*.*";
             if (dialog.ShowDialog() == DialogResult.OK)
             {
-                TextReader textReader = new StreamReader(dialog.FileName);
+                TextReader textReader = new StreamReader(dialog.FileName, true);
                 textBox2.Text = textReader.ReadToEnd();
                 textReader.Close();
                 Text = String.Format("XQuery {0}", Path.GetFileName(dialog.FileName));
@@ -64,7 +66,8 @@ namespace SimpleTestConsole
                     {
                         if (key != null)
                         {
-                            key.SetValue("SearchPath", form.textBox1.Text);
+                            searchPath = form.textBox1.Text;
+                            key.SetValue("SearchPath", searchPath);
                             key.Close();
                         }
                     }
@@ -102,9 +105,10 @@ namespace SimpleTestConsole
                 using (XQueryCommand command = new XQueryCommand())
                 {
                     command.OnResolveCollection += new ResolveCollectionEvent(command_OnResolveCollection);
+                    command.OnInputValidation += new System.Xml.Schema.ValidationEventHandler(command_OnInputValidation);
                     command.BaseUri = baseUri;
                     command.SearchPath = searchPath;
-                    command.Compile(textBox2.Text);
+                    command.CommandText = textBox2.Text;
                     XQueryNodeIterator iter = command.Execute();
                     while (iter.MoveNext())
                     {
@@ -129,7 +133,7 @@ namespace SimpleTestConsole
                 tabControl1.SelectedTab = tabPage2;
             }
         }
-        
+       
         // You can write something like this for process html data from XQuery
         // See http://htmlagilitypack.codeplex.com/ for details
         void command_OnResolveCollection(object sender, ResolveCollectionArgs args)
@@ -141,6 +145,11 @@ namespace SimpleTestConsole
             //HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
             //doc.Load(reader);
             //args.Navigator = doc.CreateNavigator();
+        }
+
+        void command_OnInputValidation(object sender, ValidationEventArgs e)
+        {
+            Console.Out.WriteLine(e.Message);
         }
     }
 }

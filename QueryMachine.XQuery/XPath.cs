@@ -48,54 +48,20 @@ namespace DataEngine.XQuery
                 return item;
         }
 
-        private class SelfProvider : IContextProvider
-        {
-            XPathNavigator m_node;
-
-            public SelfProvider(XPathNavigator node)
-            {
-                m_node = node;
-            }
-
-            #region IContextProvider Members
-
-            public XPathItem Context
-            {
-                get { return m_node; }
-            }
-
-            public int CurrentPosition
-            {
-                get { return 1; }
-            }
-
-            public int LastPosition
-            {
-                get { return 1; }
-            }
-
-            #endregion
-        }
-
-
-        public static XQueryNodeIterator Select2(this XPathNavigator node, string xquery, IXmlNamespaceResolver nsmgr)
+        public static XQueryNodeIterator XQuerySelect(this XPathNavigator node, string xquery, IXmlNamespaceResolver nsmgr)
         {
             XPathContext context = new XPathContext();
+            XQueryCommand command = new XQueryCommand(new XPathContext());
             if (nsmgr != null)
                 context.CopyNamespaces(nsmgr);
-            TokenizerBase tok = new Tokenizer(xquery);
-            Notation notation = new Notation();
-            YYParser parser = new YYParser(notation);
-            parser.yyparseSafe(tok);
-            context.EnterContext(new SelfProvider(node));
-            Translator translator = new Translator(context);
-            XQueryExprBase res = translator.Process(notation);
-            return res.Execute(null);
+            command.ContextItem = node;
+            command.CommandText = xquery;
+            return command.Execute();
         }
 
-        public static XQueryNodeIterator Select2(this XPathNavigator node, string xquery)
+        public static XQueryNodeIterator XQuerySelect(this XPathNavigator node, string xquery)
         {
-            return Select2(node, xquery, null);
+            return XQuerySelect(node, xquery, null);
         }
 
         internal static XPathItem ChangeType(this XPathItem item, XQuerySequenceType destType, 
@@ -489,7 +455,7 @@ namespace DataEngine.XQuery
             itemType.Cardinality = XmlTypeCardinality.One;
             foreach (XPathItem item in iter)
             {
-                if (num == 2)
+                if (num == 1)
                 {
                     if (destType.Cardinality == XmlTypeCardinality.ZeroOrOne ||
                         destType.Cardinality == XmlTypeCardinality.One)
@@ -553,6 +519,30 @@ namespace DataEngine.XQuery
                     yield return item;
                 }
                 pos++;
+            }
+        }
+
+        internal static IEnumerable<XPathItem> ValidateIterator(XQueryNodeIterator iter, XmlSchemaSet schemaSet, bool lax)
+        {
+            foreach (XPathItem item in iter)
+            {
+                if (!item.IsNode)
+                    throw new XQueryException(Properties.Resources.XPTY0004,
+                        new XQuerySequenceType(item.TypedValue.GetType(), XmlTypeCardinality.One), "node()*");
+                XPathNavigator nav = (XPathNavigator)item.Clone();
+                try
+                {
+                    nav.CheckValidity(schemaSet, null);
+                }
+                catch (XmlSchemaValidationException ex)
+                {
+                    throw new XQueryException(ex.Message, ex);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    throw new XQueryException(ex.Message, ex);
+                }
+                yield return nav;
             }
         }
     }

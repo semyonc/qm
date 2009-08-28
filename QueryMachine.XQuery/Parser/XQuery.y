@@ -483,15 +483,25 @@ SchemaPrefix
   ;  
                   
 ModuleImport
-  : IMPORT_MODULE URILiteral AT URILiteralList    
+  : IMPORT_MODULE URILiteral ModuleImportSpec
   {
-     $$ = notation.Confirm(new Symbol(Tag.Module), Descriptor.ImportModule, $2, $4);
+     $$ = notation.Confirm(new Symbol(Tag.Module), Descriptor.ImportModule, $2, $3);
   }
-  | IMPORT_MODULE NAMESPACE NCName '=' URILiteral AT URILiteralList
+  | IMPORT_MODULE NAMESPACE NCName '=' URILiteral ModuleImportSpec
   {
-     $$ = notation.Confirm(new Symbol(Tag.Module), Descriptor.ImportModule, $3, $5, $7);
+     $$ = notation.Confirm(new Symbol(Tag.Module), Descriptor.ImportModule, $3, $5, $6);
   }  
   ; 
+  
+ModuleImportSpec
+  : /* Empty */
+  {
+     $$ = null;
+  }
+  |  AT URILiteralList
+  {
+     $$ = $2;
+  };
   
 VarDecl
   : DECLARE_VARIABLE '$' VarName opt_TypeDeclaration ':' '=' ExprSingle
