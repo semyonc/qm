@@ -37,16 +37,39 @@ namespace DataEngine.CoreServices
 
         public MacroFunc(object id, string paramstr, string body)
         {
-            _parameters = Executive.CreateParameters(paramstr);
+            if (!String.IsNullOrEmpty(paramstr))
+            {
+                _parameters = Executive.CreateParameters(paramstr);
+                Name = new MacroFuncName(id, _parameters.Length);
+            }
+            else
+                Name = new MacroFuncName(id, 0);
             _body = LispParser.Parse(body);
-            Name = new MacroFuncName(id, _parameters.Length);
+        }
+
+        public MacroFunc(object id, Executive.Parameter[] parameters, object body)
+        {
+            if (parameters != null)
+                Name = new MacroFuncName(id, parameters.Length);
+            else
+                Name = new MacroFuncName(id, 0);
+            _body = body;
+            _parameters = parameters;
         }
 
         public override object Execute(Executive engine, object[] lval, out bool proceed)
         {
-            proceed = true;
-            object res = engine.Apply(null, _parameters, _body, lval, null);
-            return res;
+            if (Name.Arity == lval.Length || Name.Arity == -1)
+            {
+                proceed = true;
+                object res = engine.Apply(null, _parameters, _body, lval, null);
+                return res;
+            }
+            else
+            {
+                proceed = false;
+                return null;
+            }
         }
     }
 }

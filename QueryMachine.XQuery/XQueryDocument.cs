@@ -52,6 +52,7 @@ namespace DataEngine.XQuery
             nodeInfoTable = new XQueryNodeInfoTable();
             schemaInfoTable = new XQuerySchemaInfoTable();
             pagefile = new PageFile(nodeInfoTable, schemaInfoTable);
+            pagefile.HasSchemaInfo = true;
         }
 
         internal XQueryDocument(XmlNameTable nameTable, 
@@ -61,6 +62,7 @@ namespace DataEngine.XQuery
             this.nodeInfoTable = nodeInfoTable;
             this.schemaInfoTable = schemaInfoTable;
             pagefile = new PageFile(nodeInfoTable, schemaInfoTable);
+            pagefile.HasSchemaInfo = true;
         }
 
         public XQueryDocument(Stream stream)
@@ -110,6 +112,7 @@ namespace DataEngine.XQuery
         public void Open(Uri uri, XmlReaderSettings settings, XmlSpace space)
         {
             input = XmlReader.Create(uri.AbsoluteUri, settings);
+            nameTable = input.NameTable;
             builder = new XQueryDocumentBuilder(this);
             builder.SchemaInfo = input.SchemaInfo;
             baseUri = input.BaseURI;

@@ -24,49 +24,34 @@
 //        SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System;
-using System.Collections.Generic;
-using System.Text;
-
-using System.Xml;
-using System.Xml.XPath;
-
 using DataEngine.CoreServices;
 
 namespace DataEngine.XQuery
 {
-    public class XQueryResolver: Resolver
+    public class XQueryParameter
     {
-        private Dictionary<object, SymbolLink> m_values = new Dictionary<object, SymbolLink>();
-
-        public void SetValue(object atom, SymbolLink link)
+        public XQueryParameter()
         {
-            m_values[atom] = link;
         }
 
-        public object GetCurrentStack()
+        public XQueryParameter(String localName, Object value)
+            : this(localName, String.Empty, value)
         {
-            return new Dictionary<object, SymbolLink>(m_values);
         }
 
-        public void RevertToStack(object state)
+        public XQueryParameter(String localName, String namespaceUri, Object value)
         {
-            m_values = new Dictionary<object, SymbolLink>((IDictionary<object, SymbolLink>)state);
+            LocalName = localName;
+            NamespaceUri = namespaceUri;
+            Value = value;
         }
 
-        #region Resolver Members
+        public String LocalName { get; set; }
 
-        public bool Get(object atom, out SymbolLink result)
-        {
-            SymbolLink link;
-            if (m_values.TryGetValue(atom, out link) && link != null)
-            {
-                result = link;
-                return true;
-            }
-            result = null;
-            return false;
-        }
+        public String NamespaceUri { get; set; }
 
-        #endregion
+        public object Value { get; set; }
+
+        internal object ID { get; set; }
     }
 }

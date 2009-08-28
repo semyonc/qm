@@ -77,8 +77,11 @@ namespace DataEngine.XQuery
         {
             if (parameters.Length != 1)
                 throw new InvalidOperationException();
-            return new NodeIterator(Iterator(Core.CastTo(QueryContext.Engine, parameters[0], m_varType),
-                QueryContext.Resolver.GetCurrentStack()));
+            if (m_compiledBody == null)            
+                return new NodeIterator(Iterator(Core.CastTo(QueryContext.Engine, parameters[0], m_varType),
+                    QueryContext.Resolver.GetCurrentStack()));
+            else
+                return new NodeIterator(Iterator(Core.CastTo(QueryContext.Engine, parameters[0], m_varType), null));
         }
 
 #if DEBUG

@@ -108,9 +108,12 @@ namespace DataEngine.XQuery
         public override XQueryNodeIterator Execute(Object[] parameters)
         {
             if (parameters.Length != 1)
-                throw new InvalidOperationException();            
-            return new NodeIterator(CreateEnumerator(Core.CreateSequence(QueryContext.Engine, parameters[0]), 
-                QueryContext.Resolver.GetCurrentStack()));
+                throw new InvalidOperationException();     
+            if (m_compiledBody == null)
+                return new NodeIterator(CreateEnumerator(Core.CreateSequence(QueryContext.Engine, parameters[0]), 
+                    QueryContext.Resolver.GetCurrentStack()));
+            else
+                return new NodeIterator(CreateEnumerator(Core.CreateSequence(QueryContext.Engine, parameters[0]), null));
         }
 
 #if DEBUG

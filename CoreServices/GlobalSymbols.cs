@@ -362,7 +362,12 @@ namespace DataEngine.CoreServices
         public static void Defmacro(object id, string parameters, string body)
         {
             Shared.Defmacro(new MacroFunc(id, parameters, body));
-        }        
+        }
+
+        public static void Defmacro(object id, Executive.Parameter[] parameters, object body)
+        {
+            Shared.Defmacro(new MacroFunc(id, parameters, body));
+        }
         
         public void Defmacro(MacroFuncBase func)
         {

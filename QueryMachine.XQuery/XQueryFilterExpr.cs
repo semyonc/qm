@@ -75,12 +75,15 @@ namespace DataEngine.XQuery
 
     class XQueryFilterExpr: XQueryExprBase
     {
-        private XQueryExprBase m_filter;        
+        private XQueryExprBase m_filter;
+        private SymbolLink m_context;
+        private bool m_compiled;
         
         public XQueryFilterExpr(XQueryContext queryContext, XQueryExprBase filter)
             : base(queryContext)
         {
-            m_filter = filter;         
+            m_filter = filter;
+            m_context = new SymbolLink(typeof(IContextProvider));
         }
 
         private IEnumerable<XPathItem> CreateEnumerator(XQueryNodeIterator baseIter)
@@ -103,10 +106,15 @@ namespace DataEngine.XQuery
             }
             else
             {
-                ContextProvider provider = new ContextProvider(iter);                
+                ContextProvider provider = new ContextProvider(iter);
+                m_context.Value = provider;
                 while (iter.MoveNext())
                 {
-                    QueryContext.EnterContext(provider);
+                    if (!m_compiled)
+                    {
+                        QueryContext.Resolver.SetValue(ID.Context, m_context);
+                        m_compiled = true;
+                    }
                     XQueryNodeIterator res = m_filter.Execute(null);
                     if (res.MoveNext())
                     {
@@ -131,7 +139,6 @@ namespace DataEngine.XQuery
                                         yield return iter.Current;
                         }
                     }
-                    QueryContext.LeaveContext();
                 }                
             }
         }

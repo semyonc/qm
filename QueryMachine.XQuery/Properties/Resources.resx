@@ -240,4 +240,19 @@
   <data name="InvalidFormat" xml:space="preserve">
     <value>Input string {0} has invalid format for type {1}</value>
   </data>
+  <data name="UnknownExternalVariable" xml:space="preserve">
+    <value>Variable  {0} is not defined as external</value>
+  </data>
+  <data name="OptionRedeclared" xml:space="preserve">
+    <value>The module prolog contains more than one option {0} declaration</value>
+  </data>
+  <data name="XQST0059" xml:space="preserve">
+    <value>Implementation is unable to process a schema or module import by finding a schema or module with the specified target namespace {0}.</value>
+  </data>
+  <data name="XQST0070" xml:space="preserve">
+    <value>A namespace URI {0} is bound to the predefined prefix xmlns, or if a namespace URI other than http://www.w3.org/XML/1998/namespace is bound to the prefix xml, or if the prefix xml is bound to a namespace URI other than http://www.w3.org/XML/1998/namespace.</value>
+  </data>
+  <data name="XQST0088" xml:space="preserve">
+    <value>The literal that specifies the target namespace in a module import or a module declaration is of zero length</value>
+  </data>
 </root>

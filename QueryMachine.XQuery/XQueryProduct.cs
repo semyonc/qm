@@ -39,20 +39,27 @@ namespace DataEngine.XQuery
     {
         private object m_expr;
         private SymbolLink m_compiledBody;
+        private SymbolLink m_context;
 
         public XQueryProduct(XQueryContext queryContext, object expr)
             : base(queryContext)
         {
-            m_expr = expr;        
+            m_expr = expr;
+            m_context = new SymbolLink(typeof(IContextProvider));
         }
 
         private IEnumerable<XPathItem> CreateEnumerator(XQueryNodeIterator baseIter)
         {
             XQueryNodeIterator iter = baseIter.Clone();
             ContextProvider provider = new ContextProvider(iter);
-            QueryContext.EnterContext(provider);
             while (iter.MoveNext())
-            {                
+            {
+                if (m_compiledBody == null)
+                {
+                    m_compiledBody = new SymbolLink();
+                    QueryContext.Resolver.SetValue(ID.Context, m_context);                    
+                }
+                m_context.Value = provider;
                 object res = QueryContext.Engine.Apply(null, null,
                     m_expr, null, m_compiledBody);
                 if (res != Undefined.Value)
@@ -71,8 +78,7 @@ namespace DataEngine.XQuery
                         yield return item;
                     }
                 }
-            }
-            QueryContext.LeaveContext();
+            }            
         }
 
         public override XQueryNodeIterator Execute(object[] parameters)
@@ -80,11 +86,6 @@ namespace DataEngine.XQuery
             object value = parameters[0];
             if (value == null)
                 return EmptyIterator.Shared;
-            if (m_compiledBody == null)
-            {
-                m_compiledBody = new SymbolLink();
-                QueryContext.Engine.Compile(null, m_expr, m_compiledBody);
-            }
             return new NodeIterator(CreateEnumerator(Core.CreateSequence(QueryContext.Engine, value)));
         }
 

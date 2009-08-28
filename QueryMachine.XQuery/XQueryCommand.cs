@@ -26,8 +26,12 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+
+using System.Xml;
+using System.Xml.Schema;
 using System.Xml.XPath;
 
+using DataEngine.CoreServices;
 using DataEngine.XQuery.Parser;
 
 namespace DataEngine.XQuery
@@ -40,9 +44,11 @@ namespace DataEngine.XQuery
 
     public delegate void ResolveCollectionEvent(object sender, ResolveCollectionArgs args);
 
-    public class XQueryCommand: IDisposable
+    public class XQueryCommand : IDisposable, IContextProvider
     {
-        protected WorkContext m_context;
+        protected XQueryContext m_context;
+        protected SymbolLink m_contextItem;
+        protected Dictionary<string,string> m_modules;
         protected bool m_compiled;
         protected XQueryExprBase m_res;
         protected bool m_disposed = false;
@@ -80,22 +86,42 @@ namespace DataEngine.XQuery
                 }
             }
 
+            public override Literal[] ResolveModuleImport(string prefix, string targetNamespace)
+            {
+                String uri;
+                if (m_command.m_modules != null && m_command.m_modules.TryGetValue(targetNamespace, out uri))
+                    return new Literal[] { new Literal(uri) };
+                return base.ResolveModuleImport(prefix, targetNamespace);
+            }
+
             public override void Close()
             {
                 base.Close();
                 m_dict = null;
             }
+
+            protected override void ValidationError(XmlReader sender, ValidationEventArgs e)
+            {
+                if (m_command.OnInputValidation != null)
+                    m_command.OnInputValidation(sender, e);
+            }
         }
 
+
+        public XQueryCommand(XQueryContext context)
+        {
+            m_context = context;
+            ValidatedParser = true;
+            Parameters = new XQueryParameterCollection();
+        }
 
         public XQueryCommand()
         {
             m_context = new WorkContext(this);
-            m_compiled = false;
-            
             BaseUri = null;
             SearchPath = null;
             ValidatedParser = true;
+            Parameters = new XQueryParameterCollection();
         }
 
         ~XQueryCommand()
@@ -118,10 +144,15 @@ namespace DataEngine.XQuery
             }
         }
 
-        public void Compile(string queryText)
+        public void Compile()
         {
             CheckDisposed();
-            TokenizerBase tok = new Tokenizer(queryText);
+            if (String.IsNullOrEmpty(CommandText))
+                throw new XQueryException("CommandText is empty string");
+            m_contextItem = new SymbolLink(typeof(IContextProvider));
+            m_contextItem.Value = this;
+            m_context.Resolver.SetValue(ID.Context, m_contextItem);
+            TokenizerBase tok = new Tokenizer(CommandText);
             Notation notation = new Notation();
             YYParser parser = new YYParser(notation);
             parser.yyparseSafe(tok);
@@ -130,7 +161,11 @@ namespace DataEngine.XQuery
             if (SearchPath != null)
                 m_context.SearchPath = SearchPath;
             m_context.ValidatedParser = ValidatedParser;
-            Translator translator = new Translator(m_context);            
+            Translator translator = new Translator(m_context);
+            translator.PreProcess(notation);
+            m_context.InitNamespaces();
+            if (OnPreProcess != null) // Chance to process custom declare option statement
+                OnPreProcess(this, EventArgs.Empty);
             m_res = translator.Process(notation);
             m_compiled = true;
         }
@@ -139,23 +174,101 @@ namespace DataEngine.XQuery
         {
             CheckDisposed();
             if (!m_compiled)
-                throw new XQueryException("XQuery expression not compiled");
+                Compile();
             if (m_res == null)
                 throw new XQueryException("Can't run XQuery function module");
-            return m_res.Execute(null);
+            foreach (XQueryContext.VariableRecord rec in m_context.variables)
+            {
+                rec.link.Value = Core.CastTo(m_context.Engine,
+                    m_context.Engine.Apply(null, null, rec.expr, null, null), rec.varType);
+            }
+            foreach (XQueryParameter param in Parameters)
+            {
+                if (param.ID == null)
+                    param.ID = Translator.GetVarName(param.LocalName, param.NamespaceUri);
+                m_context.SetExternalVariable(param.ID, param.Value);
+            }
+            XQueryNodeIterator res = m_res.Execute(null);
+            return res;
         }
 
+        public void DefineModuleNamespace(string targetNamespace, string uri)
+        {
+            if (m_modules == null)
+                m_modules = new Dictionary<string, string>();
+            m_modules.Add(targetNamespace, uri);
+        }
+
+        public void AddSchema(string targetNamespace, XmlReader reader)
+        {
+            m_context.SchemaSet.Add(targetNamespace, reader);
+        }
+
+        public void AddSchema(string targetNamespace, string schemaUri)
+        {
+            m_context.SchemaSet.Add(targetNamespace, schemaUri);
+        }
+
+        public void AddSchema(XmlSchema schema)
+        {
+            m_context.SchemaSet.Add(schema);
+        }
+
+        public void AddSchemaSet(XmlSchemaSet schemaSet)
+        {
+            m_context.SchemaSet.Add(schemaSet);
+        }
+
+        public String CommandText { get; set; }
         public String BaseUri { get; set; }
         public String SearchPath { get; set; }
         public bool ValidatedParser { get; set; }
+        public XQueryParameterCollection Parameters { get; private set; }
+        public XPathNavigator ContextItem { get; set; }
         
+        public XQueryContext Context
+        {
+            get
+            {
+                return m_context;
+            }
+        }
+
+        public event EventHandler OnPreProcess;
+
         public event ResolveCollectionEvent OnResolveCollection;
+
+        public event ValidationEventHandler OnInputValidation;
 
         #region IDisposable Members
 
         public void Dispose()
         {
             Dispose(true);
+        }
+
+        #endregion
+
+        #region IContextProvider Members
+
+        XPathItem IContextProvider.Context
+        {
+            get 
+            {
+                if (ContextItem == null)
+                    throw new XQueryException(Properties.Resources.XPDY0002);
+                return ContextItem;
+            }
+        }
+
+        public int CurrentPosition
+        {
+            get { return 1; }
+        }
+
+        public int LastPosition
+        {
+            get { return 1; }
         }
 
         #endregion

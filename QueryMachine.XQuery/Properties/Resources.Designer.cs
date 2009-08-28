@@ -223,6 +223,15 @@ namespace DataEngine.XQuery.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to The module prolog contains more than one option {0} declaration.
+        /// </summary>
+        internal static string OptionRedeclared {
+            get {
+                return ResourceManager.GetString("OptionRedeclared", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Enumeration finished.
         /// </summary>
         internal static string Sch_EnumFinished {
@@ -255,6 +264,15 @@ namespace DataEngine.XQuery.Properties {
         internal static string UnexpectedEOF {
             get {
                 return ResourceManager.GetString("UnexpectedEOF", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Variable  {0} is not defined as external.
+        /// </summary>
+        internal static string UnknownExternalVariable {
+            get {
+                return ResourceManager.GetString("UnknownExternalVariable", resourceCulture);
             }
         }
         
@@ -385,6 +403,15 @@ namespace DataEngine.XQuery.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Implementation is unable to process a schema or module import by finding a schema or module with the specified target namespace {0}..
+        /// </summary>
+        internal static string XQST0059 {
+            get {
+                return ResourceManager.GetString("XQST0059", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to The module prolog contains more than one ordering mode declaration.
         /// </summary>
         internal static string XQST0065 {
@@ -426,6 +453,24 @@ namespace DataEngine.XQuery.Properties {
         internal static string XQST0069 {
             get {
                 return ResourceManager.GetString("XQST0069", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to A namespace URI {0} is bound to the predefined prefix xmlns, or if a namespace URI other than http://www.w3.org/XML/1998/namespace is bound to the prefix xml, or if the prefix xml is bound to a namespace URI other than http://www.w3.org/XML/1998/namespace..
+        /// </summary>
+        internal static string XQST0070 {
+            get {
+                return ResourceManager.GetString("XQST0070", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The literal that specifies the target namespace in a module import or a module declaration is of zero length.
+        /// </summary>
+        internal static string XQST0088 {
+            get {
+                return ResourceManager.GetString("XQST0088", resourceCulture);
             }
         }
     }

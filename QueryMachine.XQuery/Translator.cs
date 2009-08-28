@@ -41,8 +41,21 @@ namespace DataEngine.XQuery
 {
     public class Translator
     {
-        private XQueryContext _context;
-        private VarTable _varTable;
+        protected class FunctionDecl
+        {
+            public object f;
+            public XmlQualifiedName identity;
+            public FunctionParameter[] parameters;
+            public XQuerySequenceType returnType;
+
+            public FunctionDecl(object f, XmlQualifiedName identity, 
+                FunctionParameter[] parameters)
+            {
+                this.f = f;
+                this.identity = identity;
+                this.parameters = parameters;
+            }
+        }
 
         protected struct FunctionParameter
         {
@@ -59,6 +72,10 @@ namespace DataEngine.XQuery
             public object assignExpr;
         }
 
+        private XQueryContext _context;
+        private VarTable _varTable;
+        private Dictionary<object, FunctionDecl> _fdecl;
+        
         private bool _baseUriDecl;
         private bool _defaultCollationDecl;
         private bool _defaultOrderDecl;
@@ -71,17 +88,12 @@ namespace DataEngine.XQuery
         {
             _context = context;
             _varTable = new VarTable();
+            _fdecl = new Dictionary<object, FunctionDecl>();
         }
 
-        public XQueryExprBase Process(Notation notation)
-        {
+        public void PreProcess(Notation notation)
+        { // Phase 1. Namespace declaration, default function namespace and declare option statement.
             Notation.Record[] recs = notation.Select(Descriptor.Root, 1);
-            return ProcessModule(notation, recs[0].sym);
-        }
-
-        private XQueryExprBase ProcessModule(Notation notation, Symbol module)
-        {
-            Notation.Record[] recs = notation.Select(module, Descriptor.Root, 1);
             if (recs.Length == 0)
                 throw new InvalidOperationException();
             Notation.Record[] recs_c = notation.Select(recs[0].Arg0,
@@ -91,13 +103,39 @@ namespace DataEngine.XQuery
                 {
                     if (_context.slave)
                         throw new XQueryException(Properties.Resources.ExpectedModuleDecl);
-                    ProcessProlog(notation, recs_c[0].args[0]);                    
-                    return ProcessExpr(notation, recs_c[0].args[1]);
+                    ProcessProlog(notation, recs_c[0].args[0]);
                 }
                 else
                 {
                     ProcessModuleDecl(notation, recs_c[0].Arg0);
-                    ProcessProlog(notation, recs_c[0].args[1]);                    
+                    ProcessProlog(notation, recs_c[0].args[1]);
+                }
+        }
+
+        public XQueryExprBase Process(Notation notation)
+        { // Phase 2. Generation
+            Notation.Record[] recs = notation.Select(Descriptor.Root, 1);
+            if (recs.Length == 0)
+                throw new InvalidOperationException();
+            Notation.Record[] recs_c = notation.Select(recs[0].Arg0,
+                new Descriptor[] { Descriptor.Query, Descriptor.Library });
+            if (recs_c.Length > 0)
+                if (recs_c[0].descriptor == Descriptor.Query)
+                {
+                    ProcessSchemaImport(notation, recs_c[0].args[0]);
+                    ProcessImportModule(notation, recs_c[0].args[0]);
+                    ProcessFunctionDecl(notation, recs_c[0].args[0]);
+                    ProcessVarDecl(notation, recs_c[0].args[0]);
+                    ProcessFunctionBody(notation, recs_c[0].args[0]);
+                    return ProcessExpr(notation, recs_c[0].args[1]);
+                }
+                else
+                {
+                    ProcessSchemaImport(notation, recs_c[0].args[1]);
+                    ProcessImportModule(notation, recs_c[0].args[1]);
+                    ProcessFunctionDecl(notation, recs_c[0].args[1]);
+                    ProcessVarDecl(notation, recs_c[0].args[1]);
+                    ProcessFunctionBody(notation, recs_c[0].args[1]);
                 }
             return null;
         }
@@ -125,16 +163,28 @@ namespace DataEngine.XQuery
                     {
                         switch (recs[0].descriptor)
                         {
+                            case Descriptor.DefaultFunction:
+                                ProcessDefaultFunctionNS(notation, recs[0]);
+                                break;
+
+                            case Descriptor.Namespace:
+                                ProcessNamespace(notation, recs[0]);
+                                break;
+
+                            case Descriptor.OptionDecl:
+                                ProcessOptionDecl(notation, recs[0]);
+                                break;
+
+                            case Descriptor.BaseUri:
+                                ProcessBaseUri(notation, recs[0]);
+                                break;
+
                             case Descriptor.BoundarySpace:
                                 ProcessBoundarySpace(notation, recs[0]);
                                 break;
 
                             case Descriptor.DefaultCollation:
                                 ProcessDefaultCollation(notation, recs[0]);
-                                break;
-
-                            case Descriptor.BaseUri:
-                                ProcessBaseUri(notation, recs[0]);
                                 break;
 
                             case Descriptor.Ordering:
@@ -145,37 +195,94 @@ namespace DataEngine.XQuery
                                 ProcessDefaultOrder(notation, recs[0]);
                                 break;
 
-                            case Descriptor.Namespace:
-                                ProcessNamespace(notation, recs[0]);
-                                break;
-
-                            case Descriptor.ImportSchema:
-                                ProcessImportSchema(notation, recs[0]);
-                                break;
-
-                            case Descriptor.ImportModule:
-                                ProcessImportModule(notation, recs[0]);
-                                break;
-
-                            case Descriptor.DefaultFunction:
-                                ProcessDefaultFunctionNS(notation, recs[0]);
-                                break;
-
                             case Descriptor.DefaultElement:
                                 ProcessDefaultElementNS(notation, recs[0]);
-                                break;
-
-                            case Descriptor.VarDecl:
-                                ProcessVarDecl(notation, recs[0]);
-                                break;
-
-                            case Descriptor.DeclareFunction:
-                                ProcessFuncDecl(notation, recs[0]);
                                 break;
                         }
                     }
                 }
-            }            
+            }
+        }
+
+        private void ProcessSchemaImport(Notation notation, object prolog)
+        {
+            if (prolog != null)
+            {
+                bool compile_flag = false;
+                Symbol[] arr = Lisp.ToArray<Symbol>(prolog);
+                foreach (Symbol sym in arr)
+                {
+                    Notation.Record[] recs = notation.Select(sym);
+                    if (recs.Length > 0 &&
+                        recs[0].descriptor == Descriptor.ImportSchema)
+                    {
+                        compile_flag = true;
+                        ProcessImportSchema(notation, recs[0]);
+                    }
+                }
+                if (compile_flag)
+                    _context.schemaSet.Compile(); 
+            }
+        }
+
+        private void ProcessImportModule(Notation notation, object prolog)
+        {
+            if (prolog != null)
+            {
+                Symbol[] arr = Lisp.ToArray<Symbol>(prolog);
+                foreach (Symbol sym in arr)
+                {
+                    Notation.Record[] recs = notation.Select(sym);
+                    if (recs.Length > 0 &&
+                        recs[0].descriptor == Descriptor.ImportModule)
+                        ProcessImportModule(notation, recs[0]);
+                }
+            }
+        }
+
+        private void ProcessFunctionDecl(Notation notation, object prolog)
+        {
+            if (prolog != null)
+            {
+                Symbol[] arr = Lisp.ToArray<Symbol>(prolog);
+                foreach (Symbol sym in arr)
+                {
+                    Notation.Record[] recs = notation.Select(sym);
+                    if (recs.Length > 0 &&
+                        recs[0].descriptor == Descriptor.DeclareFunction)
+                        PreProcessFuncDecl(notation, recs[0]);
+                }
+            }
+        }
+
+        private void ProcessFunctionBody(Notation notation, object prolog)
+        {
+            if (prolog != null)
+            {
+                Symbol[] arr = Lisp.ToArray<Symbol>(prolog);
+                foreach (Symbol sym in arr)
+                {
+                    Notation.Record[] recs = notation.Select(sym);
+                    if (recs.Length > 0 &&
+                        recs[0].descriptor == Descriptor.DeclareFunction)
+                        ProcessFuncDecl(notation, recs[0]);
+                }
+            }
+        }
+
+        private void ProcessVarDecl(Notation notation, object prolog)
+        {
+            if (prolog != null)
+            {
+                Symbol[] arr = Lisp.ToArray<Symbol>(prolog);
+                foreach (Symbol sym in arr)
+                {
+                    Notation.Record[] recs = notation.Select(sym);
+                    if (recs.Length > 0 &&
+                        recs[0].descriptor == Descriptor.VarDecl)
+                        ProcessVarDecl(notation, recs[0]);
+                }
+            }
         }
 
         private void ProcessBoundarySpace(Notation notation, Notation.Record rec)
@@ -208,18 +315,32 @@ namespace DataEngine.XQuery
 
         private void ProcessImportModule(Notation notation, Notation.Record rec)
         {
-            Literal[] arr;
+            Literal[] arr = null;
             Literal targetNamespace;
             if (rec.args.Length == 2)
             {
                 targetNamespace = (Literal)rec.Arg0;
-                arr = Lisp.ToArray<Literal>(rec.args[1]);
+                if (targetNamespace.Data == "")
+                    throw new XQueryException(Properties.Resources.XQST0088);
+                if (rec.args[1] != null)
+                    arr = Lisp.ToArray<Literal>(rec.args[1]);
+                else
+                    arr = _context.ResolveModuleImport(String.Empty, targetNamespace.Data);
             }
             else
             {
                 Qname prefix = (Qname)rec.Arg0;
                 targetNamespace = (Literal)rec.Arg1;
-                arr = Lisp.ToArray<Literal>(rec.args[2]);
+                if (targetNamespace.Data == "")
+                    throw new XQueryException(Properties.Resources.XQST0088);
+                if (prefix.Name == "xml" || prefix.Name == "xmlns")
+                    throw new XQueryException(Properties.Resources.XQST0070, targetNamespace.Data);
+                if (rec.args[2] != null)
+                    arr = Lisp.ToArray<Literal>(rec.args[2]);
+                else
+                    arr = _context.ResolveModuleImport(prefix.Name, targetNamespace.Data);
+                if (_context.NamespaceManager.HasNamespace(prefix.Name))
+                    throw new XQueryException(Properties.Resources.XQST0033, prefix.Name);
                 _context.NamespaceManager.AddNamespace(prefix.Name, targetNamespace.Data);
             }
             for (int k = 0; k < arr.Length; k++)
@@ -254,6 +375,8 @@ namespace DataEngine.XQuery
                 XQueryContext context = new XQueryContext(_context);
                 Translator translator = new Translator(context);
                 translator._varTable = _varTable;
+                translator.PreProcess(notation2);
+                context.InitNamespaces();
                 translator.Process(notation2);
                 _context.FunctionTable.CopyFrom(context.FunctionTable);
                 context.Close();
@@ -325,7 +448,7 @@ namespace DataEngine.XQuery
         private void ProcessNamespace(Notation notation, Notation.Record rec)
         {
             Qname prefix = (Qname)rec.Arg0;
-            if (!String.IsNullOrEmpty(_context.NamespaceManager.LookupPrefix(prefix.Name)))
+            if (_context.NamespaceManager.HasNamespace(prefix.Name))
                 throw new XQueryException(Properties.Resources.XQST0033, prefix.Name);
             Literal uri = (Literal)rec.Arg1;
             _context.NamespaceManager.AddNamespace(prefix.Name, uri.Data);
@@ -340,7 +463,7 @@ namespace DataEngine.XQuery
                 if (recs.Length > 0)
                 {
                     Qname prefix = (Qname)recs[0].Arg0;
-                    if (!String.IsNullOrEmpty(_context.NamespaceManager.LookupPrefix(prefix.Name)))
+                    if (_context.NamespaceManager.HasNamespace(prefix.Name))
                         throw new XQueryException(Properties.Resources.XQST0033, prefix.Name);
                     _context.NamespaceManager.AddNamespace(prefix.Name, uri.Data);
                 }
@@ -367,7 +490,6 @@ namespace DataEngine.XQuery
                         throw new XQueryException(Properties.Resources.FileNotFound, filename);
                     _context.schemaSet.Add(uri.Data, filename);
                 }
-                _context.schemaSet.Compile(); // ?????? 
             }
         }
 
@@ -382,20 +504,17 @@ namespace DataEngine.XQuery
                 varType = XQuerySequenceType.Item;
             else
                 varType = ProcessTypeDecl(notation, rec.Arg1);
+            SymbolLink valueLink = new SymbolLink(varType.ValueType);
+            valueLink.Value = Undefined.Value;
             if (rec.args.Length > 2)
-            {
-                object expr = ProcessExprSingle(notation, rec.Arg2);
-                SymbolLink valueLink = new SymbolLink(varType.ValueType);
-                valueLink.Value = Core.CastTo( _context.Engine,
-                    _context.Engine.Apply(null, null, expr, null, null), varType);
-                _context.Engine.Set(var, valueLink);
-                _varTable.PushVar(var, varType);
-            }
-            else // extrenal
-                throw new NotImplementedException();            
+                _context.AddVariable(ProcessExprSingle(notation, rec.Arg2), varType, valueLink);
+            else
+                _context.AddExternalVariable(var, varType);            
+            _context.Engine.Set(var, valueLink);
+            _varTable.PushVar(var, varType);
         }
 
-        private void ProcessFuncDecl(Notation notation, Notation.Record rec)
+        private void PreProcessFuncDecl(Notation notation, Notation.Record rec)
         {
             Qname qname = (Qname)rec.Arg0;
             XmlQualifiedName identity = QNameParser.Parse(qname.Name, _context.NamespaceManager);
@@ -414,43 +533,67 @@ namespace DataEngine.XQuery
             FunctionParameter[] parameters = ProcessParamList(notation, rec.args[1]);
             if (_context.FunctionTable.IsRegistered(f, parameters.Length))
                 throw new XQueryException(Properties.Resources.XQST0034, identity.Name, identity.Namespace);            
-            int stack_pos = _varTable.BeginFrame();
             XQuerySequenceType[] parameterTypes = new XQuerySequenceType[parameters.Length];
-            Executive.Parameter[] executiveParameters = new Executive.Parameter[parameters.Length];
             for (int k = 0; k < parameters.Length; k++)
-            {
-                FunctionParameter p = parameters[k];                
-                executiveParameters[k].ID = p.id;
-                executiveParameters[k].Type = p.type.ValueType;
-                executiveParameters[k].VariableParam = false;
-                parameterTypes[k] = p.type;
-                _varTable.PushVar(p.id, p.type);
-            }
+                parameterTypes[k] = parameters[k].type;
+            FunctionDecl decl = new FunctionDecl(f, identity, parameters); 
             if (rec.args.Length > 3)
             {
-                XQuerySequenceType resType = new XQuerySequenceType(ProcessTypeDecl(notation, rec.Arg2));                
+                decl.returnType = new XQuerySequenceType(ProcessTypeDecl(notation, rec.Arg2));
                 if (rec.args[3] == null) // external
                     throw new NotImplementedException();
                 else
                 {
-                    XQuerySequenceType funcType = new XQuerySequenceType(resType);
+                    XQuerySequenceType funcType = new XQuerySequenceType(decl.returnType);
                     funcType.Cardinality = XmlTypeCardinality.ZeroOrMore;
                     _context.FunctionTable.Register(f, parameterTypes, funcType);
+                }
+            }
+            else
+            {
+                if (rec.args[2] == null) // external
+                    throw new NotImplementedException();
+                else
+                    decl.returnType = XQuerySequenceType.Item;
+                _context.FunctionTable.Register(f, parameterTypes, decl.returnType);
+            }
+            _fdecl.Add(rec.sym, decl);
+        }
+
+        private void ProcessFuncDecl(Notation notation, Notation.Record rec)
+        {
+            int stack_pos = _varTable.BeginFrame();
+            FunctionDecl decl = _fdecl[rec.sym];
+            Executive.Parameter[] executiveParameters = new Executive.Parameter[decl.parameters.Length];
+            for (int k = 0; k < decl.parameters.Length; k++)
+            {
+                FunctionParameter p = decl.parameters[k];                
+                executiveParameters[k].ID = p.id;
+                executiveParameters[k].Type = p.type.ValueType;
+                executiveParameters[k].VariableParam = false;
+                _varTable.PushVar(p.id, p.type);
+            }
+            if (rec.args.Length > 3)
+            {
+                if (rec.args[3] == null) // external
+                    throw new NotImplementedException();
+                else
+                {
                     XQueryExpr expr = (XQueryExpr)ProcessExpr(notation, rec.args[3]);
                     expr.FunctionExpr = true;
                     object body = Lisp.List(ID.DynExecuteExpr, expr);
-                    if (resType != XQuerySequenceType.Item)
+                    if (decl.returnType != XQuerySequenceType.Item)
                     {
                         XQuerySequenceType type = EvalExprType(Lisp.Second(body));
-                        if (!resType.Equals(type))
+                        if (!decl.returnType.Equals(type))
                         {
-                            if (!type.Equals(XQuerySequenceType.Item) && type.IsDerivedFrom(resType))
+                            if (!type.Equals(XQuerySequenceType.Item) && type.IsDerivedFrom(decl.returnType))
                                 throw new XQueryException(Properties.Resources.XPTY0004, type,
-                                    String.Format("{0} in function {1} {{{2}}}", resType, identity.Name, identity.Namespace));
-                            body = Lisp.List(ID.CastTo, body, resType);
+                                    String.Format("{0} in function {1} {{{2}}}", decl.returnType, decl.identity.Name, decl.identity.Namespace));
+                            body = Lisp.List(ID.CastTo, body, decl.returnType);
                         }                        
                     }
-                    LambdaExpr lambdaExpr = new LambdaExpr(f, executiveParameters, typeof(XQueryNodeIterator), body);
+                    LambdaExpr lambdaExpr = new LambdaExpr(decl.f, executiveParameters, typeof(XQueryNodeIterator), body);
                     _context.Engine.Defun(lambdaExpr);
                 }
             }
@@ -460,10 +603,9 @@ namespace DataEngine.XQuery
                     throw new NotImplementedException();
                 else
                 {
-                    _context.FunctionTable.Register(f, parameterTypes, XQuerySequenceType.Item);
                     XQueryExpr expr = (XQueryExpr)ProcessExpr(notation, rec.args[2]);
                     expr.FunctionExpr = true;
-                    LambdaExpr lambdaExpr = new LambdaExpr(f, executiveParameters, typeof(XQueryNodeIterator), 
+                    LambdaExpr lambdaExpr = new LambdaExpr(decl.f, executiveParameters, typeof(XQueryNodeIterator), 
                         Lisp.List(ID.DynExecuteExpr, expr));
                     _context.Engine.Defun(lambdaExpr);
                 }
@@ -492,6 +634,15 @@ namespace DataEngine.XQuery
                 }
             }
             return res.ToArray();
+        }
+
+        private void ProcessOptionDecl(Notation notation, Notation.Record rec)
+        {
+            XmlQualifiedName qualifiedName = (XmlQualifiedName)ProcessQName(notation, (Qname)rec.Arg0, XmlReservedNs.NsXQueryFunc);
+            Literal lit = (Literal)rec.Arg1;
+            if (_context.Option.ContainsKey(qualifiedName))
+                throw new XQueryException(Properties.Resources.OptionRedeclared, qualifiedName);
+            _context.Option.Add(new KeyValuePair<XmlQualifiedName, string>(qualifiedName, lit.Data));
         }
 
         private XQueryExprBase ProcessExpr(Notation notation, object p)
@@ -983,7 +1134,7 @@ namespace DataEngine.XQuery
             Notation.Record[] recs = notation.Select(sym, Descriptor.InstanceOf, 2);
             if (recs.Length > 0)
                 return Lisp.List(ID.InstanceOf,
-                    ProcessTreatExpr(notation, recs[0].Arg0), ProcessTypeDecl(notation, recs[0].Arg1));
+                    Lisp.List(Funcs.LambdaQuote, ProcessTreatExpr(notation, recs[0].Arg0)), ProcessTypeDecl(notation, recs[0].Arg1));
             else
                 return ProcessTreatExpr(notation, sym);
         }
@@ -1044,8 +1195,10 @@ namespace DataEngine.XQuery
                 switch (recs[0].descriptor)
                 {
                     case Descriptor.ExtensionExpr:
-                    case Descriptor.Validate:
                         throw new NotImplementedException();
+                    
+                    case Descriptor.Validate:
+                        return ProcessValidateExpr(notation, recs[0]);
 
                     default:
                         return ProcessPathExpr(notation, sym);
@@ -1055,13 +1208,34 @@ namespace DataEngine.XQuery
                 throw new InvalidOperationException();
         }
 
+        private object ProcessValidateExpr(Notation notation, Notation.Record rec)
+        {
+            bool lax = false;
+            if (rec.Arg0 != null)
+            {
+                TokenWrapper w = (TokenWrapper)rec.Arg0;
+                switch (w.Data)
+                {
+                    case Token.LAX:
+                        lax = true;
+                        break;
+
+                    case Token.STRICT:
+                        lax = false;
+                        break;
+                }
+            }
+            return Lisp.List(ID.Validate, 
+                Lisp.List(ID.DynExecuteExpr, ProcessExpr(notation, rec.args[1])), lax);
+        }
+
         private object ProcessPathExpr(Notation notation, Symbol sym)
         {
             Notation.Record[] recs = notation.Select(sym, new Descriptor[] { Descriptor.Child, 
                 Descriptor.Descendant }, 1);
             if (recs.Length > 0)
             {
-                object ancestor = Lisp.List(ID.Seq, Lisp.List(ID.Context));
+                object ancestor = Lisp.List(ID.Seq, Lisp.List(ID.ContextNode, ID.Context));
                 switch (recs[0].descriptor)
                 {
                     case Descriptor.Child:
@@ -1138,7 +1312,7 @@ namespace DataEngine.XQuery
         private object ProcessAxisStep(Notation notation, Notation.Record rec, object ancestor)
         {
             if (ancestor == null)
-                ancestor = Lisp.List(ID.Child, Lisp.List(ID.Seq, Lisp.List(ID.Context)));
+                ancestor = Lisp.List(ID.Child, Lisp.List(ID.Seq, Lisp.List(ID.ContextNode, ID.Context)));
             if (rec.Arg0.Tag == Tag.TokenWrapper && ((TokenWrapper)rec.Arg0).Data == Token.DOUBLE_PERIOD)
                 return Lisp.List(ID.Parent, RemoveChildAxis(ancestor));
             else
@@ -1304,7 +1478,7 @@ namespace DataEngine.XQuery
                 if (Lisp.IsFunctor(ancestor, ID.NameTest) || Lisp.IsFunctor(ancestor, ID.TypeTest))
                 {
                     tail = Lisp.Second(Lisp.Third(ancestor));
-                    Lisp.Rplacd(Lisp.Third(ancestor), Lisp.Cons(Lisp.List(ID.Seq, Lisp.List(ID.Context))));
+                    Lisp.Rplacd(Lisp.Third(ancestor), Lisp.Cons(Lisp.List(ID.Seq, Lisp.List(ID.ContextNode, ID.Context))));
                 }                
                 Symbol[] arr = Lisp.ToArray<Symbol>(recs[0].args[0]);
                 foreach (Symbol expr in arr)
@@ -1334,6 +1508,8 @@ namespace DataEngine.XQuery
                 return ((IntegerValue)sym).Data;
             else if (sym.Tag == Tag.Double)
                 return ((DoublelValue)sym).Data;
+            else if (sym.Tag == Tag.Decimal)
+                return ((DecimalValue)sym).Data;
             else if (sym.Tag == Tag.VarName)
             {
                 object var = ProcessVarName((VarName)sym);
@@ -1344,7 +1520,7 @@ namespace DataEngine.XQuery
             else if (sym.Tag == Tag.TokenWrapper)
             {
                 if (((TokenWrapper)sym).Data == '.')
-                    return Lisp.List(ID.Context);
+                    return Lisp.List(ID.ContextNode, ID.Context);
                 else
                     throw new InvalidOperationException();
             }
@@ -1424,12 +1600,8 @@ namespace DataEngine.XQuery
             }
             if (arg.Length == 2 && ns == XmlReservedNs.NsXs)
             {
-                XmlSchemaType schemaType = XmlSchemaType.GetBuiltInSimpleType(
-                    new XmlQualifiedName(identity.Name, XmlReservedNs.NsXs));
-                if (schemaType == null)
-                    throw new XQueryException(Properties.Resources.XPST0017,
-                        identity.Name, 1, XmlReservedNs.NsXs);
-                XQuerySequenceType seqtype = new XQuerySequenceType(schemaType, XmlTypeCardinality.One, null);
+                XQuerySequenceType seqtype = new XQuerySequenceType((XmlSchemaSimpleType)ProcessTypeName(notation, qname), 
+                    XmlTypeCardinality.One, null);                
                 return Lisp.List(ID.CastToItem, arg[1], seqtype);
             }
             else
@@ -1971,6 +2143,11 @@ namespace DataEngine.XQuery
             return Lisp.Defatom(ns, new string[] { "$", varName.LocalName }, false);
         }
 
+        internal static object GetVarName(string localName, string ns)
+        {
+            return Lisp.Defatom(ns, new string[] { "$", localName }, false);
+        }
+
         private bool IsBooleanFunctor(object expr)
         {
             return Lisp.IsFunctor(expr, Funcs.Eq) ||
@@ -2021,6 +2198,7 @@ namespace DataEngine.XQuery
                 Lisp.IsFunctor(expr, ID.FollowingSibling) ||
                 Lisp.IsFunctor(expr, ID.Namespace) ||
                 Lisp.IsFunctor(expr, ID.DynExecuteExpr) ||
+                Lisp.IsFunctor(expr, ID.Validate) ||
                 Lisp.IsFunctor(expr, ID.CastTo);
         }
 
@@ -2323,6 +2501,8 @@ namespace DataEngine.XQuery
                         expr = Lisp.List(Funcs.Cast, expr, clrType);
                 }
             }
+            if (clrType == typeof(XPathNavigator) && !type.IsNode)
+                throw new XQueryException(Properties.Resources.XPTY0004, type, destType);
             return expr;
         }
     }

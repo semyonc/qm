@@ -44,9 +44,10 @@ namespace DataEngine.XQuery
         public static readonly object DynOrdering = Lisp.Defatom("dyn_ordering");
         
         public static readonly object Doc = Lisp.Defatom(XmlReservedNs.NsXQueryFunc, new string[] { "doc" }, true);
-        public static readonly object Root = Lisp.Defatom(XmlReservedNs.NsXQueryFunc, new string[] { "root" }, true);
+        public static readonly object Root = Lisp.Defatom(XmlReservedNs.NsXQueryFunc, new string[] { "root" }, true);        
         public static readonly object Position = Lisp.Defatom(XmlReservedNs.NsXQueryFunc, new string[] { "position" }, true);
         public static readonly object Last = Lisp.Defatom(XmlReservedNs.NsXQueryFunc, new string[] { "last" }, true);
+        public static readonly object ContextNode = Lisp.Defatom("context-node");
 
         public static readonly object BooleanValue = Lisp.Defatom(XmlReservedNs.NsXQueryFunc, new string[] { "boolean" }, true);
         public static readonly object True = Lisp.Defatom(XmlReservedNs.NsXQueryFunc, new string[] { "true" }, true);
@@ -121,7 +122,7 @@ namespace DataEngine.XQuery
         public static readonly object Context = Lisp.Defatom("$context");
         public static readonly object Seq = Lisp.Defatom("$seq");
         public static readonly object IsUnknown = Lisp.Defatom("is-unknown");
-        public static readonly object CheckIsNode = Lisp.Defatom("check-is-node");        
+        public static readonly object CheckIsNode = Lisp.Defatom("check-is-node");
         
         public static readonly object Child = Lisp.Defatom("child");
         public static readonly object Descendant = Lisp.Defatom("descendant");
@@ -142,6 +143,7 @@ namespace DataEngine.XQuery
         public static readonly object Par = Lisp.Defatom("par");
         public static readonly object ExactlyOne = Lisp.Defatom("dyn-exactly-one");
         public static readonly object RaiseUnknown = Lisp.Defatom("raise-unknown");
+        public static readonly object Validate = Lisp.Defatom("validate");
     }    
 
     public static class Core
@@ -174,7 +176,7 @@ namespace DataEngine.XQuery
             GlobalSymbols.DefineStaticOperator(ID.AtomizeBody, typeof(Core), "Atomize");
             GlobalSymbols.DefineStaticOperator(ID.NodeValueBody, typeof(Core), "NodeValue");
             GlobalSymbols.DefineStaticOperator(ID.DateTimeValue, typeof(Core), "DateTimeValue");
-            GlobalSymbols.DefineStaticOperator(ID.Context, typeof(Core), "Context");
+            GlobalSymbols.DefineStaticOperator(ID.ContextNode, typeof(Core), "ContextNode");
             GlobalSymbols.DefineStaticOperator(ID.Seq, typeof(Core), "CreateSequence");
             GlobalSymbols.DefineStaticOperator(ID.CheckIsNode, typeof(Core), "CheckIsNode");
             GlobalSymbols.DefineStaticOperator(ID.IsUnknown, typeof(Core), "IsUnknown");
@@ -224,11 +226,13 @@ namespace DataEngine.XQuery
             GlobalSymbols.DefineStaticOperator(ID.FollowingSibling, typeof(Core), "AxisFollowingSibling");
             GlobalSymbols.DefineStaticOperator(ID.Preceding, typeof(Core), "AxisPreceding");
             GlobalSymbols.DefineStaticOperator(ID.PrecedingSibling, typeof(Core), "AxisPrecedingSibling");
+            GlobalSymbols.DefineStaticOperator(ID.Validate, typeof(Core), "Validate");
+
+            XQueryFunctionTable.Register(ID.Position, typeof(Core), "CurrentPosition");
+            XQueryFunctionTable.Register(ID.Last, typeof(Core), "LastPosition");
 
             XQueryFunctionTable.Register(ID.Doc, typeof(Core), "GetDocument");
             XQueryFunctionTable.Register(ID.Root, typeof(Core), "GetRoot");
-            XQueryFunctionTable.Register(ID.Position, typeof(Core), "CurrentPosition");
-            XQueryFunctionTable.Register(ID.Last, typeof(Core), "LastPosition");
             XQueryFunctionTable.Register(ID.BooleanValue, typeof(Core), "BooleanValue");
             XQueryFunctionTable.Register(ID.True, typeof(Core), "True");
             XQueryFunctionTable.Register(ID.False, typeof(Core), "False");
@@ -329,7 +333,7 @@ namespace DataEngine.XQuery
 
         public static object CheckIsNode([Implict] Executive executive, object value)
         {
-            if (value is XPathNavigator || value is XQueryNodeIterator)
+            if (value == Undefined.Value || value is XPathNavigator || value is XQueryNodeIterator)
                 return value;
             throw new XQueryException(Properties.Resources.XPTY0019, value);
         }
@@ -355,24 +359,18 @@ namespace DataEngine.XQuery
             return iter;
         }
 
-        public static XPathItem Context([Implict] Executive executive)
+        public static XPathItem ContextNode(IContextProvider provider)
         {
-            XQueryContext context = (XQueryContext)executive.Owner;
-            IContextProvider provider = context.ContextProvider;
             return provider.Context;
         }
 
-        public static int CurrentPosition([Implict] Executive executive)
+        public static int CurrentPosition(IContextProvider provider)
         {
-            XQueryContext context = (XQueryContext)executive.Owner;
-            IContextProvider provider = context.ContextProvider;
             return provider.CurrentPosition;
         }
 
-        public static int LastPosition([Implict] Executive executive)
+        public static int LastPosition(IContextProvider provider)
         {
-            XQueryContext context = (XQueryContext)executive.Owner;
-            IContextProvider provider = context.ContextProvider;
             return provider.LastPosition;
         }
 
@@ -635,8 +633,7 @@ namespace DataEngine.XQuery
                     case XmlTypeCode.Float:
                     case XmlTypeCode.Double:
                     case XmlTypeCode.Decimal:
-                        return v.ValueAsDouble != Double.NaN &&
-                            v.ValueAsDouble != 0.0;
+                        return !Double.IsNaN(v.ValueAsDouble) && v.ValueAsDouble != 0.0;
                     case XmlTypeCode.Integer:
                     case XmlTypeCode.NonPositiveInteger:
                     case XmlTypeCode.NegativeInteger:
@@ -900,13 +897,16 @@ namespace DataEngine.XQuery
         public static bool InstanceOf([Implict] Executive engine, object value, XQuerySequenceType destType)
         {
             XQueryContext context = (XQueryContext)engine.Owner;
+            if (value == Undefined.Value)
+                return destType.Cardinality == XmlTypeCardinality.ZeroOrOne ||
+                    destType.Cardinality == XmlTypeCardinality.ZeroOrMore;
             XQueryNodeIterator iter = value as XQueryNodeIterator;
             if (iter != null)
             {
                 int num = 0;
                 foreach (XPathItem item in iter)
                 {
-                    if (num == 2)
+                    if (num == 1)
                     {
                         if (destType.Cardinality == XmlTypeCardinality.ZeroOrOne ||
                             destType.Cardinality == XmlTypeCardinality.One)
@@ -1134,9 +1134,9 @@ namespace DataEngine.XQuery
         }
 
         [XQuerySignature("root", Return = XmlTypeCode.Node, Cardinality = XmlTypeCardinality.ZeroOrOne)]
-        public static object GetRoot([Implict] Executive executive)
+        public static object GetRoot(IContextProvider provider)
         {
-            return GetRoot(NodeValue(Context(executive)));
+            return GetRoot(NodeValue(ContextNode(provider)));
         }
 
         [XQuerySignature("root", Return = XmlTypeCode.Node, Cardinality = XmlTypeCardinality.ZeroOrOne)]
@@ -1144,7 +1144,7 @@ namespace DataEngine.XQuery
             Cardinality = XmlTypeCardinality.ZeroOrOne)] object node)
         {
             if (node == Undefined.Value)
-                return String.Empty;
+                return node;
             XPathNavigator nav = node as XPathNavigator;
             if (nav == null)
                 throw new XQueryException(Properties.Resources.XPTY0004,
@@ -1169,13 +1169,16 @@ namespace DataEngine.XQuery
             return !BooleanValue(value);
         }
         
-        public static double Number([Implict] Executive executive)
+        public static double Number(IContextProvider provider)
         {
-            return Number(Core.Atomize(Core.Context(executive)));
+            return Number(Core.Atomize(Core.ContextNode(provider)));
         }
 
-        public static double Number([XQueryParameter(XmlTypeCode.AnyAtomicType)] object value)
+        public static double Number([XQueryParameter(XmlTypeCode.AnyAtomicType, 
+            Cardinality=XmlTypeCardinality.ZeroOrOne)] object value)
         {
+            if (value == Undefined.Value || !(value is IConvertible))
+                return Double.NaN;
             try
             {
                 return (double)Convert.ChangeType(value, TypeCode.Double,
@@ -1185,17 +1188,27 @@ namespace DataEngine.XQuery
             {
                 return Double.NaN;
             }
+            catch (InvalidCastException)
+            {
+                return Double.NaN;
+            }
         }
 
-        public static string StringValue([Implict] Executive executive)
+        public static string StringValue(IContextProvider provider)
         {
-            return StringValue(Core.Context(executive));
+            return StringValue(ContextNode(provider));
         }
 
         public static string StringValue([XQueryParameter(XmlTypeCode.AnyAtomicType, 
             Cardinality=XmlTypeCardinality.ZeroOrOne)] object value)
         {
             return Core.Atomize(value).ToString();
+        }
+
+        public static XQueryNodeIterator Validate([Implict] Executive executive, XQueryNodeIterator iter, bool lax)
+        {
+            XQueryContext context = (XQueryContext)executive.Owner;
+            return new NodeIterator(XPath.ValidateIterator(iter, context.schemaSet, lax));
         }
     }
 }

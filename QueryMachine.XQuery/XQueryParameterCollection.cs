@@ -24,49 +24,53 @@
 //        SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System;
-using System.Collections.Generic;
-using System.Text;
-
-using System.Xml;
-using System.Xml.XPath;
-
-using DataEngine.CoreServices;
+using System.Collections;
 
 namespace DataEngine.XQuery
 {
-    public class XQueryResolver: Resolver
+    public class XQueryParameterCollection : CollectionBase
     {
-        private Dictionary<object, SymbolLink> m_values = new Dictionary<object, SymbolLink>();
-
-        public void SetValue(object atom, SymbolLink link)
+        public XQueryParameter this[int index]
         {
-            m_values[atom] = link;
-        }
-
-        public object GetCurrentStack()
-        {
-            return new Dictionary<object, SymbolLink>(m_values);
-        }
-
-        public void RevertToStack(object state)
-        {
-            m_values = new Dictionary<object, SymbolLink>((IDictionary<object, SymbolLink>)state);
-        }
-
-        #region Resolver Members
-
-        public bool Get(object atom, out SymbolLink result)
-        {
-            SymbolLink link;
-            if (m_values.TryGetValue(atom, out link) && link != null)
+            get
             {
-                result = link;
-                return true;
+                return (XQueryParameter)List[index];
             }
-            result = null;
-            return false;
+            set
+            {
+                List[index] = value;
+            }
         }
 
-        #endregion
+        public int Add(XQueryParameter value)
+        {
+            return List.Add(value);
+        }
+
+        public int IndexOf(XQueryParameter value)
+        {
+            return List.IndexOf(value);
+        }
+
+        public void Insert(int index, XQueryParameter value)
+        {
+            List.Insert(index, value);
+        }
+
+        public void Remove(XQueryParameter value)
+        {
+            List.Remove(value);
+        }
+
+        public bool Contains(XQueryParameter value)
+        {
+            return List.Contains(value);
+        }
+
+        protected override void OnValidate(Object value)
+        {
+            if (value.GetType() != typeof(XQueryParameter))
+                throw new ArgumentException("value must be of type XQueryParameter.", "value");
+        }
     }
 }

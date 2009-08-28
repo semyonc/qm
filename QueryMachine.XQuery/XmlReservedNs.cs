@@ -18,16 +18,16 @@ namespace DataEngine.XQuery
     /// <summary>
     /// This class defines a set of common XML namespaces for sharing across multiple source files.
     /// </summary>
-    internal abstract class XmlReservedNs
+    public abstract class XmlReservedNs
     {
-        internal const string NsWdXsl = "http://www.w3.org/TR/WD-xsl";
-        internal const string NsXml = "http://www.w3.org/XML/1998/namespace";
-        internal const string NsXmlNs = "http://www.w3.org/2000/xmlns/";
-        internal const string NsXs = "http://www.w3.org/2001/XMLSchema";
-        internal const string NsXsd = "http://www.w3.org/2001/XMLSchema-datatypes";
-        internal const string NsXsi = "http://www.w3.org/2001/XMLSchema-instance";
-        internal const string NsXQueryFunc = "http://www.w3.org/2003/11/xpath-functions";
-        internal const string NsXQueryDataType = "http://www.w3.org/2003/11/xpath-datatypes";
-        internal const string NsXQueryLocalFunc = "http://www.w3.org/2005/xquery-local-functions";
+        public const string NsWdXsl = "http://www.w3.org/TR/WD-xsl";
+        public const string NsXml = "http://www.w3.org/XML/1998/namespace";
+        public const string NsXmlNs = "http://www.w3.org/2000/xmlns/";
+        public const string NsXs = "http://www.w3.org/2001/XMLSchema";
+        public const string NsXsd = "http://www.w3.org/2001/XMLSchema-datatypes";
+        public const string NsXsi = "http://www.w3.org/2001/XMLSchema-instance";
+        public const string NsXQueryFunc = "http://www.w3.org/2003/11/xpath-functions";
+        public const string NsXQueryDataType = "http://www.w3.org/2003/11/xpath-datatypes";
+        public const string NsXQueryLocalFunc = "http://www.w3.org/2005/xquery-local-functions";
     };
 }

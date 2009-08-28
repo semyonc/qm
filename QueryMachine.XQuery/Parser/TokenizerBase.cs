@@ -157,6 +157,9 @@ namespace DataEngine.XQuery.Parser
                     break;
 
                 case Token.DecimalLiteral:
+                    ConsumeToken(tok, new DecimalValue(Convert.ToDecimal(s, NumberFormatInfo.InvariantInfo)));
+                    break;
+
                 case Token.DoubleLiteral:
                     ConsumeToken(tok, new DoublelValue(Convert.ToDouble(s, NumberFormatInfo.InvariantInfo)));
                     break;
