@@ -26,6 +26,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Globalization;
 
 using System.Xml;
 using System.Xml.Schema;
@@ -60,12 +61,14 @@ namespace DataEngine.XQuery
     {
         private bool m_stable;
         private XQueryOrderSpec[] m_spec;
+        private XQueryExprBase m_bodyExpr;
 
-        public XQuerySorter(XQueryContext context, XQueryOrderSpec[] spec, bool stable)
+        public XQuerySorter(XQueryContext context, XQueryOrderSpec[] spec, bool stable, XQueryExprBase bodyExpr)
             : base(context)
         {
             m_stable = stable;
             m_spec = spec;
+            m_bodyExpr = bodyExpr;
         }
 
         private IEnumerable<XPathItem> CreateEnumerable(List<XPathItem> items)
@@ -74,13 +77,23 @@ namespace DataEngine.XQuery
                 yield return item.Inner;
         }
 
-        public override XQueryNodeIterator Execute(object[] parameters)
+        public override void Bind(Executive.Parameter[] parameters)
         {
-            XQueryNodeIterator iter = (XQueryNodeIterator)parameters[0];
+            m_bodyExpr.Bind(parameters);
+        }
+
+        public override IEnumerable<SymbolLink> EnumDynamicFuncs()
+        {
+            return m_bodyExpr.EnumDynamicFuncs();
+        }
+
+        public override XQueryNodeIterator Execute(IContextProvider provider, object[] args)
+        {
+            XQueryNodeIterator iter = m_bodyExpr.Execute(provider, args);
             List<XPathItem> buffer = new List<XPathItem>();
             foreach (XPathItem item in iter)
                 buffer.Add(item);
-            XQueryComparer comparer = new XQueryComparer(m_spec);
+            XQueryComparer comparer = new XQueryComparer(QueryContext, m_spec);
             if (m_stable)
                 BubbleSort(buffer, comparer); // Stable but slowly sort
             else
@@ -107,6 +120,7 @@ namespace DataEngine.XQuery
             sb.Append("[");
             sb.Append(base.ToString());
             sb.Append(": ");
+            sb.Append(m_bodyExpr.ToString());
             sb.Append("]");
             return sb.ToString();
         }
@@ -115,13 +129,25 @@ namespace DataEngine.XQuery
         public class XQueryComparer : IComparer<XPathItem>
         {
             private XQueryOrderSpec[] _spec;
+            private CultureInfo[] _culture;
 
-            public XQueryComparer(XQueryOrderSpec[] spec)
+            public XQueryComparer(XQueryContext context, XQueryOrderSpec[] spec)
             {
                 _spec = spec;
+                _culture = new CultureInfo[spec.Length];
+                for (int k = 0; k < spec.Length; k++)
+                    _culture[k] = context.GetCulture(spec[k].collation);
             }
 
             #region IComparer<XPathItem> Members
+
+            public int CompareString(string s1, string s2, CultureInfo culture)
+            {
+                if (culture == null)
+                    return String.Compare(s1, s2, StringComparison.Ordinal);
+                else
+                    return String.Compare(s1, s2, culture, CompareOptions.None);
+            }
 
             public int Compare(XPathItem x, XPathItem y)
             {
@@ -130,30 +156,56 @@ namespace DataEngine.XQuery
                 if (key1 == null || key2 == null)
                     throw new ArgumentException();
                 if (key1.Length != _spec.Length || key2.Length != _spec.Length)
-                    throw new ArgumentException();
+                    throw new ArgumentException();                
                 for (int k = 0; k < _spec.Length; k++)
                 {
                     object a = key1[k];
                     object b = key2[k];
-                    if (a != null || b != null)
+                    int scale = _spec[k].direction == XQueryOrderDirection.Descending 
+                        ? -1 : 1;
+                    if (a is Double && Double.IsNaN((double)a))
+                        a = Undefined.Value;
+                    if (b is Double && Double.IsNaN((double)b))
+                        b = Undefined.Value;
+                    if (a != Undefined.Value || b != Undefined.Value)
                     {
-                        if (a == null)
-                            return _spec[k].emptySpec == XQueryEmptyOrderSpec.Greatest
-                                ? 1 : -1;
-                        else if (b == null)
-                            return _spec[k].emptySpec == XQueryEmptyOrderSpec.Greatest
-                                ? -1 : 1;
+                        if (a == Undefined.Value)
+                            return scale * (_spec[k].emptySpec == XQueryEmptyOrderSpec.Greatest ? 1 : -1);
+                        else if (b == Undefined.Value)
+                            return scale * (_spec[k].emptySpec == XQueryEmptyOrderSpec.Greatest ? -1 : 1);
                         else
                         {
-                            TypeCode typecode = TypeConverter.GetTypeCode(a, b);
-                            object val1 = TypeConverter.ChangeType(a, typecode);
-                            object val2 = TypeConverter.ChangeType(b, typecode);
-                            int res = ((IComparable)val1).CompareTo(val2);
-                            if (res != 0)
-                                if (_spec[k].direction == XQueryOrderDirection.Descending)
-                                    return -1 * res;
+                            if (a.GetType() == b.GetType())
+                            {
+                                int res;
+                                if (a is String)
+                                    res = CompareString((string)a, (string)b, _culture[k]);
                                 else
-                                    return res;
+                                    res = ((IComparable)a).CompareTo(b);
+                                if (res != 0)
+                                    return scale * res;
+                            }   
+                            else
+                            {
+                                NumericCode code = TypeConverter.GetNumericCode(a, b);
+                                object val1;
+                                object val2;
+                                int res; 
+                                if (code == NumericCode.Unknown)
+                                {
+                                    val1 = XQueryConvert.ToString(a);
+                                    val2 = XQueryConvert.ToString(b);
+                                    res = CompareString((string)val1, (string)val2, _culture[k]);
+                                }
+                                else
+                                {
+                                    val1 = TypeConverter.ChangeType(a, code);
+                                    val2 = TypeConverter.ChangeType(b, code);
+                                    res = ((IComparable)val1).CompareTo(val2);
+                                }                                
+                                if (res != 0)
+                                    return scale * res;
+                            }
                         }
                     }
                 }

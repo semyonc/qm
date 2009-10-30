@@ -613,15 +613,16 @@ namespace DataEngine.XQuery
                     if (recs1.Length > 0)
                     {                        
                         Symbol[] modifier = Lisp.ToArray<Symbol>(recs1[0].args[0]);
-                        switch (((TokenWrapper)modifier[0]).Data)
-                        {
-                            case Token.ASCENDING:
-                                WriteText(" ascending");
-                                break;
-                            case Token.DESCENDING:
-                                WriteText(" descending");
-                                break;
-                        }
+                        if (modifier[0] != null)
+                            switch (((TokenWrapper)modifier[0]).Data)
+                            {
+                                case Token.ASCENDING:
+                                    WriteText(" ascending");
+                                    break;
+                                case Token.DESCENDING:
+                                    WriteText(" descending");
+                                    break;
+                            }
                         if (modifier[1] != null)
                             switch (((TokenWrapper)modifier[1]).Data)
                             {
@@ -1644,8 +1645,8 @@ namespace DataEngine.XQuery
         public virtual void WriteSequenceType(Symbol sym)
         {
             if (sym.Tag == Tag.TokenWrapper && 
-                ((TokenWrapper)sym).Data == Token.VOID)
-                WriteText("void()");
+                ((TokenWrapper)sym).Data == Token.EMPTY_SEQUENCE)
+                WriteText("empty-sequence()");
             else
             {
                 WriteItemType(sym);
@@ -1705,6 +1706,10 @@ namespace DataEngine.XQuery
 
                         case Token.COMMENT:
                             WriteText("comment()");
+                            break;
+
+                        case Token.PROCESSING_INSTRUCTION:
+                            WriteText("processing-instruction()");
                             break;
 
                         case Token.ELEMENT:

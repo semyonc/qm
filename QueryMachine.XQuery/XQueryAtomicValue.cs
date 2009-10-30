@@ -30,6 +30,10 @@ using System.Text;
 using System.Xml;
 using System.Xml.XPath;
 using System.Xml.Schema;
+using System.Globalization;
+
+using DataEngine.CoreServices;
+using DataEngine.XQuery.Util;
 
 namespace DataEngine.XQuery
 {
@@ -37,57 +41,95 @@ namespace DataEngine.XQuery
     {       
         private object _value;
         private XmlSchemaType _xmlType;
+        private IXmlNamespaceResolver _nsResolver;
 
-        public XQueryAtomicValue(object value)
+        public XQueryAtomicValue(object value, IXmlNamespaceResolver nsResolver)
         {
             _value = value;
-            if (value is String)
-                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.String);
-            else if (value is Boolean)
-                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Boolean);
-            else if (value is DateTime)
-                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.DateTime);
-            else if (value is Double)
-                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Double);
-            else if (value is Int32)
-                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Integer);
-            else if (value is Int64)
-                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Long);
-            else if (value is Single)
-                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Float);
-            else if (value is Decimal)
-                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Decimal);
-            else if (value is Int16)
-                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Short);
-            else if (value is UInt16)
-                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.UnsignedShort);
-            else if (value is UInt32)
-                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.UnsignedInt);
-            else if (value is UInt64)
-                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.UnsignedLong);
-            else if (value is SByte)
-                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Byte);
-            else if (value is Byte)
-                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.UnsignedByte);
-            else if (value is TimeSpan)
-                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Duration);
+            _nsResolver = nsResolver;
         }
 
-        public XQueryAtomicValue(object value, XQuerySequenceType destType)
+        public XQueryAtomicValue(object value, XmlSchemaType xmlType, XmlNamespaceManager nsResolver)
         {
             _value = value;
-            _xmlType = destType.SchemaType;
+            _xmlType = xmlType;
+            if (_xmlType == null)
+                _xmlType = XQuerySequenceType.XmlSchema.UntypedAtomic;
+            _nsResolver = nsResolver;
+        }
+
+        private void InferXmlType()
+        {
+            if (_value is String)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.String);
+            else if (_value is UntypedAtomic)
+                _xmlType = XQuerySequenceType.XmlSchema.UntypedAtomic;
+            else if (_value is Integer)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Integer);
+            else if (_value is Boolean)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Boolean);
+            else if (_value is DateTimeValue)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.DateTime);
+            else if (_value is DateValue)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Date);
+            else if (_value is TimeValue)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Time);
+            else if (_value is Double)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Double);
+            else if (_value is Int32)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Int);
+            else if (_value is Int64)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Long);
+            else if (_value is Single)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Float);
+            else if (_value is Decimal)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Decimal);
+            else if (_value is Int16)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Short);
+            else if (_value is UInt16)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.UnsignedShort);
+            else if (_value is UInt32)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.UnsignedInt);
+            else if (_value is UInt64)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.UnsignedLong);
+            else if (_value is SByte)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Byte);
+            else if (_value is Byte)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.UnsignedByte);
+            else if (_value is DayTimeDurationValue)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.DayTimeDuration);
+            else if (_value is YearMonthDurationValue)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.YearMonthDuration);
+            else if (_value is DurationValue)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Duration);
+            else if (_value is GYearMonthValue)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.GYearMonth);
+            else if (_value is GYearValue)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.GYear);
+            else if (_value is GDayValue)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.GDay);
+            else if (_value is GMonthValue)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.GMonth);
+            else if (_value is GMonthDayValue)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.GMonthDay);
+            else if (_value is QNameValue)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.QName);
+            else if (_value is AnyUriValue)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.AnyUri);
+            else if (_value is HexBinaryValue)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.HexBinary);
+            else if (_value is Base64BinaryValue)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Base64Binary);
+            else if (_value is NMTOKENSValue)
+                _xmlType = XQuerySequenceType.XmlSchema.NMTOKENS;
+            else if (_value is IDREFSValue)
+                _xmlType = XQuerySequenceType.XmlSchema.IDREFS;
+            else if (_value is ENTITIESValue)
+                _xmlType = XQuerySequenceType.XmlSchema.ENTITIES;
+            else
+                throw new ArgumentException("value");
         }
         
-        public XQueryAtomicValue(object value, XmlSchemaType xmlType)
-        {
-            _value = value;
-            if (xmlType == null)
-                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.UntypedAtomic);
-            else
-                _xmlType = xmlType;
-        }
-
         public override bool IsNode
         {
             get 
@@ -108,16 +150,13 @@ namespace DataEngine.XQuery
         {
             get
             {
-                if (_xmlType == null)
-                    return _value.ToString();
-                else
-                    return (string)_xmlType.Datatype.ChangeType(_value, typeof(String));
+                return XQueryConvert.ToString(_value);
             }
         }
 
         public override object ValueAs(Type returnType, IXmlNamespaceResolver nsResolver)
         {
-            return _xmlType.Datatype.ChangeType(_value, returnType, nsResolver);
+            return XQueryConvert.ChangeType(_value, returnType);
         }
 
         public override bool ValueAsBoolean
@@ -172,6 +211,8 @@ namespace DataEngine.XQuery
         {
             get 
             {
+                if (_xmlType == null)
+                    InferXmlType();
                 return _xmlType;
             }
         }

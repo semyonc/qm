@@ -186,7 +186,7 @@ namespace DataEngine.XQuery.Parser
 %token PRAGMA_END								/* #) */
 %token CDATA_BEGIN								/* <![CDATA[ */
 %token CDATA_END								/* ]]> */
-%token VOID										/* void() */
+%token EMPTY_SEQUENCE							/* empty-sequence() */
 %token ITEM										/* item() */
 
 %token AXIS_CHILD AXIS_DESCENDANT AXIS_ATTRIBUTE AXIS_SELF AXIS_DESCENDANT_OR_SELF
@@ -399,7 +399,7 @@ CopyNamespacesDecl
   : DECLARE_COPY_NAMESPACES PreserveMode ',' InheritMode
   {
 	  $$ = notation.Confirm(new Symbol(Tag.Module), 
-	    Descriptor.CopyNamespace, $1, $3); 
+	    Descriptor.CopyNamespace, $2, $4); 
   }
   ;
   
@@ -761,6 +761,10 @@ OrderModifier
   {
      $$ = Lisp.List($1, null, null);
   }
+  | COLLATION URILiteral
+  {
+     $$ = Lisp.List(null, null, $2);
+  }      
   | OrderDirection EmptyOrderSpec
   {
      $$ = Lisp.List($1, $2, null);
@@ -773,6 +777,14 @@ OrderModifier
   {
      $$ = Lisp.List($1, $2, $4);
   }      
+  | EmptyOrderSpec
+  {
+     $$ = Lisp.List(null, $1, null);
+  }    
+  | EmptyOrderSpec COLLATION URILiteral
+  {
+     $$ = Lisp.List(null, $1, $3);
+  }          
   ;
   
 OrderDirection
@@ -1152,7 +1164,7 @@ PragmaList
 Pragma
    : PRAGMA_BEGIN opt_S QName PragmaContents PRAGMA_END
    {
-      $$ = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Pragma, $3, $4);
+      $$ = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Pragma, $3, new Literal($4));
    }
    ;     
          
@@ -1450,16 +1462,30 @@ DirElemConstructor
    {
        $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, $2, $3);
    }
+   | BeginTag QName S '/' '>'
+   {
+       $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, $2, null);
+   }
    | BeginTag QName opt_DirAttributeList '>' '<' '/' QName opt_S '>'
    {
        $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
 		 $2, $3, null, $7, $8);
    }   
+   | BeginTag QName S '>' '<' '/' QName opt_S '>'
+   {
+       $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
+		 $2, null, null, $7, $8);
+   }      
    | BeginTag QName opt_DirAttributeList '>' DirElemContentList '<' '/' QName opt_S '>'
    {
        $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
 		 $2, $3, $5, $8, $9);
    }      
+   | BeginTag QName S '>' DirElemContentList '<' '/' QName opt_S '>'
+   {
+       $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
+		 $2, null, $5, $8, $9);
+   }         
    ;
     
 DirElemContentList
@@ -1497,10 +1523,20 @@ DirAttributeList
    ;   
    
 DirAttribute 
-   : QName opt_S "=" opt_S '"' DirAttributeValueQuot '"'
+   : QName opt_S "=" opt_S '"' '"' 
+   {
+      $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirAttribute,
+		 $1, $2, $4, new Literal("\""), Lisp.Cons(new Literal("")));   
+   }
+   | QName opt_S "=" opt_S '"' DirAttributeValueQuot '"'
    {
       $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirAttribute,
 		 $1, $2, $4, new Literal("\""), $6);
+   }
+   | QName opt_S "=" opt_S Apos Apos
+   {
+      $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirAttribute,
+		 $1, $2, $4, new Literal("\'"), Lisp.Cons(new Literal("")));   
    }
    | QName opt_S "=" opt_S Apos DirAttributeValueApos Apos
    {
@@ -1569,11 +1605,11 @@ CommonContent
    | CharRef 
    | '{' '{'
    {
-      $$ = new Literal("{{");
+      $$ = new Literal("{");
    }
    | '}' '}'
    {
-      $$ = new Literal("}}");
+      $$ = new Literal("}");
    }   
    | EnclosedExpr 
    {
@@ -1736,9 +1772,9 @@ SequenceType
       $$ = $1;
       notation.Confirm((Symbol)$1, Descriptor.Occurrence, $2);
    }
-   | VOID
+   | EMPTY_SEQUENCE
    {
-      $$ = new TokenWrapper(Token.VOID);
+      $$ = new TokenWrapper(Token.EMPTY_SEQUENCE);
    }
    ;   
    

@@ -35,7 +35,7 @@ namespace DataEngine.CoreServices
 {
     public class CompiledLambda
     {
-        private delegate object InvokeLambda(CompiledLambda sender, object[] consts);
+        private delegate object InvokeLambda(CompiledLambda sender, object[] consts, object[] args);
 
         private DynamicMethod dynamicMethod;
         private InvokeLambda invoke;                
@@ -46,7 +46,7 @@ namespace DataEngine.CoreServices
             Arity = parameters.Length;
             Parameters = parameters;
             dynamicMethod = new DynamicMethod("", typeof(System.Object),
-                new Type[] { typeof(CompiledLambda), typeof(object[]) }, GetType().Module);
+                new Type[] { typeof(CompiledLambda), typeof(object[]), typeof(object[]) }, GetType().Module);
         }
 
         public Executive Engine { get; set; }
@@ -54,6 +54,7 @@ namespace DataEngine.CoreServices
         public Executive.Parameter[] Parameters { get; set; }
         public SymbolLink[] Values { get; set; }
         public Object[] Consts { get; set; }
+        public LambdaExpr[] Dependences { get; set; }
         public Type ReturnType { get; set; }
 
         public object Invoke(object[] args)
@@ -62,17 +63,16 @@ namespace DataEngine.CoreServices
                 invoke = (InvokeLambda)dynamicMethod.CreateDelegate(typeof(InvokeLambda));
             if ((args == null && Arity == 0) || args.Length == Arity)
             {
-                if (Arity > 0)
-                    for (int k = 0; k < args.Length; k++)
-                        Values[k].Value = args[k];                
-                CompiledLambda old_lambda = Engine.CurrentLambda;
-                Engine.CurrentLambda = this;
-                object res = invoke(this, Consts);
-                Engine.CurrentLambda = old_lambda;
-                return res;
+                try
+                {
+                    return invoke(this, Consts, args);
+                }
+                catch (Exception ex)
+                {
+                    Engine.HandleRuntimeException(ex);
+                }
             }
-            else
-                throw new ArgumentException();
+            throw new InvalidOperationException("Invoke");
         }
 
 #if DEBUG

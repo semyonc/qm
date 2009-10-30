@@ -30,29 +30,25 @@ using System.Text;
 using System.Xml;
 using System.Xml.Schema;
 using System.Xml.XPath;
+using System.Diagnostics;
 
 namespace DataEngine.XQuery
 {
-    internal class NodeIterator: XQueryNodeIterator
+    public class NodeIterator: XQueryNodeIterator
     {
         private IEnumerable<XPathItem> master;
         private IEnumerator<XPathItem> iterator;        
         private bool iterationStarted;
         private int pos = -1;
-
+        
         public NodeIterator(IEnumerable<XPathItem> enumerable)
         {
             master = enumerable;
             iterator = master.GetEnumerator();
             iterationStarted = false;
-        }
+        }        
 
-        private IEnumerator<XPathItem> CastAs(IEnumerator iter)
-        {
-            while(iter.MoveNext())
-                yield return (XPathItem)iter.Current;
-        }
-
+        [DebuggerStepThrough]
         public override XQueryNodeIterator Clone()
         {
             NodeIterator iter = new NodeIterator(master);
@@ -69,7 +65,7 @@ namespace DataEngine.XQuery
                 return iterator.Current;
             }
         }
-
+        
         public override int CurrentPosition
         {
             get 
@@ -80,6 +76,7 @@ namespace DataEngine.XQuery
             }
         }
 
+        [DebuggerStepThrough]
         public override bool MoveNext()
         {
             if (!iterationStarted)

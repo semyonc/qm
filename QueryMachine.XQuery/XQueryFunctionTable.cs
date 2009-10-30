@@ -75,6 +75,7 @@ namespace DataEngine.XQuery
     public class XQueryFunctionRecord
     {
         public object id;
+        public XQueryContext module;
         public XQuerySequenceType[] parameters;
         public XQuerySequenceType returnType;
         public bool variableParams;
@@ -125,6 +126,7 @@ namespace DataEngine.XQuery
                 sig = (XQuerySignatureAttribute)attrs[0];
             ParameterInfo[] parameter_info = method.GetParameters();
             List<XQuerySequenceType> type_list = new List<XQuerySequenceType>();
+            int implict = -1;
             foreach (ParameterInfo pi in parameter_info)
             {
                 if (pi.ParameterType == typeof(IContextProvider))
@@ -142,7 +144,12 @@ namespace DataEngine.XQuery
                     if (pi_atr is System.ParamArrayAttribute)
                         variableParam = true;
                     else if (pi_atr is ImplictAttribute)
+                    {
                         customized = true;
+                        if (implict != -1)
+                            throw new ArgumentException(pi.Name);
+                        implict = pi.Position;
+                    }
                     else
                     {
                         XQueryParameterAttribute xattr = pi_atr as XQueryParameterAttribute;
@@ -178,30 +185,53 @@ namespace DataEngine.XQuery
             FunctionSocket sock = new FunctionSocket(rec);
             FunctionSocket next;
             if (m_table.TryGetValue(rec.id, out next))
+            {
+                FunctionSocket curr = next;
+                while (curr != null)
+                {
+                    if (curr.rec.parameters.Length == rec.parameters.Length &&
+                        curr.rec.variableParams == rec.variableParams)
+                        throw new InvalidOperationException(method.ToString());
+                    curr = curr.next;
+                }
                 sock.next = next;
+            }
             m_table[rec.id] = sock;
             GlobalSymbols.DefineStaticOperator(rec.id, method);
             if (context)
             {
-                object[] body = new object[parameter_info.Length + 2];
-                Executive.Parameter[] parameters = new Executive.Parameter[parameter_info.Length - 1];
+                object[] body;                 
+                Executive.Parameter[] parameters;
+                if (implict == -1)
+                {
+                    parameters = new Executive.Parameter[parameter_info.Length - 1];
+                    body = new object[parameter_info.Length + 2];
+                }
+                else
+                {
+                    parameters = new Executive.Parameter[parameter_info.Length - 2];
+                    body = new object[parameter_info.Length + 1];
+                }
                 int k = 0;
                 int i = 2;
                 body[0] = Funcs.List;
                 body[1] = Lisp.List(Lisp.QUOTE, rec.id);
                 foreach (ParameterInfo pi in parameter_info)
                 {
-                    if (pi.ParameterType != typeof(IContextProvider))
+                    if (pi.Position != implict)
                     {
-                        parameters[k] = new Executive.Parameter();
-                        parameters[k].ID = Lisp.Defatom(String.Format("p{0}", k + 1));
-                        parameters[k].Type = typeof(System.Object);
-                        parameters[k].VariableParam = false;
-                        body[i++] = parameters[k].ID;
-                        k++;
+                        if (pi.ParameterType != typeof(IContextProvider))
+                        {
+                            parameters[k] = new Executive.Parameter();
+                            parameters[k].ID = Lisp.Defatom(String.Format("p{0}", k + 1));
+                            parameters[k].Type = typeof(System.Object);
+                            parameters[k].VariableParam = false;
+                            body[i++] = parameters[k].ID;
+                            k++;
+                        }
+                        else
+                            body[i++] = Lisp.List(Lisp.QUOTE, ID.Context);
                     }
-                    else
-                        body[i++] = Lisp.List(Lisp.QUOTE, ID.Context);
                 }
                 GlobalSymbols.Defmacro(rec.id, parameters, Lisp.List(body));
             }
@@ -220,10 +250,11 @@ namespace DataEngine.XQuery
             return false;
         }
 
-        public void Register(object id, XQuerySequenceType[] parameters, XQuerySequenceType resType)
+        public void Register(object id, XQueryContext module, XQuerySequenceType[] parameters, XQuerySequenceType resType)
         {
             XQueryFunctionRecord rec = new XQueryFunctionRecord();
             rec.id = id;
+            rec.module = module;
             rec.parameters = parameters;
             rec.returnType = resType;
             FunctionSocket sock = new FunctionSocket(rec);
@@ -252,11 +283,24 @@ namespace DataEngine.XQuery
             return GetRecord(Lisp.First(expr), Lisp.Length(expr) - 1);
         }
 
-        public void CopyFrom(XQueryFunctionTable src)
+        public void CopyFrom(XQueryFunctionTable src, XQueryContext module)
         {
             foreach (KeyValuePair<object, FunctionSocket> kvp in src.m_table)
-                if (!m_table.ContainsKey(kvp.Key))
-                    m_table.Add(kvp.Key, kvp.Value);
+            {
+                FunctionSocket curr = kvp.Value;
+                while (curr != null)
+                {
+                    if (curr.rec.module == module)
+                    {
+                        FunctionSocket sock = new FunctionSocket(curr.rec);
+                        FunctionSocket next;
+                        if (m_table.TryGetValue(curr.rec.id, out next))
+                            sock.next = next;
+                        m_table[curr.rec.id] = sock;
+                    }
+                    curr = curr.next;
+                }
+            }
         }
 
         #region Static methods
@@ -265,7 +309,7 @@ namespace DataEngine.XQuery
         static XQueryFunctionTable()
         {
             if (shared == null)
-                shared = new XQueryFunctionTable(typeof(CliFuncs));
+                shared = new XQueryFunctionTable(typeof(XQueryFuncs));
         }
 
         public static void Register(object id, Type type, string methodName)

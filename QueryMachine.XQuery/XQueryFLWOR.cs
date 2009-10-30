@@ -39,81 +39,104 @@ namespace DataEngine.XQuery
     {
         internal object m_var;
         internal XQuerySequenceType m_varType;
-        internal object m_body;
+        internal object m_expr;
+        internal XQueryExprBase m_bodyExpr;
+        protected SymbolLink m_compiledExpr;
 
-        public XQueryFLWORBase(XQueryContext context, object var, XQuerySequenceType varType, object body)
+        public XQueryFLWORBase(XQueryContext context, object var, XQuerySequenceType varType, object expr, XQueryExprBase bodyExpr)
             : base(context)
         {
             m_var = var;
             m_varType = varType;
-            m_body = body;
+            m_expr = expr;
+            m_bodyExpr = bodyExpr;
+        }
+
+        public override IEnumerable<SymbolLink> EnumDynamicFuncs()
+        {
+            if (m_compiledExpr == null)
+                throw new InvalidOperationException();
+            List<SymbolLink> res = new List<SymbolLink>();
+            res.Add(m_compiledExpr);
+            res.AddRange(m_bodyExpr.EnumDynamicFuncs());
+            return res;
         }
     }
 
     internal class XQueryFLWOR : XQueryFLWORBase
     {
-        private object m_pos;        
-        private SymbolLink m_compiledBody;
+        private object m_pos;                
         private SymbolLink m_value;
         private SymbolLink m_posValue;
+        private Type m_itemType;
 
-        public XQueryFLWOR(XQueryContext context, object var, XQuerySequenceType varType, object pos, object body)
-            : base(context, var, varType, body)
+        public XQueryFLWOR(XQueryContext context, object var, XQuerySequenceType varType, object pos, object expr, XQueryExprBase bodyExpr)
+            : base(context, var, varType, expr, bodyExpr)
         {
             m_var = var;
             m_varType = varType;            
             m_pos = pos;
-
-            m_body = body;            
             m_value = new SymbolLink(varType.ValueType);
+            m_itemType = varType.ItemType;
             if (m_pos != null)
                 m_posValue = new SymbolLink(typeof(System.Int32));
         }
 
-        private IEnumerable<XPathItem> CreateEnumerator(XQueryNodeIterator baseIter, object exprStack)
+        private IEnumerable<XPathItem> CreateEnumerator(IContextProvider provider, object[] args, XQueryNodeIterator baseIter)
         {
             int index = 1;
-            foreach (XPathItem curr in baseIter)
+            XQueryNodeIterator iter = baseIter.Clone();
+            while(iter.MoveNext())
             {
-                m_value.Value = Core.CastTo(QueryContext.Engine, curr, m_varType);
+                XPathItem curr = iter.Current;
+                if (m_varType != XQuerySequenceType.Item)
+                {
+                    if (curr.ValueType != m_value.Type && !Core.InstanceOf(QueryContext.Engine, curr, m_varType))
+                        throw new XQueryException(Properties.Resources.XPTY0004,
+                            new XQuerySequenceType(curr.XmlType.TypeCode), m_varType);
+                    object value = curr;
+                    if (m_varType.IsNumeric)
+                        value = curr.ValueAs(m_itemType);
+                    else
+                        if (!curr.IsNode)
+                            value = curr.TypedValue;
+                    if (m_varType.Cardinality == XmlTypeCardinality.ZeroOrMore ||
+                        m_varType.Cardinality == XmlTypeCardinality.OneOrMore)
+                        value = Core.CreateSequence(QueryContext.Engine, value);
+                    m_value.Value = value;
+                }
+                else
+                {
+                    if (curr.IsNode)
+                        m_value.Value = curr;
+                    else
+                        m_value.Value = curr.TypedValue;
+                }
                 if (m_pos != null)
                     m_posValue.Value = index++;
-                if (m_compiledBody == null)
-                {
-                    m_compiledBody = new SymbolLink();
-                    QueryContext.Resolver.RevertToStack(exprStack);
-                    QueryContext.Resolver.SetValue(m_var, m_value);
-                    if (m_pos != null)
-                        QueryContext.Resolver.SetValue(m_pos, m_posValue);
-                }
-                object res = QueryContext.Engine.Apply(null, null,
-                    m_body, null, m_compiledBody);
-                if (res != Undefined.Value)
-                {
-                    XQueryNodeIterator iter = res as XQueryNodeIterator;
-                    if (iter != null)
-                        foreach (XPathItem item in iter)
-                            yield return item;
-                    else
-                    {
-                        XPathItem item = res as XPathItem;
-                        if (item == null)
-                            item = QueryContext.CreateItem(res);
-                        yield return item;
-                    }
-                }
+                XQueryNodeIterator res = m_bodyExpr.Execute(provider, args);
+                res = res.Clone();
+                while (res.MoveNext())
+                    yield return res.Current;
             }
         }
 
-        public override XQueryNodeIterator Execute(Object[] parameters)
+        public override void Bind(Executive.Parameter[] parameters)
         {
-            if (parameters.Length != 1)
-                throw new InvalidOperationException();     
-            if (m_compiledBody == null)
-                return new NodeIterator(CreateEnumerator(Core.CreateSequence(QueryContext.Engine, parameters[0]), 
-                    QueryContext.Resolver.GetCurrentStack()));
-            else
-                return new NodeIterator(CreateEnumerator(Core.CreateSequence(QueryContext.Engine, parameters[0]), null));
+            m_compiledExpr = new SymbolLink();
+            QueryContext.Engine.Compile(parameters, m_expr, m_compiledExpr);
+            object data = QueryContext.Resolver.GetCurrentStack();
+            QueryContext.Resolver.SetValue(m_var, m_value);
+            if (m_pos != null)
+                QueryContext.Resolver.SetValue(m_pos, m_posValue);
+            m_bodyExpr.Bind(parameters);
+            QueryContext.Resolver.RevertToStack(data);
+        }
+
+        public override XQueryNodeIterator Execute(IContextProvider provider, Object[] args)
+        {
+            return new NodeIterator(CreateEnumerator(provider, args, Core.CreateSequence(QueryContext.Engine, 
+                QueryContext.Engine.Apply(null, null, m_expr, args, m_compiledExpr))));
         }
 
 #if DEBUG
@@ -131,8 +154,10 @@ namespace DataEngine.XQuery
                 sb.Append(" at $");
                 sb.Append(Lisp.Format(m_pos));
             }
+            sb.Append(" := ");
+            sb.Append(Lisp.Format(m_expr));
             sb.Append(" return ");
-            sb.Append(Lisp.Format(m_body));
+            sb.Append(m_bodyExpr.ToString());
             sb.Append("]");
             return sb.ToString();
         }

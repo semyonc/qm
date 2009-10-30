@@ -43,12 +43,47 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CliFuncs.cs" />
+    <Compile Include="BigInteger.cs" />
+    <Compile Include="BufferedNodeIterator.cs" />
+    <Compile Include="Parser\XQuery.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>XQuery.y</DependentUpon>
+    </Compile>
+    <Compile Include="Util\AnyUriValue.cs" />
+    <Compile Include="Util\ENTITIESValue.cs" />
+    <Compile Include="Util\IDREFSValue.cs" />
+    <Compile Include="Util\NMTOKENSValue.cs" />
+    <Compile Include="Util\StringTokenizer.cs" />
+    <Compile Include="XQueryFuncs.cs" />
+    <Compile Include="Util\Base64BinaryValue.cs" />
+    <Compile Include="Util\DateTimeValue.cs" />
+    <Compile Include="Util\DateTimeValueBase.cs" />
+    <Compile Include="Util\DayTimeDurationValue.cs" />
+    <Compile Include="Util\DurationValue.cs" />
+    <Compile Include="UntypedAtomic.cs" />
+    <Compile Include="Util\DateValue.cs" />
+    <Compile Include="Util\GDayValue.cs" />
+    <Compile Include="Util\GMonthValue.cs" />
+    <Compile Include="Util\GMonthDayValue.cs" />
+    <Compile Include="Util\GYearMonthValue.cs" />
+    <Compile Include="Util\GYearValue.cs" />
+    <Compile Include="Util\HexBinaryValue.cs" />
+    <Compile Include="Util\IXmlConvertable.cs" />
+    <Compile Include="Util\QNameValue.cs" />
+    <Compile Include="Util\TimeValue.cs" />
+    <Compile Include="Util\YearMonthDurationValue.cs" />
+    <Compile Include="XPathNavigableWrapper.cs" />
+    <Compile Include="XQueryConvert.cs" />
     <Compile Include="EmptyIterator.cs" />
     <Compile Include="Parser\Tokenizer.cs" />
+    <Compile Include="TreeComparer.cs" />
     <Compile Include="VarTable.cs" />
+    <Compile Include="XQueryNavigatorWrapper.cs" />
     <Compile Include="XQueryParameter.cs" />
     <Compile Include="XQueryParameterCollection.cs" />
+    <Compile Include="XQueryPathExpr.cs" />
+    <Compile Include="XQueryStepExpr.cs" />
     <Compile Include="XQueryWrappedValue.cs" />
     <Compile Include="XQueryCommand.cs" />
     <Compile Include="XQueryFunctionTable.cs" />
@@ -56,7 +91,7 @@
     <Compile Include="Descriptor.cs" />
     <Compile Include="QNameParser.cs" />
     <Compile Include="Core.cs" />
-    <Compile Include="XPath.cs" />
+    <Compile Include="XPathFactory.cs" />
     <Compile Include="Translator.cs" />
     <Compile Include="XQueryCondition.cs" />
     <Compile Include="XQueryLET.cs" />
@@ -71,11 +106,6 @@
     <Compile Include="Notation.cs" />
     <Compile Include="PageFile.cs" />
     <Compile Include="Parser\TokenizerBase.cs" />
-    <Compile Include="Parser\XQuery.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>XQuery.y</DependentUpon>
-    </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
@@ -91,7 +121,6 @@
     <Compile Include="Xdm.cs" />
     <Compile Include="XQueryNodeIterator.cs" />
     <Compile Include="XmlQualifiedNameTest.cs" />
-    <Compile Include="XQueryProduct.cs" />
     <Compile Include="XQueryResolver.cs" />
     <Compile Include="XQuerySchemaInfoTable.cs" />
     <Compile Include="XQuerySequenceType.cs" />

@@ -36,29 +36,41 @@ using DataEngine.CoreServices;
 namespace DataEngine.XQuery
 {
     internal class XQueryCondition : XQueryExprBase
-    {
-        private object m_body;
-        private SymbolLink m_compiledBody;
+    {        
+        private SymbolLink m_compiledExpr;
+        private object m_expr;
+        private XQueryExprBase m_bodyExpr;
 
-        public XQueryCondition(XQueryContext context, object body)
+        public XQueryCondition(XQueryContext context, object expr, XQueryExprBase bodyExpr)
             : base(context)
         {
-            m_body = body;
-            m_compiledBody = new SymbolLink();
+            m_expr = expr;
+            m_bodyExpr = bodyExpr;
         }
 
-        public override XQueryNodeIterator Execute(object[] parameters)
+        public override void Bind(Executive.Parameter[] parameters)
         {
-            if (parameters.Length != 1)
+            m_compiledExpr = new SymbolLink();
+            QueryContext.Engine.Compile(parameters, m_expr, m_compiledExpr);
+            m_bodyExpr.Bind(parameters);
+        }
+
+        public override IEnumerable<SymbolLink> EnumDynamicFuncs()
+        {
+            if (m_compiledExpr == null)
                 throw new InvalidOperationException();
-            if (Core.BooleanValue(parameters[0]))
-            {
-                object res = QueryContext.Engine.Apply(null, null, 
-                    m_body, null, m_compiledBody);
-                if (res != Undefined.Value)
-                    return Core.CreateSequence(QueryContext.Engine, res);
-            }
-            return EmptyIterator.Shared;
+            List<SymbolLink> res = new List<SymbolLink>();
+            res.Add(m_compiledExpr);
+            res.AddRange(m_bodyExpr.EnumDynamicFuncs());
+            return res;
+        }
+
+        public override XQueryNodeIterator Execute(IContextProvider provider, object[] args)
+        {
+            if (Core.BooleanValue(QueryContext.Engine.Apply(null, null, m_expr, args, m_compiledExpr)))
+                return m_bodyExpr.Execute(provider, args);
+            else
+                return EmptyIterator.Shared;
         }
 
 #if DEBUG
@@ -68,7 +80,9 @@ namespace DataEngine.XQuery
             sb.Append("[");
             sb.Append(base.ToString());
             sb.Append(": ");
-            sb.Append(Lisp.Format(m_body));
+            sb.Append(m_bodyExpr.ToString());
+            sb.Append(" where ");
+            sb.Append(Lisp.Format(m_expr));
             sb.Append("]");
             return sb.ToString();
         }

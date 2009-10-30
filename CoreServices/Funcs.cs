@@ -50,6 +50,9 @@ namespace DataEngine.CoreServices
         public static readonly object Sub = Lisp.Defatom("-");
         public static readonly object Mul = Lisp.Defatom("*");
         public static readonly object Div = Lisp.Defatom("/");
+        public static readonly object Neg = Lisp.Defatom("neg");
+        public static readonly object Mod = Lisp.Defatom("mod");
+        public static readonly object IDiv = Lisp.Defatom("idiv");
 
         public static readonly object Eq = Lisp.Defatom("eq");
         public static readonly object Ne = Lisp.Defatom("ne");

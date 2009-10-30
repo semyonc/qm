@@ -57,6 +57,7 @@
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
+    <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
@@ -67,11 +68,15 @@
     <Compile Include="ControlCastForm.cs" />
     <Compile Include="ControlCondForm.cs" />
     <Compile Include="ControlInvokeForm.cs" />
+    <Compile Include="ControlLambdaQuoteForm.cs" />
     <Compile Include="ControlLetForm.cs" />
     <Compile Include="ControlPrognForm.cs" />
     <Compile Include="ControlTrapForm.cs" />
     <Compile Include="ControlWeakForm.cs" />
     <Compile Include="GlobalSymbols.cs" />
+    <Compile Include="IBindableObject.cs" />
+    <Compile Include="Integer.cs" />
+    <Compile Include="IRuntimeExtension.cs" />
     <Compile Include="LambdaExpr.cs" />
     <Compile Include="ILConverter.cs" />
     <Compile Include="Exceptions.cs" />

@@ -26,6 +26,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Xml.XPath;
 using DataEngine.CoreServices;
 
 namespace DataEngine.XQuery
@@ -34,7 +35,7 @@ namespace DataEngine.XQuery
     {
     }
 
-    public abstract class XQueryExprBase
+    public abstract class XQueryExprBase: IBindableObject
     {
         private XQueryContext _queryContext;
 
@@ -43,7 +44,16 @@ namespace DataEngine.XQuery
             _queryContext = queryContext;
         }
 
-        public abstract XQueryNodeIterator Execute(Object[] parameters);
+        public abstract void Bind(Executive.Parameter[] parameters);
+
+        public abstract IEnumerable<SymbolLink> EnumDynamicFuncs();
+
+        public abstract XQueryNodeIterator Execute(IContextProvider provider, object[] args);
+
+        public virtual object ExecuteScalar(IContextProvider provider, object[] args)
+        {
+            return null;
+        }
 
         public XQueryContext QueryContext
         {
@@ -51,6 +61,15 @@ namespace DataEngine.XQuery
             {
                 return _queryContext;
             }
+        }
+
+        public object ToLispFunction()
+        {
+            XQueryExpr expr = this as XQueryExpr;
+            if (expr != null && expr.m_expr.Length == 1)
+                return expr.m_expr[0];
+            else
+                return Lisp.List(ID.DynExecuteExpr, this, ID.Context, Lisp.ARGV);
         }
     }
 }

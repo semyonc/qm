@@ -39,7 +39,7 @@ namespace DataEngine.XQuery
     public class ResolveCollectionArgs : EventArgs
     {
         public String CollectionName { get; internal set; }
-        public XPathNavigator Navigator { get; set; }
+        public XQueryNodeIterator Collection { get; set; }
     }
 
     public delegate void ResolveCollectionEvent(object sender, ResolveCollectionArgs args);
@@ -47,28 +47,28 @@ namespace DataEngine.XQuery
     public class XQueryCommand : IDisposable, IContextProvider
     {
         protected XQueryContext m_context;
-        protected SymbolLink m_contextItem;
         protected Dictionary<string,string> m_modules;
         protected bool m_compiled;
         protected XQueryExprBase m_res;
+        protected SymbolLink[] m_vars;
         protected bool m_disposed = false;
 
         protected class WorkContext : XQueryContext
         {
             private XQueryCommand m_command;
-            private Dictionary<string, XPathNavigator> m_dict;
+            private Dictionary<string, XQueryNodeIterator> m_dict;
 
             public WorkContext(XQueryCommand command)
             {
                 m_command = command;
-                m_dict = new Dictionary<string, XPathNavigator>();
+                m_dict = new Dictionary<string, XQueryNodeIterator>();
             }
 
-            public override XPathNavigator CreateCollection(string collection_name)
+            public override XQueryNodeIterator CreateCollection(string collection_name)
             {
                 lock (m_dict)
                 {
-                    XPathNavigator res;
+                    XQueryNodeIterator res;
                     if (m_dict.TryGetValue(collection_name, out res))
                         return res.Clone();
                     ResolveCollectionArgs args = new ResolveCollectionArgs();
@@ -76,10 +76,10 @@ namespace DataEngine.XQuery
                     if (m_command.OnResolveCollection != null)
                     {
                         m_command.OnResolveCollection(m_command, args);
-                        if (args.Navigator != null)
+                        if (args.Collection != null)
                         {
-                            m_dict.Add(collection_name, args.Navigator.Clone());
-                            return args.Navigator;
+                            m_dict.Add(collection_name, args.Collection.Clone());
+                            return args.Collection;
                         }
                     }
                     throw new XQueryException(Properties.Resources.FODC0004, collection_name);
@@ -111,7 +111,6 @@ namespace DataEngine.XQuery
         public XQueryCommand(XQueryContext context)
         {
             m_context = context;
-            ValidatedParser = true;
             Parameters = new XQueryParameterCollection();
         }
 
@@ -120,7 +119,6 @@ namespace DataEngine.XQuery
             m_context = new WorkContext(this);
             BaseUri = null;
             SearchPath = null;
-            ValidatedParser = true;
             Parameters = new XQueryParameterCollection();
         }
 
@@ -138,10 +136,16 @@ namespace DataEngine.XQuery
         protected virtual void Dispose(bool disposing)
         {
             if (!m_disposed)
-            {
+            {                
                 m_context.Close();
                 m_disposed = true;
             }
+        }
+
+        public XQueryContext DetachContext()
+        {
+            m_disposed = true;
+            return m_context;
         }
 
         public void Compile()
@@ -149,9 +153,6 @@ namespace DataEngine.XQuery
             CheckDisposed();
             if (String.IsNullOrEmpty(CommandText))
                 throw new XQueryException("CommandText is empty string");
-            m_contextItem = new SymbolLink(typeof(IContextProvider));
-            m_contextItem.Value = this;
-            m_context.Resolver.SetValue(ID.Context, m_contextItem);
             TokenizerBase tok = new Tokenizer(CommandText);
             Notation notation = new Notation();
             YYParser parser = new YYParser(notation);
@@ -160,15 +161,53 @@ namespace DataEngine.XQuery
                 m_context.BaseUri = BaseUri;
             if (SearchPath != null)
                 m_context.SearchPath = SearchPath;
-            m_context.ValidatedParser = ValidatedParser;
+            m_context.SchemaProcessing = SchemaProcessing;
             Translator translator = new Translator(m_context);
             translator.PreProcess(notation);
-            m_context.InitNamespaces();
             if (OnPreProcess != null) // Chance to process custom declare option statement
                 OnPreProcess(this, EventArgs.Empty);
             m_res = translator.Process(notation);
+            m_res.Bind(null);
+            // Compile variables and check it for XQST0054
+            m_vars = new SymbolLink[m_context.variables.Count];
+            Dictionary<SymbolLink, SymbolLink[]> dependences = new Dictionary<SymbolLink, SymbolLink[]>();
+            for (int k = 0; k < m_context.variables.Count; k++)
+            {
+                XQueryContext.VariableRecord rec = m_context.variables[k];
+                m_vars[k] = new SymbolLink();
+                dependences.Add(rec.link, m_context.Engine.GetValueDependences(null, rec.expr, m_vars[k]));
+            }
+            int i = 0;
+            foreach (KeyValuePair<SymbolLink, SymbolLink[]> kvp in dependences)
+            {
+                List<SymbolLink> closure = new List<SymbolLink>();
+                HashSet<SymbolLink> hs = new HashSet<SymbolLink>();
+                hs.Add(kvp.Key);
+                closure.AddRange(kvp.Value);
+                bool expand;
+                do
+                {
+                    expand = false;
+                    for (int k = 0; k < closure.Count; k++)
+                    {
+                        SymbolLink[] values;
+                        if (dependences.TryGetValue(closure[k], out values))
+                        {
+                            if (hs.Contains(closure[k]))
+                                throw new XQueryException(Properties.Resources.XQST0054, m_context.variables[i].id);
+                            hs.Add(closure[k]);
+                            closure.RemoveAt(k);
+                            closure.AddRange(values);
+                            expand = true;
+                            break;
+                        }
+                    }
+                }
+                while (expand);
+                i++;
+            }
             m_compiled = true;
-        }
+        }        
 
         public XQueryNodeIterator Execute()
         {
@@ -177,18 +216,24 @@ namespace DataEngine.XQuery
                 Compile();
             if (m_res == null)
                 throw new XQueryException("Can't run XQuery function module");
-            foreach (XQueryContext.VariableRecord rec in m_context.variables)
+            for (int k = 0; k < m_context.variables.Count; k++)
             {
-                rec.link.Value = Core.CastTo(m_context.Engine,
-                    m_context.Engine.Apply(null, null, rec.expr, null, null), rec.varType);
-            }
+                XQueryContext.VariableRecord rec = m_context.variables[k];
+                object value = m_context.Engine.Apply(null, null, rec.expr, null, m_vars[k]);
+                if (rec.varType != XQuerySequenceType.Item)
+                    value = Core.TreatAs(m_context.Engine, value, rec.varType);
+                if (value is XQueryNodeIterator)
+                    value = new BufferedNodeIterator((XQueryNodeIterator)value);
+                rec.link.Value = value;
+            }            
             foreach (XQueryParameter param in Parameters)
             {
                 if (param.ID == null)
                     param.ID = Translator.GetVarName(param.LocalName, param.NamespaceUri);
                 m_context.SetExternalVariable(param.ID, param.Value);
             }
-            XQueryNodeIterator res = m_res.Execute(null);
+            m_context.CheckExternalVariables();
+            XQueryNodeIterator res = m_res.Execute(this, null);
             return res;
         }
 
@@ -222,7 +267,7 @@ namespace DataEngine.XQuery
         public String CommandText { get; set; }
         public String BaseUri { get; set; }
         public String SearchPath { get; set; }
-        public bool ValidatedParser { get; set; }
+        public SchemaProcessingMode SchemaProcessing { get; set; }
         public XQueryParameterCollection Parameters { get; private set; }
         public XPathNavigator ContextItem { get; set; }
         
@@ -257,7 +302,10 @@ namespace DataEngine.XQuery
             {
                 if (ContextItem == null)
                     throw new XQueryException(Properties.Resources.XPDY0002);
-                return ContextItem;
+                if (ContextItem is XQueryNavigator)
+                    return ContextItem;
+                else
+                    return new XQueryNavigatorWrapper(ContextItem);
             }
         }
 

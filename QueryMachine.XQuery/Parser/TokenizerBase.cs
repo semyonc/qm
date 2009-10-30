@@ -153,15 +153,21 @@ namespace DataEngine.XQuery.Parser
             switch (tok)
             {
                 case Token.IntegerLiteral:
-                    ConsumeToken(tok, new IntegerValue(Convert.ToInt32(s)));
+                    {
+                        int value;
+                        if (Int32.TryParse(s, out value))                            
+                            ConsumeToken(tok, new IntegerValue(value));
+                        else
+                            ConsumeToken(tok, new IntegerValue((Integer)Decimal.Parse(s, NumberFormatInfo.InvariantInfo)));
+                    }
                     break;
 
                 case Token.DecimalLiteral:
-                    ConsumeToken(tok, new DecimalValue(Convert.ToDecimal(s, NumberFormatInfo.InvariantInfo)));
+                    ConsumeToken(tok, new DecimalValue(Decimal.Parse(s, NumberFormatInfo.InvariantInfo)));
                     break;
 
                 case Token.DoubleLiteral:
-                    ConsumeToken(tok, new DoublelValue(Convert.ToDouble(s, NumberFormatInfo.InvariantInfo)));
+                    ConsumeToken(tok, new DoublelValue(Double.Parse(s, NumberFormatInfo.InvariantInfo)));
                     break;
             }
         }
@@ -177,12 +183,13 @@ namespace DataEngine.XQuery.Parser
                 if (Peek(0) == 0)
                     return;
                 if (c == qoute && Peek(1) == qoute)
-                    sb.Append(Read());
+                    Read();
                 sb.Append(Read());
             }
             Read();
             EndToken();
-            ConsumeToken(Token.StringLiteral, new Literal(sb.ToString(), qoute));
+            ConsumeToken(Token.StringLiteral, 
+                new Literal(Core.NormalizeStringValue(sb.ToString(), false, true), qoute));
         }
 
         private void ConsumeNCName()
@@ -222,6 +229,7 @@ namespace DataEngine.XQuery.Parser
                 sb.Append(Read());
             }
             EndToken();
+            Read();
             if (bad)
                 throw new XQueryException(Properties.Resources.BadCharRef, "x", sb.ToString());
             ConsumeToken(Token.CharRef, new CharRefHex(sb.ToString()));
@@ -240,8 +248,9 @@ namespace DataEngine.XQuery.Parser
                 if (!XmlCharType.Instance.IsDigit(c))
                     bad = true;
                 sb.Append(Read());
-            }
+            }            
             EndToken();
+            Read();
             if (bad)
                 throw new XQueryException(Properties.Resources.BadCharRef, "", sb.ToString());
             ConsumeToken(Token.CharRef, new CharRef(sb.ToString()));
@@ -321,10 +330,43 @@ namespace DataEngine.XQuery.Parser
         {
             int i = 0;
             for (int sp = 0; sp < identifer.Length; sp++)
-            {                
+            {
                 char c;
-                while ((c = Peek(i)) != 0 && XmlCharType.Instance.IsWhiteSpace(c))
-                    i++;
+                while (true)
+                {
+                    if ((c = Peek(i)) != 0 && XmlCharType.Instance.IsWhiteSpace(c))
+                    {
+                        while ((c = Peek(i)) != 0 && XmlCharType.Instance.IsWhiteSpace(c))
+                            i++;
+                        continue;
+                    }
+                    if (Peek(i) == '(' && Peek(i + 1) == ':')
+                    {
+                        int n = 1;
+                        i += 2;
+                        while (true)
+                        {
+                            c = Peek(i);
+                            if (c == 0)
+                                break;
+                            else if (c == '(' && Peek(i + 1) == ':')
+                            {
+                                i += 2;
+                                n++;
+                            }
+                            else if (c == ':' && Peek(i + 1) == ')')
+                            {
+                                i += 2;
+                                if (--n == 0)
+                                    break;
+                            }
+                            else
+                                i++;
+                        }
+                        continue;
+                    }
+                    break;
+                }
                 string s = identifer[sp];                
                 m_bookmark[sp] = Position + i;
                 if (s.Length > 0)
@@ -340,34 +382,66 @@ namespace DataEngine.XQuery.Parser
             while (i-- > 0)
                 Read();
             return true;
-        }
-
-        //private void CheckEOF()
-        //{
-        //    if (Peek(0) == 0)
-        //        throw new XQueryException(Properties.Resources.UnexpectedEOF);
-        //}
-
-        //private void Unexpected()
-        //{
-        //    throw new XQueryException(Properties.Resources.UnexpectedChar, Peek(0));
-        //}
+        }      
        
         private void SkipWhitespace()
-        {            
-            if (XmlCharType.Instance.IsWhiteSpace(Peek(0)))
+        {
+            do
             {
-                char c;
-                if (NotIgnoreCommentsAndSpace)
-                    BeginToken();
-                while ((c = Peek(0)) != 0 && XmlCharType.Instance.IsWhiteSpace(c))
-                    Read();
-                if (NotIgnoreCommentsAndSpace)
+                if (XmlCharType.Instance.IsWhiteSpace(Peek(0)))
                 {
-                    EndToken();
-                    ConsumeToken(Token.XQWhitespace);
+                    char c;
+                    if (NotIgnoreCommentsAndSpace)
+                        BeginToken();
+                    while ((c = Peek(0)) != 0 && XmlCharType.Instance.IsWhiteSpace(c))
+                        Read();
+                    if (NotIgnoreCommentsAndSpace)
+                    {
+                        EndToken();
+                        ConsumeToken(Token.XQWhitespace);
+                    }
+                    continue;
                 }
+                if (Peek(0) == '(' && Peek(1) == ':')
+                {
+                    if (NotIgnoreCommentsAndSpace)
+                        BeginToken();
+                    Read();
+                    Read();
+                    int n = 1;
+                    while (true)
+                    {
+                        char c = Peek(0);
+                        if (c == 0)
+                            break;
+                        else if (c == '(' && Peek(1) == ':')
+                        {
+                            Read();
+                            Read();
+                            n++;
+                        }
+                        else if (c == ':' && Peek(1) == ')')
+                        {
+                            Read();
+                            Read();
+                            if (--n == 0)
+                            {
+                                if (NotIgnoreCommentsAndSpace)
+                                {
+                                    EndToken();
+                                    ConsumeToken(Token.XQComment);
+                                }
+                                break;
+                            }                            
+                        }
+                        else
+                            Read();
+                    }
+                    continue;
+                }
+                break;
             }
+            while (true);
         }
 
         private void DefaultState()
@@ -377,11 +451,17 @@ namespace DataEngine.XQuery.Parser
             char c = Peek(0);
             if (c == '\0')
                 ConsumeToken(0); // EOF
-            else if (MatchText("(:"))
-            {                
-                m_states.Push(LexerState.Default);
-                m_state = LexerState.ExprComment;
-                ExprCommentState();
+            //else if (MatchText("(:"))
+            //{                
+            //    m_states.Push(LexerState.Default);
+            //    m_state = LexerState.ExprComment;
+            //    ExprCommentState();
+            //}
+            else if (MatchText("(#"))
+            {
+                EndToken();
+                ConsumeToken(Token.PRAGMA_BEGIN);
+                m_state = LexerState.Pragma;
             }
             else if (c == '.')
             {
@@ -460,7 +540,7 @@ namespace DataEngine.XQuery.Parser
                 ConsumeToken(Token.DECLARE_DEFAULT_ORDER);
                 m_state = LexerState.Operator;
             }
-            else if (MatchIdentifer("declare", "default", "collaction"))
+            else if (MatchIdentifer("declare", "default", "collation"))
             {
                 EndToken();
                 ConsumeToken(Token.DECLARE_DEFAULT_COLLATION);
@@ -508,7 +588,7 @@ namespace DataEngine.XQuery.Parser
                 ConsumeToken(Token.IMPORT_MODULE);
                 m_state = LexerState.NamespaceKeyword;
             }
-            else if (MatchIdentifer("declare", "copy-namespace"))
+            else if (MatchIdentifer("declare", "copy-namespaces"))
             {
                 EndToken();
                 ConsumeToken(Token.DECLARE_COPY_NAMESPACES);
@@ -742,7 +822,7 @@ namespace DataEngine.XQuery.Parser
                 ConsumeToken(Token.DOCUMENT);
                 BeginToken(m_bookmark[1]);
                 ConsumeChar('{');
-                m_states.Push(LexerState.Default);
+                m_states.Push(LexerState.Operator);
             }
             else if (MatchIdentifer("text", "{"))
             {
@@ -750,7 +830,7 @@ namespace DataEngine.XQuery.Parser
                 ConsumeToken(Token.TEXT);
                 BeginToken(m_bookmark[1]);
                 ConsumeChar('{');
-                m_states.Push(LexerState.Default);
+                m_states.Push(LexerState.Operator);
             }
             else if (MatchIdentifer("comment", "{"))
             {
@@ -758,7 +838,7 @@ namespace DataEngine.XQuery.Parser
                 ConsumeToken(Token.COMMENT);
                 BeginToken(m_bookmark[1]);
                 ConsumeChar('{');
-                m_states.Push(LexerState.Default);
+                m_states.Push(LexerState.Operator);
             }
             else if (MatchIdentifer("declare", "function"))
             {
@@ -942,7 +1022,7 @@ namespace DataEngine.XQuery.Parser
                                 ConsumeToken(Token.ATTRIBUTE, anchor, length);
                             BeginToken();
                             ConsumeChar(Read());
-                            m_states.Push(LexerState.Default);
+                            m_states.Push(LexerState.Operator);
                             return;
                         }
                         else if (XmlCharType.Instance.IsStartNameChar(Peek(0)))
@@ -964,7 +1044,7 @@ namespace DataEngine.XQuery.Parser
                                 ConsumeToken(Token.QName, new Qname(sb.ToString()), anchor2, length2);
                                 BeginToken();
                                 ConsumeChar(Read());
-                                m_states.Push(LexerState.Default);
+                                m_states.Push(LexerState.Operator);
                                 return;
                             }
                             else
@@ -979,7 +1059,7 @@ namespace DataEngine.XQuery.Parser
                             ConsumeToken(Token.PROCESSING_INSTRUCTION, anchor, length);
                             BeginToken();
                             ConsumeChar(Read());
-                            m_states.Push(LexerState.Default);
+                            m_states.Push(LexerState.Operator);
                             return;
                         }
                         else if (XmlCharType.Instance.IsStartNameChar(Peek(0)))
@@ -998,7 +1078,7 @@ namespace DataEngine.XQuery.Parser
                                 ConsumeToken(Token.NCName, new Qname(sb.ToString()), anchor2, length2);
                                 BeginToken();
                                 ConsumeChar(Read());
-                                m_states.Push(LexerState.Default);
+                                m_states.Push(LexerState.Operator);
                                 return;
                             }
                             else
@@ -1044,13 +1124,13 @@ namespace DataEngine.XQuery.Parser
                 return;
             BeginToken();
             char c = Peek(0);
-            if (MatchText("(:"))
-            {
-                m_states.Push(LexerState.VarName);
-                m_state = LexerState.ExprComment;
-                ExprCommentState();
-            }
-            else if (XmlCharType.Instance.IsNCNameChar(c))
+            //if (MatchText("(:"))
+            //{
+            //    m_states.Push(LexerState.VarName);
+            //    m_state = LexerState.ExprComment;
+            //    ExprCommentState();
+            //} else
+            if (XmlCharType.Instance.IsNCNameChar(c))
             {
                 string prefix = String.Empty;
                 StringBuilder sb = new StringBuilder();
@@ -1077,12 +1157,12 @@ namespace DataEngine.XQuery.Parser
             char c = Peek(0);
             if (c == 0)
                 ConsumeToken(0);
-            else if (MatchText("(:"))
-            {
-                m_states.Push(m_state);
-                m_state = LexerState.ExprComment;
-                ExprCommentState();
-            }
+            //else if (MatchText("(:"))
+            //{
+            //    m_states.Push(m_state);
+            //    m_state = LexerState.ExprComment;
+            //    ExprCommentState();
+            //}  
             else if (c == '{')
             {
                 ConsumeChar(Read());
@@ -1437,36 +1517,36 @@ namespace DataEngine.XQuery.Parser
                 ConsumeLiteral();
         }
 
-        private void ExprCommentState()
-        {            
-            int n = 1;            
-            while (true)
-            {
-                if (Peek(0) == 0)
-                    return;
-                if (MatchText(":)"))
-                {
-                    n--;
-                    if (n == 0)
-                        break;
-                }
-                else if (MatchText("(:"))
-                    n++;
-                else
-                    Read();
-            }
-            EndToken();
-            if (NotIgnoreCommentsAndSpace)
-            {
-                m_state = m_states.Pop();
-                ConsumeToken(Token.XQComment);
-            }
-            else
-            {
-                m_state = m_states.Pop();
-                EnterState();
-            }            
-       }
+       // private void ExprCommentState()
+       // {            
+       //     int n = 1;            
+       //     while (true)
+       //     {
+       //         if (Peek(0) == 0)
+       //             return;
+       //         if (MatchText(":)"))
+       //         {
+       //             n--;
+       //             if (n == 0)
+       //                 break;
+       //         }
+       //         else if (MatchText("(:"))
+       //             n++;
+       //         else
+       //             Read();
+       //     }
+       //     EndToken();
+       //     if (NotIgnoreCommentsAndSpace)
+       //     {
+       //         m_state = m_states.Pop();
+       //         ConsumeToken(Token.XQComment);
+       //     }
+       //     else
+       //     {
+       //         m_state = m_states.Pop();
+       //         EnterState();
+       //     }            
+       //}
 
         private void PragmaState()
         {
@@ -1474,24 +1554,23 @@ namespace DataEngine.XQuery.Parser
             if (Peek(0) == 0)
                 return;
             ConsumeQName();
-            SkipWhitespace();
             BeginToken();
             StringBuilder sb = new StringBuilder();
             char c;
-            while ((c = Peek(0)) != '#' && Peek(1) != ')')
+            while ((c = Peek(0)) != 0)
             {
-                if (Peek(0) == 0)
-                    return;
+                if (c == '#' && Peek(1) == ')')
+                    break;
                 sb.Append(Read());
             }
             EndToken();
-            ConsumeToken(Token.PragmaContents, sb.ToString());
+            ConsumeToken(Token.PragmaContents, sb.ToString().Trim());
             BeginToken();
             Read(); // #
             Read(); // )
             EndToken();
             ConsumeToken(Token.PRAGMA_END);
-            m_state = LexerState.Operator;
+            m_state = LexerState.Default;
         }
 
         private void XQueryVersionState()
@@ -1531,12 +1610,12 @@ namespace DataEngine.XQuery.Parser
                 EndToken();
                 ConsumeToken(Token.AT);
             }
-            else if (MatchText("(:"))
-            {
-                m_states.Push(m_state);
-                m_state = LexerState.ExprComment;
-                ExprCommentState();
-            }
+            //else if (MatchText("(:"))
+            //{
+            //    m_states.Push(m_state);
+            //    m_state = LexerState.ExprComment;
+            //    ExprCommentState();
+            //} 
             else if (XmlCharType.Instance.IsNCNameChar(c))
                 ConsumeNCName();
             else if (c == ';')
@@ -1589,12 +1668,12 @@ namespace DataEngine.XQuery.Parser
                 ConsumeToken(Token.NAMESPACE);
                 m_state = LexerState.NamespaceDecl;
             }
-            else if (MatchText("(:"))
-            {
-                m_states.Push(m_state);
-                m_state = LexerState.ExprComment;
-                ExprCommentState();
-            }
+            //else if (MatchText("(:"))
+            //{
+            //    m_states.Push(m_state);
+            //    m_state = LexerState.ExprComment;
+            //    ExprCommentState();
+            //}
             else if (MatchIdentifer("default", "element"))
             {
                 EndToken();
@@ -1638,12 +1717,12 @@ namespace DataEngine.XQuery.Parser
                 ConsumeToken(Token.STRIP);
                 m_state = LexerState.Default;
             }
-            else if (MatchText("(:"))
-            {
-                m_states.Push(m_state);
-                m_state = LexerState.ExprComment;
-                ExprCommentState();
-            }
+            //else if (MatchText("(:"))
+            //{
+            //    m_states.Push(m_state);
+            //    m_state = LexerState.ExprComment;
+            //    ExprCommentState();
+            //}
         }
 
         private void SingleTypeState()
@@ -1656,12 +1735,12 @@ namespace DataEngine.XQuery.Parser
                 ConsumeQName();
                 m_state = LexerState.Operator;
             }
-            else if (MatchText("(:"))
-            {
-                m_states.Push(m_state);
-                m_state = LexerState.ExprComment;
-                ExprCommentState();
-            }
+            //else if (MatchText("(:"))
+            //{
+            //    m_states.Push(m_state);
+            //    m_state = LexerState.ExprComment;
+            //    ExprCommentState();
+            //}
         }
 
         private void ItemTypeState()
@@ -1676,18 +1755,18 @@ namespace DataEngine.XQuery.Parser
                 ConsumeChar(Read());
                 m_state = LexerState.VarName;
             }
-            else if (MatchIdentifer("void", "(", ")"))
+            else if (MatchIdentifer("empty-sequence", "(", ")"))
             {
                 EndToken();
-                ConsumeToken(Token.VOID);
+                ConsumeToken(Token.EMPTY_SEQUENCE);
                 m_state = LexerState.Operator;
             }
-            else if (MatchText("(:"))
-            {
-                m_states.Push(m_state);
-                m_state = LexerState.ExprComment;
-                ExprCommentState();
-            }
+            //else if (MatchText("(:"))
+            //{
+            //    m_states.Push(m_state);
+            //    m_state = LexerState.ExprComment;
+            //    ExprCommentState();
+            //}
             else if (MatchIdentifer("element", "("))
             {
                 EndToken("element");
@@ -1774,12 +1853,6 @@ namespace DataEngine.XQuery.Parser
                 EndToken();
                 ConsumeToken(Token.ITEM);
                 m_state = LexerState.OccurrenceIndicator;
-            }
-            else if (MatchText("(#"))
-            {
-                EndToken();
-                ConsumeToken(Token.PRAGMA_BEGIN);
-                m_state = LexerState.Pragma;
             }
             else if (c == ';')
             {
@@ -2092,12 +2165,12 @@ namespace DataEngine.XQuery.Parser
                 ConsumeQName();
                 m_state = LexerState.CloseKindTest;
             }
-            else if (MatchText("(:"))
-            {
-                m_states.Push(m_state);
-                m_state = LexerState.ExprComment;
-                ExprCommentState();
-            }
+            //else if (MatchText("(:"))
+            //{
+            //    m_states.Push(m_state);
+            //    m_state = LexerState.ExprComment;
+            //    ExprCommentState();
+            //}
         }
 
         private void KindTestForPiState()
@@ -2112,12 +2185,12 @@ namespace DataEngine.XQuery.Parser
                 ConsumeChar(Read());
                 m_state = m_states.Pop();
             }
-            else if (MatchText("(:"))
-            {
-                m_states.Push(m_state);
-                m_state = LexerState.ExprComment;
-                ExprCommentState();
-            }
+            //else if (MatchText("(:"))
+            //{
+            //    m_states.Push(m_state);
+            //    m_state = LexerState.ExprComment;
+            //    ExprCommentState();
+            //}
             else if (XmlCharType.Instance.IsNCNameChar(c))
                 ConsumeNCName();
             else if (c == '\'' || c == '"')
@@ -2149,50 +2222,46 @@ namespace DataEngine.XQuery.Parser
             }
             else if (c == '?')
                 ConsumeChar(Read());
-            else if (MatchText("(:"))
-            {
-                m_states.Push(m_state);
-                m_state = LexerState.ExprComment;
-                ExprCommentState();
-            }
+            //else if (MatchText("(:"))
+            //{
+            //    m_states.Push(m_state);
+            //    m_state = LexerState.ExprComment;
+            //    ExprCommentState();
+            //}
         }
 
         private void OccurrenceIndicatorState()
         {
             SkipWhitespace();
             BeginToken();
-            if (MatchText("(:"))
-            {
-                m_states.Push(m_state);
-                m_state = LexerState.ExprComment;
-                ExprCommentState();
-            }
-            else
+            //if (MatchText("(:"))
+            //{
+            //    m_states.Push(m_state);
+            //    m_state = LexerState.ExprComment;
+            //    ExprCommentState();
+            //}
+            //else
             {
                 char c = Peek(0);
                 if (c == '*')
                 {
-                    if (!XmlCharType.Instance.IsNameChar(Peek(1)))
-                    {
-                        Read();
-                        EndToken();
-                        ConsumeToken(Token.Indicator1);
-                        return;
-                    }
+                    //if (!(XmlCharType.Instance.IsNameChar(Peek(1)) || XmlCharType.Instance.IsDigit)
+                    //{
+                    Read();
+                    EndToken();
+                    ConsumeToken(Token.Indicator1);
                 }
                 else if (c == '+')
                 {
                     Read();
                     EndToken();
                     ConsumeToken(Token.Indicator2);
-                    return;
                 }
                 else if (c == '?')
                 {
                     Read();
                     EndToken();
                     ConsumeToken(Token.Indicator3);
-                    return;
                 }
                 m_state = LexerState.Operator;
                 OperatorState();
@@ -2688,9 +2757,9 @@ namespace DataEngine.XQuery.Parser
                     VarNameState();
                     break;
 
-                case LexerState.ExprComment:
-                    ExprCommentState();
-                    break;
+                //case LexerState.ExprComment:
+                //    ExprCommentState();
+                //    break;
 
                 case LexerState.Pragma:
                     PragmaState();

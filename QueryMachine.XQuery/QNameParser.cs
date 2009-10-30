@@ -30,16 +30,23 @@ namespace DataEngine.XQuery
 {
     internal class QNameParser
     {
-        public static XmlQualifiedName Parse(string name, IXmlNamespaceResolver resolver)
+        public static XmlQualifiedName Parse(string name, IXmlNamespaceResolver resolver, NameTable nameTable)
         {
-            return Parse(name, resolver, String.Empty);
+            return Parse(name, resolver, String.Empty, nameTable);
         }
 
-        public static XmlQualifiedName Parse(string name, IXmlNamespaceResolver resolver, string defaultNamespace)
+        public static XmlQualifiedName Parse(string name, IXmlNamespaceResolver resolver, string defaultNamespace, NameTable nameTable)
         {
             string prefix;
             string localName;
             Split(name, out prefix, out localName);
+            if (nameTable != null)
+            {
+                if (prefix != null)
+                    prefix = nameTable.Add(prefix);
+                if (localName != null)
+                    localName = nameTable.Add(localName);
+            }
             if (!String.IsNullOrEmpty(prefix))
             {
                 string ns = resolver.LookupNamespace(prefix);

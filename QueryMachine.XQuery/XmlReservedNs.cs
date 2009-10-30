@@ -29,5 +29,6 @@ namespace DataEngine.XQuery
         public const string NsXQueryFunc = "http://www.w3.org/2003/11/xpath-functions";
         public const string NsXQueryDataType = "http://www.w3.org/2003/11/xpath-datatypes";
         public const string NsXQueryLocalFunc = "http://www.w3.org/2005/xquery-local-functions";
+        public const string NsCollationCodepoint = "http://www.w3.org/2005/xpath-functions/collation/codepoint";
     };
 }

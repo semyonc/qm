@@ -125,23 +125,24 @@ namespace DataEngine.CoreServices
             return m_resolvers.Peek();
         }
 
-        public SymbolLink TryGet(object atom)
+        public SymbolLink TryGet(object atom, bool bindings, bool resolvers)
         {
             SymbolLink link;
-            if (!m_value.TryGetValue(atom, out link))
+            if (resolvers)
             {
                 Resolver[] rls = m_resolvers.ToArray();
                 for (int k = 0; k < rls.Length; k++)
                     if (rls[k].Get(atom, out link))
                         return link;
-                return null;
             }
-            return link;
+            if (bindings && m_value.TryGetValue(atom, out link))
+                return link;
+            return null;
         }
 
         public SymbolLink Get(object atom)
         {
-            SymbolLink link = TryGet(atom);
+            SymbolLink link = TryGet(atom, true, true);
             if (link == null)
                 throw new ArgumentException("Value not defined", atom.ToString());
             return link;
@@ -150,6 +151,20 @@ namespace DataEngine.CoreServices
         public object GetValue(object atom)
         {
             return Get(atom).Value;
+        }
+
+        public void DefineStaticOperator(object id, Type type, string name)
+        {
+            bool bfound = false;
+            MethodInfo[] methods = type.GetMethods(BindingFlags.Static | BindingFlags.Public);
+            foreach (MethodInfo method in methods)
+                if (method.Name == name && !method.IsGenericMethod)
+                {
+                    Defun(new InvokeStatic(id, method));
+                    bfound = true;
+                }
+            if (!bfound)
+                throw new ArgumentException("Static method not found in class", name);
         }
    
         public void Defun(FuncBase func)
@@ -250,6 +265,47 @@ namespace DataEngine.CoreServices
             return lambda.ReturnType;
         }
 
+        internal Type Compile(LambdaExpr expr)
+        {
+            Compile(expr._parameters, expr._body, expr._compiledBody);
+            return expr._retType;
+        }
+
+        private void GetValueDependences(HashSet<LambdaExpr> hs, CompiledLambda compiledExpr, List<SymbolLink> res)
+        {
+            foreach (SymbolLink value in compiledExpr.Values)
+                res.Add(value);
+            if (compiledExpr.Consts != null)
+            {
+                foreach (object cn in compiledExpr.Consts)
+                {
+                    IBindableObject bo = cn as IBindableObject;
+                    if (bo != null)
+                        foreach (SymbolLink dynFunc in bo.EnumDynamicFuncs())
+                            GetValueDependences(hs, (CompiledLambda)dynFunc.Value, res);
+                }
+            }
+            foreach (LambdaExpr expr in compiledExpr.Dependences)
+            {
+                if (hs.Contains(expr))
+                    continue;
+                hs.Add(expr);
+                if (expr._compiledBody.Value == null)
+                    Compile(expr);
+                GetValueDependences(hs, (CompiledLambda)expr._compiledBody.Value, res);
+            }
+        }
+
+        public SymbolLink[] GetValueDependences(Parameter[] parameters, object expr, SymbolLink dynamicFunc)
+        {
+            HashSet<LambdaExpr> hs = new HashSet<LambdaExpr>();
+            if (dynamicFunc.Value == null)
+                Compile(parameters, expr, dynamicFunc);
+            List<SymbolLink> res = new List<SymbolLink>();
+            GetValueDependences(hs, (CompiledLambda)dynamicFunc.Value, res);
+            return res.ToArray();
+        }
+
         internal CompiledLambda Compile(Parameter[] parameters, object expr)
         {
 #if DEBUG
@@ -271,7 +327,6 @@ namespace DataEngine.CoreServices
             }
             try
             {
-                //Console.WriteLine("[{1}] Compile: {0}", expr, expr.GetHashCode());
 #endif
                 while (true)
                 {
@@ -293,19 +348,20 @@ namespace DataEngine.CoreServices
 #else
                 ILGen il = lambda.CreateILGen();
 #endif
-                LocalAccess localAccess = new LocalAccess(il);
+                LocalAccess localAccess = new LocalAccess(il, parameters);
                 foreach (Parameter p in parameters)
                     localAccess.BindParameter(p.ID, p.Type);
                 CreateVariables(il, localAccess, expr);
-                WriteEpilog(il, localAccess);
+                WriteEpilog(il, parameters, localAccess);
                 CompileExpr(il, localAccess, st, expr);
                 lambda.Values = localAccess.GetValues();
                 lambda.Consts = localAccess.GetConsts();
+                lambda.Dependences = localAccess.GetDependences();
                 lambda.ReturnType = st.Pop();
                 if (lambda.ReturnType.IsValueType)
                     il.EmitBoxing(lambda.ReturnType);
                 il.Emit(OpCodes.Ret);
-                return lambda;
+                return lambda;            
 #if DEBUG
             }
             finally
@@ -316,7 +372,7 @@ namespace DataEngine.CoreServices
                     Monitor.Exit(m_traceOutput);
                 }
             }
-#endif
+#endif            
         }
 
         private Parameter[] CreateParameterTypes(object[] param, object[] value)
@@ -350,7 +406,7 @@ namespace DataEngine.CoreServices
         {
             if (Lisp.IsNode(lval))
             {
-                if (Lisp.IsAtom(lval) && lval != Lisp.NIL && lval != Lisp.T && lval != Lisp.INST)
+                if (Lisp.IsAtom(lval) && lval != Lisp.NIL && lval != Lisp.T && lval != Lisp.INST && lval != Lisp.ARGV)
                     locals.Bind(this, lval);
             }
             else if (Lisp.IsFunctor(lval))
@@ -380,41 +436,85 @@ namespace DataEngine.CoreServices
             }
         }
 
-        private void WriteEpilog(ILGen il, LocalAccess locals)
+        private void WriteEpilog(ILGen il, Parameter[] parameters, LocalAccess locals)
         {
-            if (locals.HasLocals)
+            if (locals.HasLocals || parameters.Length > 0)
             {
-                il.Emit(OpCodes.Ldarg_0);
-                il.EmitPropertyGet(typeof(CompiledLambda), "Values");
-                LocalBuilder values = il.DeclareLocal(typeof(SymbolLink[]));
-                il.Emit(OpCodes.Stloc, values);
-                int k = 0;
                 Label label = il.DefineLabel();
-                foreach (LocalAccess.LocalBinding b in locals)
+                if (parameters.Length > 0)
                 {
-                    il.Emit(OpCodes.Ldloc, values);
-                    il.EmitInt(k++);
-                    il.Emit(OpCodes.Ldelem_Ref);
-                    il.EmitPropertyGet(typeof(SymbolLink), "Value");
-                    if (b.Local.LocalType.IsValueType)
+                    for (int k = 0; k < parameters.Length; k++)
                     {
-                        il.Emit(OpCodes.Isinst, b.Local.LocalType);
-                        il.Emit(OpCodes.Dup);
-                        il.Emit(OpCodes.Brfalse, label);
-                        il.EmitUnbox(b.Local.LocalType);
-                        il.Emit(OpCodes.Stloc, b.Local);
+                        il.Emit(OpCodes.Ldarg_2);
+                        il.EmitInt(k);
+                        il.Emit(OpCodes.Ldelem_Ref);
+                        if (parameters[k].Type.IsValueType)
+                        {
+                            il.Emit(OpCodes.Isinst, parameters[k].Type);
+                            il.Emit(OpCodes.Dup);
+                            il.Emit(OpCodes.Brfalse, label);
+                            if (locals.IsParameterBinded(parameters[k].ID))
+                            {
+                                LocalBuilder local = locals.GetLocal(parameters[k].ID);
+                                il.EmitUnbox(local.LocalType);
+                                il.Emit(OpCodes.Stloc, local);
+                            }
+                            else
+                                il.Emit(OpCodes.Pop);
+                        }
+                        else
+                        {
+                            Label label2 = il.DefineLabel();
+                            il.Emit(OpCodes.Dup);
+                            il.Emit(OpCodes.Brfalse_S, label2);
+                            il.Emit(OpCodes.Isinst, parameters[k].Type);
+                            il.Emit(OpCodes.Dup);
+                            il.Emit(OpCodes.Brfalse, label);
+                            il.MarkLabel(label2);
+                            if (locals.IsParameterBinded(parameters[k].ID))
+                            {                                                                
+                                LocalBuilder local = locals.GetLocal(parameters[k].ID);
+                                il.Emit(OpCodes.Stloc, local);
+                            }
+                            else
+                                il.Emit(OpCodes.Pop);
+                        }
                     }
-                    else
+                }
+                if (locals.HasLocals)
+                {
+                    il.Emit(OpCodes.Ldarg_0);
+                    il.EmitPropertyGet(typeof(CompiledLambda), "Values");
+                    LocalBuilder values = il.DeclareLocal(typeof(SymbolLink[]));
+                    il.Emit(OpCodes.Stloc, values);
+                    int k = 0;
+                    foreach (LocalAccess.LocalBinding b in locals)
                     {
-                        Label label2 = il.DefineLabel();
-                        il.Emit(OpCodes.Dup);
-                        il.Emit(OpCodes.Brfalse_S, label2);
-                        il.Emit(OpCodes.Isinst, b.Local.LocalType);
-                        il.Emit(OpCodes.Dup);
-                        il.Emit(OpCodes.Brfalse, label);
-                        il.MarkLabel(label2);
-                        il.Emit(OpCodes.Stloc, b.Local);
+                        il.Emit(OpCodes.Ldloc, values);
+                        il.EmitInt(k++);
+                        il.Emit(OpCodes.Ldelem_Ref);
+                        il.EmitPropertyGet(typeof(SymbolLink), "Value");
+                        if (b.Local.LocalType.IsValueType)
+                        {
+                            il.Emit(OpCodes.Isinst, b.Local.LocalType);
+                            il.Emit(OpCodes.Dup);
+                            il.Emit(OpCodes.Brfalse, label);
+                            il.EmitUnbox(b.Local.LocalType);
+                            il.Emit(OpCodes.Stloc, b.Local);
+                        }
+                        else
+                        {
+                            Label label2 = il.DefineLabel();
+                            il.Emit(OpCodes.Dup);
+                            il.Emit(OpCodes.Brfalse_S, label2);
+                            il.Emit(OpCodes.Isinst, b.Local.LocalType);
+                            il.Emit(OpCodes.Dup);
+                            il.Emit(OpCodes.Brfalse, label);
+                            il.MarkLabel(label2);
+                            il.Emit(OpCodes.Stloc, b.Local);
+                        }
                     }
+                    il.FreeLocal(values);
                 }
                 Label end = il.DefineLabel();
                 il.Emit(OpCodes.Br_S, end);
@@ -422,8 +522,7 @@ namespace DataEngine.CoreServices
                 il.Emit(OpCodes.Pop); // Isinst
                 il.EmitPropertyGet(typeof(Undefined), "Value");
                 il.Emit(OpCodes.Ret);
-                il.MarkLabel(end);
-                il.FreeLocal(values);
+                il.MarkLabel(end);                
             }
         }
 
@@ -450,6 +549,11 @@ namespace DataEngine.CoreServices
                     il.EmitPropertyGet(typeof(CompiledLambda), "Engine");
                     st.Push(typeof(Executive));
                 }
+                else if (lval == Lisp.ARGV)
+                {
+                    il.Emit(OpCodes.Ldarg_2);
+                    st.Push(typeof(object[]));
+                }
                 else
                 {
                     LocalBuilder localVar = locals.GetLocal(lval);
@@ -461,12 +565,24 @@ namespace DataEngine.CoreServices
                     else
                     {
                         Type type = lval.GetType();
-                        if (!il.TryEmitConstant(lval, type))
+                        if (type == typeof(Integer))
+                        {
+                            il.EmitDecimal((Decimal)((Integer)lval));
+                            il.EmitNew(typeof(Integer).GetConstructor(BindingFlags.Instance | BindingFlags.NonPublic, null, 
+                                new Type[] { typeof(Decimal) }, null));
+                        }
+                        else if (!il.TryEmitConstant(lval, type))
                         {
                             il.Emit(OpCodes.Ldarg_1);
                             il.EmitInt(locals.DefineConstant(lval));
                             il.Emit(OpCodes.Ldelem_Ref);
                             il.Emit(OpCodes.Isinst, type);
+                            if (type.IsValueType)
+                                il.EmitUnbox(type);
+                            // Notify object about compile
+                            IBindableObject cs = lval as IBindableObject;
+                            if (cs != null)
+                                cs.Bind(locals.Parameters);
                         }
                         st.Push(type);
                     }
@@ -533,7 +649,7 @@ namespace DataEngine.CoreServices
                                     }
                                     else
                                         new_parameter_types[k] = parameterTypes[k];
-                                    il.FreeLocal(localVar[k]);                                    
+                                    il.FreeLocal(localVar[k]);
                                 }
                                 parameterTypes = new_parameter_types;
                             }
@@ -567,7 +683,7 @@ namespace DataEngine.CoreServices
                     object form = Lisp.Car(lval);
                     object body = Lisp.Car(Lisp.Cddr(form));
                     object tail = Lisp.Cdr(lval);
-                    LambdaExpr lambda = new LambdaExpr(null, CreateParameters(Lisp.Arg1(form)), 
+                    LambdaExpr lambda = new LambdaExpr(null, CreateParameters(Lisp.Arg1(form)),
                         typeof(System.Object), body);
                     List<Type> parameterTypesList = new List<Type>();
                     foreach (object a in Lisp.getIterator(tail))
@@ -579,7 +695,7 @@ namespace DataEngine.CoreServices
                     FuncName name = new FuncName(null, parameterTypes);
                     if (!lambda.Name.Match(name, true))
                         throw new InvalidOperationException("Lambda parameters does not match");
-                    st.Push(lambda.Compile(this, il, locals, parameterTypes)); 
+                    st.Push(lambda.Compile(this, il, locals, parameterTypes));
                 }
                 else
                     throw new ArgumentException("Unproperly formated expression");
@@ -640,11 +756,63 @@ namespace DataEngine.CoreServices
             return res;
         }
 
+        public virtual void HandleRuntimeException(Exception exception)
+        {
+            throw exception;
+        }
+
+        public virtual object OperatorEq(object arg1, object arg2)
+        {
+            if (arg1 == arg2)
+                return true;
+            else if (arg1 == null || arg2 == null)
+                return null;
+            else if (arg1.Equals(arg2))
+                return true;
+            else if (arg1 is IComparable && arg2 is IComparable)
+            {
+                NumericCode code = TypeConverter.GetNumericCode(arg1, arg2);
+                if (code == NumericCode.Unknown)
+                    throw new InvalidCastException();
+                object val1 = TypeConverter.ChangeType(arg1, code);
+                object val2 = TypeConverter.ChangeType(arg2, code);
+                if (((IComparable)val1).CompareTo(val2) == 0)
+                    return true;
+            }
+            return null;
+        }
+
+        public virtual object OperatorGt(object arg1, object arg2)
+        {
+            if (arg1 == null || arg2 == null)
+                return null;
+            else
+                if (arg1 is IComparable && arg2 is IComparable)
+                {
+                    if (arg1.GetType() == arg2.GetType())
+                    {
+                        if (((IComparable)arg1).CompareTo(arg2) > 0)
+                            return true;
+                    }
+                    else
+                    {
+                        NumericCode code = TypeConverter.GetNumericCode(arg1, arg2);
+                        if (code == NumericCode.Unknown)
+                            throw new InvalidCastException();
+                        object val1 = TypeConverter.ChangeType(arg1, code);
+                        object val2 = TypeConverter.ChangeType(arg2, code);
+                        if (((IComparable)val1).CompareTo(val2) > 0)
+                            return true;
+                    }
+                }
+                else
+                    throw new InvalidOperationException();
+            return null;
+        }
+
         public object Owner
         {
             get { return m_owner; }
         }
-
-        public CompiledLambda CurrentLambda { get; internal set; }
     }
 }

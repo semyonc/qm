@@ -35,11 +35,13 @@ namespace DataEngine.CoreServices
 {
     public class LambdaExpr: FuncBase
     {
-        private Executive.Parameter[] _parameters;
-        private object _body;
-        private Type _retType;
-        private SymbolLink _compiledBody;
+        internal Executive.Parameter[] _parameters;
+        internal object _body;
+        internal Type _retType;
+        internal SymbolLink _compiledBody;
 
+        public bool CompileBody { get; set; }
+        
         public LambdaExpr(object id, string paramstr, Type returnType, string body)
             : this(id, Executive.CreateParameters(paramstr), returnType, LispParser.Parse(body))
         {
@@ -52,10 +54,14 @@ namespace DataEngine.CoreServices
             _retType = returnType;
             _body = body;
             _compiledBody = new SymbolLink();
-        }
+        }        
 
         public override Type Compile(Executive engine, ILGen il, LocalAccess locals, Type[] parameterTypes)
         {
+            if (CompileBody && _compiledBody.Value == null)
+                engine.Compile(_parameters, _body, _compiledBody);
+            locals.AddDependence(this);
+
             LocalBuilder[] localVar = new LocalBuilder[parameterTypes.Length];
             for (int k = parameterTypes.Length - 1; k >= 0; k--)
             {

@@ -126,6 +126,7 @@ namespace DataEngine.XQuery
                 }
             }
 
+            [DebuggerStepThrough]
             public bool MoveNext()
             {
                 if (!iterationStarted)

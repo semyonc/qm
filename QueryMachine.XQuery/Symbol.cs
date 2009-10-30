@@ -203,14 +203,6 @@ namespace DataEngine.XQuery
             tag = Tag.Integer;
         }
 
-        new public int Data
-        {
-            get
-            {
-                return (int)data;
-            }
-        }
-
         public override object Clone()
         {
             return new IntegerValue(Data);
