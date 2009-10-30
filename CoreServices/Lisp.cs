@@ -169,6 +169,7 @@ namespace DataEngine.CoreServices
         public static readonly object LAMBDA = new ATOM("lambda");
         public static readonly object INST = new ATOM("__inst");
         public static readonly object UNKNOWN = new ATOM("unknown");
+        public static readonly object ARGV = new ATOM("argv");
         
 		public static bool IsNode(object lval) 
 		{
@@ -218,6 +219,11 @@ namespace DataEngine.CoreServices
         public static bool IsFunctor(object lval, object a)
         {
             return !IsNode(lval) && IsAtom(Car(lval)) && IsEqual(Car(lval), a);
+        }
+
+        public static bool IsFunctor(object lval, object a, int arity)
+        {
+            return !IsNode(lval) && IsAtom(Car(lval)) && IsEqual(Car(lval), a) && Length(lval) == arity + 1;
         }
 
 		public static string SArg1(object lval)

@@ -26,6 +26,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Xml;
 
 namespace DataEngine.XQuery
 {
@@ -52,26 +53,35 @@ namespace DataEngine.XQuery
 
     internal class XQueryNodeInfoTable
     {
+        private XmlNameTable nameTable;
         private int count;
         private Entry[] entries;
         private Entry[] handleArray;
         private int hashCodeRandomizer;
         private int mask = 0x1f;
 
-        public XQueryNodeInfoTable()
+        public XQueryNodeInfoTable(XmlNameTable nameTable)
         {
             entries = new Entry[mask + 1];
             handleArray = new Entry[mask + 1];
             hashCodeRandomizer = Environment.TickCount;
+            this.nameTable = nameTable;
         }
 
         public XQueryNodeInfo Add(string prefix, string localName, string namespaceUri)
         {
+            if (prefix == null)
+                throw new ArgumentException();
+            prefix = nameTable.Add(prefix);
+            if (String.IsNullOrEmpty(localName))
+                throw new ArgumentException();
+            localName = nameTable.Add(localName);
+            if (namespaceUri == null)
+                throw new ArgumentException();
+            namespaceUri = nameTable.Add(namespaceUri);
             int hashCode = localName.GetHashCode() + hashCodeRandomizer;
-            if (prefix != null)
-                hashCode = (hashCode << 7) ^ prefix.GetHashCode();
-            if (namespaceUri != null)
-                hashCode = (hashCode << 7) ^ namespaceUri.GetHashCode();
+            hashCode = (hashCode << 7) ^ prefix.GetHashCode();
+            hashCode = (hashCode << 7) ^ namespaceUri.GetHashCode();
             hashCode -= hashCode >> 0x11;
             hashCode -= hashCode >> 11;
             hashCode -= hashCode >> 5;
@@ -122,9 +132,9 @@ namespace DataEngine.XQuery
         private bool InternalEquals(XQueryNodeInfo nodeInfo, string prefix, 
             string localName, string namespaceUri)
         {
-            return Equals(nodeInfo.prefix, prefix) &&
-                Equals(nodeInfo.localName, localName) &&
-                Equals(nodeInfo.namespaceUri, namespaceUri);
+            return Object.ReferenceEquals(nodeInfo.prefix, prefix) &&
+                Object.ReferenceEquals(nodeInfo.localName, localName) &&
+                Object.ReferenceEquals(nodeInfo.namespaceUri, namespaceUri);
         }
 
         private XQueryNodeInfo AddEntry(XQueryNodeInfo nodeInfo, int hashCode)

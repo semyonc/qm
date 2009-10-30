@@ -30,17 +30,120 @@ using System.Globalization;
 
 namespace DataEngine.CoreServices
 {
+    public enum NumericCode
+    {        
+        Byte = 0,
+        unsignedByte = 1,
+        Short = 2,
+        unsignedShort = 3,        
+        Int = 4,
+        unsignedInt = 5,
+        Long = 6,
+        unsignedLong = 7,
+        Integer = 8,
+        Decimal = 9,
+        Float = 10,
+        Double = 11,
+        Unknown = 12
+    }
+
     public class TypeConverter
-    {       
-        private static TypeCode[] _typeSeniority;
+    {
+        private static NumericCode[] typeCodeToNumericCode;
 
         static TypeConverter()
         {
-            _typeSeniority = new TypeCode[]  
-                { TypeCode.String,
-                  TypeCode.SByte, TypeCode.Byte, TypeCode.Int16, TypeCode.UInt16,
-                  TypeCode.Int32, TypeCode.UInt32, TypeCode.Int64, TypeCode.UInt64,
-                  TypeCode.Single, TypeCode.Double, TypeCode.Decimal, TypeCode.DateTime };
+            BuildMap();
+        }
+
+        private static void BuildMap()
+        {
+            Array values = Enum.GetValues(typeof(TypeCode));
+            int maxval = 0;
+            for (int i = 0; i < values.Length; i++)
+            {
+                int val = Convert.ToInt32(values.GetValue(i));
+                if (val > maxval)
+                    maxval = val;
+            }
+            typeCodeToNumericCode = new NumericCode[maxval + 1];
+            for (int i = 0; i < values.Length; i++)
+            {
+                NumericCode code;
+                switch ((TypeCode)values.GetValue(i))
+                {
+                    case TypeCode.Byte:
+                        code = NumericCode.Byte;
+                        break;
+
+                    case TypeCode.SByte:
+                        code = NumericCode.unsignedByte;
+                        break;
+
+                    case TypeCode.Int16:
+                        code = NumericCode.Short;
+                        break;
+
+                    case TypeCode.UInt16:
+                        code = NumericCode.unsignedShort;
+                        break;
+
+                    case TypeCode.Int32:
+                        code = NumericCode.Int;
+                        break;
+
+                    case TypeCode.UInt32:
+                        code = NumericCode.unsignedInt;
+                        break;
+
+                    case TypeCode.Int64:
+                        code = NumericCode.Long;
+                        break;
+
+                    case TypeCode.UInt64:
+                        code = NumericCode.unsignedLong;
+                        break;
+
+                    case TypeCode.Decimal:
+                        code = NumericCode.Decimal;
+                        break;
+
+                    case TypeCode.Single:
+                        code = NumericCode.Float;
+                        break;
+
+                    case TypeCode.Double:
+                        code = NumericCode.Double;
+                        break;
+
+                    default:
+                        code = NumericCode.Unknown;
+                        break;
+                }
+                typeCodeToNumericCode[Convert.ToInt32(values.GetValue(i))] = code;
+            }
+        }
+
+        public static NumericCode GetNumericCode(Type type)
+        {
+            if (type == typeof(Integer))
+                return NumericCode.Integer;
+            return typeCodeToNumericCode[(int)Type.GetTypeCode(type)];
+        }
+
+        public static NumericCode GetNumericCode(TypeCode typecode)
+        {
+            return typeCodeToNumericCode[(int)typecode];
+        }
+
+        public static NumericCode GetNumericCode(NumericCode code1, NumericCode code2)
+        {
+            int nc1 = (int)code1;
+            int nc2 = (int)code2;
+            if (nc1 > nc2)
+                return code1;
+            else
+                return code2;
         }
 
         private static TypeCode GetValueTypeCode(Object value)
@@ -52,118 +155,58 @@ namespace DataEngine.CoreServices
                 return Type.GetTypeCode(value.GetType());
         }
 
-        public static TypeCode GetTypeCode(Object object1, Object object2)
+        public static NumericCode GetNumericCode(Object object1, Object object2)
         {
-            return GetTypeCode(GetValueTypeCode(object1), GetValueTypeCode(object2));
+            return GetNumericCode(GetNumericCode(object1), GetNumericCode(object2));
         }
 
-        public static TypeCode GetTypeCode(Type t1, Type t2)
+        private static NumericCode GetNumericCode(object obj)
         {
-            return GetTypeCode(Type.GetTypeCode(t1), Type.GetTypeCode(t2));
+            return GetNumericCode(obj.GetType());
         }
 
-        public static TypeCode GetTypeCode(TypeCode typecode1, TypeCode typecode2)
+        //public static TypeCode GetTypeCode(Type t1, Type t2)
+        //{
+        //    return GetTypeCode(Type.GetTypeCode(t1), Type.GetTypeCode(t2));
+        //}        
+
+        public static Type GetTypeByNumericCode(NumericCode code)
         {
-            if (typecode1 == typecode2)
-                return typecode1;
-            else if (typecode1 == TypeCode.Object || typecode2 == TypeCode.Object)
-                return TypeCode.Object;
-            else if ((typecode1 == TypeCode.String && IsNumberTypeCode(typecode2)) ||
-                     (typecode2 == TypeCode.String && IsNumberTypeCode(typecode1)))
-                return TypeCode.Double;
-            else
+            switch (code)
             {
-                int index1 = -1;
-                for (int k = 0; k < _typeSeniority.Length; k++)
-                    if (_typeSeniority[k] == typecode1)
-                    {
-                        index1 = k;
-                        break;
-                    }
-                if (index1 == -1)
-                    return TypeCode.Object;
-
-                int index2 = -1;
-                for (int k = 0; k < _typeSeniority.Length; k++)
-                    if (_typeSeniority[k] == typecode2)
-                    {
-                        index2 = k;
-                        break;
-                    }
-                if (index2 == -1)
-                    return TypeCode.Object;
-
-                TypeCode typecode;
-                if (index1 > index2)
-                    typecode = typecode1;
-                else
-                    typecode = typecode2;
-
-                switch (typecode)
-                {
-                    case TypeCode.SByte:
-                    case TypeCode.Int16:
-                    case TypeCode.Int32:
-                        return TypeCode.Int32;
-
-                    case TypeCode.Byte:
-                    case TypeCode.UInt16:
-                    case TypeCode.UInt32:
-                        return TypeCode.UInt32;
-
-                    default:
-                        return typecode;
-                }
-            }
-        }
-
-        public static Type GetTypeByTypeCode(TypeCode typeCode)
-        {
-            switch (typeCode)
-            {
-                case TypeCode.Empty:
-                    return null;
-                case TypeCode.DBNull:
-                    return typeof(DBNull);
-                case TypeCode.Boolean:
-                    return typeof(System.Boolean);
-                case TypeCode.Int16:
-                    return typeof(System.Int16);
-                case TypeCode.Int32:
-                    return typeof(System.Int32);
-                case TypeCode.Int64:
-                    return typeof(System.Int64);
-                case TypeCode.UInt16:
-                    return typeof(System.UInt16);
-                case TypeCode.UInt32:
-                    return typeof(System.UInt32);
-                case TypeCode.UInt64:
-                    return typeof(System.UInt64);
-                case TypeCode.SByte:
+                case NumericCode.Byte:
                     return typeof(System.SByte);
-                case TypeCode.Byte:
+                case NumericCode.unsignedByte:
                     return typeof(System.Byte);
-                case TypeCode.Single:
-                    return typeof(System.Single);
-                case TypeCode.Decimal:
+                case NumericCode.Short:
+                    return typeof(System.Int16);
+                case NumericCode.unsignedShort:
+                    return typeof(System.UInt16);
+                case NumericCode.Int:
+                    return typeof(System.Int32);
+                case NumericCode.unsignedInt:
+                    return typeof(System.UInt32);
+                case NumericCode.Long:
+                    return typeof(System.Int64);
+                case NumericCode.unsignedLong:
+                    return typeof(System.UInt64);
+                case NumericCode.Integer:
+                    return typeof(Integer);
+                case NumericCode.Decimal:
                     return typeof(System.Decimal);
-                case TypeCode.Double:
+                case NumericCode.Float:
+                    return typeof(System.Single);
+                case NumericCode.Double:
                     return typeof(System.Double);
-                case TypeCode.Char:
-                case TypeCode.String:
-                    return typeof(System.String);
-                case TypeCode.DateTime:
-                    return typeof(System.DateTime);
-                case TypeCode.Object:
-                    return typeof(System.Object);
                 default:
-                    throw new InvalidCastException();
+                    return typeof(System.Object);
             }
         }
 
         public static Type GetType(Type type1, Type type2)
         {
-            return GetTypeByTypeCode(GetTypeCode(type1, type2));
+            return GetTypeByNumericCode(GetNumericCode(
+                GetNumericCode(type1), GetNumericCode(type2)));
         }
 
         public static int GetValueSize(Object value)
@@ -174,77 +217,16 @@ namespace DataEngine.CoreServices
                 return 0;
         }
 
-        public static bool IsNumberTypeCode(TypeCode typeCode)
-        {
-            switch (typeCode)
-            {
-                case TypeCode.Int16:
-                case TypeCode.Int32:
-                case TypeCode.Int64:
-                case TypeCode.UInt16:
-                case TypeCode.UInt32:
-                case TypeCode.UInt64:
-                case TypeCode.SByte:
-                case TypeCode.Byte:
-                case TypeCode.Single:
-                case TypeCode.Decimal:
-                case TypeCode.Double:
-                    return true;
-                
-                default:
-                    return false;
-            }
-        }
-
         public static bool IsNumberType(Type type)
         {
-            return IsNumberTypeCode(Type.GetTypeCode(type));
+            return GetNumericCode(type) != NumericCode.Unknown;
         }
 
-        public static object ChangeType(object value, TypeCode typeCode)
+        public static object ChangeType(object value, NumericCode code)
         {
-            switch (typeCode)
-            {
-                case TypeCode.Empty:
-                    return null;
-                case TypeCode.DBNull:
-                    return typeof(DBNull);
-                case TypeCode.Boolean:
-                    return Convert.ChangeType(value, typeof(System.Boolean));
-                case TypeCode.Int16:
-                    return Convert.ChangeType(value, typeof(System.Int16));
-                case TypeCode.Int32:
-                    return Convert.ChangeType(value, typeof(System.Int32));
-                case TypeCode.Int64:
-                    return Convert.ChangeType(value, typeof(System.Int64));
-                case TypeCode.UInt16:
-                    return Convert.ChangeType(value, typeof(System.UInt16));
-                case TypeCode.UInt32:
-                    return Convert.ChangeType(value, typeof(System.UInt32));
-                case TypeCode.UInt64:
-                    return Convert.ChangeType(value, typeof(System.UInt64));
-                case TypeCode.SByte:
-                    return Convert.ChangeType(value, typeof(System.SByte));
-                case TypeCode.Byte:
-                    return Convert.ChangeType(value, typeof(System.Byte));
-                case TypeCode.Single:
-                    return Convert.ChangeType(value, typeof(System.Single));
-                case TypeCode.Decimal:
-                    return Convert.ChangeType(value, typeof(System.Decimal));
-                case TypeCode.Double:
-                    return Convert.ChangeType(value, typeof(System.Double), 
-                        CultureInfo.InvariantCulture);
-                case TypeCode.Char:
-                    return Convert.ChangeType(value, typeof(System.Char));
-                case TypeCode.String:
-                    return Convert.ChangeType(value, typeof(System.String));
-                case TypeCode.DateTime:
-                    return Convert.ChangeType(value, typeof(System.DateTime));
-                case TypeCode.Object:
-                    return value;
-                default:
-                    throw new InvalidCastException();
-            }
+            if (code == NumericCode.Integer)
+                return (Integer)((Decimal)Convert.ChangeType(value, TypeCode.Decimal));
+            return Convert.ChangeType(value, GetTypeByNumericCode(code));
         }
 
     }

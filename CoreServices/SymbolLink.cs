@@ -48,13 +48,14 @@ namespace DataEngine.CoreServices
             Type = type;
         }
 
-        public void Assign(SymbolLink src)
+        public SymbolLink Clone()
         {
-            Value = src.Value;
-            Type = src.Type;
+            SymbolLink dest = new SymbolLink(Type);
+            dest.Value = Value;
+            return dest;
         }
         
         public Object Value { get; set; }
-        public Type Type { get; private set; }
+        public Type Type { get; private set; }       
     }
 }

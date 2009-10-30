@@ -31,6 +31,8 @@ using System.Xml;
 using System.Xml.Schema;
 using System.Xml.XPath;
 
+using DataEngine.XQuery.Util;
+
 namespace DataEngine.XQuery
 {
     public enum XmlTypeCardinality
@@ -59,6 +61,10 @@ namespace DataEngine.XQuery
 
         public Type ParameterType { get; set; }
 
+        public Type ItemType { get; private set; }
+
+        public bool IsNode { get; private set; }
+
         public XQuerySequenceType(XmlTypeCode typeCode)
             : this(typeCode, XmlQualifiedNameTest.Wildcard)
         {
@@ -75,6 +81,7 @@ namespace DataEngine.XQuery
         {
             Cardinality = cardinality;
             ParameterType = clrType;
+            IsNode = TypeCodeIsNodeType(TypeCode);
             if (TypeCode != XmlTypeCode.Item && !IsNode)
                 SchemaType = XmlSchemaType.GetBuiltInSimpleType(TypeCode);
         }
@@ -84,8 +91,10 @@ namespace DataEngine.XQuery
             TypeCode = typeCode;
             Cardinality = XmlTypeCardinality.One;
             NameTest = nameTest;
+            IsNode = TypeCodeIsNodeType(TypeCode);
             if (TypeCode != XmlTypeCode.Item && !IsNode)
                 SchemaType = XmlSchemaType.GetBuiltInSimpleType(TypeCode);
+            ItemType = TypeCodeToItemType(TypeCode, SchemaType);
         }
 
         public XQuerySequenceType(XmlTypeCode typeCode, XmlQualifiedNameTest nameTest, XmlSchemaType schemaType)
@@ -100,18 +109,24 @@ namespace DataEngine.XQuery
             NameTest = nameTest;
             SchemaType = schemaType;
             Nillable = Nillable;
+            IsNode = TypeCodeIsNodeType(TypeCode);
+            ItemType = TypeCodeToItemType(TypeCode, SchemaType);
         }
 
         public XQuerySequenceType(XmlSchemaElement schemaElement)
         {
             TypeCode = XmlTypeCode.Element;
             SchemaElement = schemaElement;
+            IsNode = true;
+            ItemType = TypeCodeToItemType(TypeCode, SchemaType);
         }
 
         public XQuerySequenceType(XmlSchemaAttribute schemaAttribute)
         {
             TypeCode = XmlTypeCode.Attribute;
             SchemaAttribute = schemaAttribute;
+            IsNode = true;
+            ItemType = TypeCodeToItemType(TypeCode, SchemaType);
         }
 
 
@@ -121,6 +136,8 @@ namespace DataEngine.XQuery
             SchemaType = schemaType;
             Cardinality = cardinality;
             ParameterType = clrType;
+            IsNode = TypeCodeIsNodeType(TypeCode);
+            ItemType = TypeCodeToItemType(TypeCode, SchemaType);
         }
 
         public XQuerySequenceType(Type clrType, XmlTypeCardinality cardinality)
@@ -129,7 +146,9 @@ namespace DataEngine.XQuery
             if (TypeCode != XmlTypeCode.Item && !IsNode)
                 SchemaType = XmlSchemaType.GetBuiltInSimpleType(TypeCode);
             ParameterType = clrType;
-            Cardinality = cardinality;            
+            Cardinality = cardinality;
+            IsNode = TypeCodeIsNodeType(TypeCode);
+            ItemType = TypeCodeToItemType(TypeCode, SchemaType);
         }
 
         public XQuerySequenceType(XmlTypeCode typeCode, IXmlSchemaInfo schemaInfo, Type clrType)
@@ -141,6 +160,8 @@ namespace DataEngine.XQuery
             SchemaElement = schemaInfo.SchemaElement;
             SchemaAttribute = schemaInfo.SchemaAttribute;
             ParameterType = clrType;
+            IsNode = TypeCodeIsNodeType(TypeCode);
+            ItemType = TypeCodeToItemType(TypeCode, SchemaType);
         }
 
         public XQuerySequenceType(XQuerySequenceType src)
@@ -153,6 +174,8 @@ namespace DataEngine.XQuery
             SchemaAttribute = src.SchemaAttribute;
             Nillable = src.Nillable;
             ParameterType = src.ParameterType;
+            IsNode = src.IsNode;
+            ItemType = src.ItemType;
         }
 
         public Type ValueType
@@ -170,70 +193,43 @@ namespace DataEngine.XQuery
             }
         }
 
-        public Type ItemType
+        public Type AtomizedValueType
         {
             get
             {
-                switch (TypeCode)
+                if (IsNode)
                 {
-                    case XmlTypeCode.Short:
-                        return typeof(System.Int16);
-                    case XmlTypeCode.Int:
-                    case XmlTypeCode.Integer:
-                        return typeof(System.Int32);
-                    case XmlTypeCode.Long:
-                        return typeof(System.Int64);
-                    case XmlTypeCode.UnsignedShort:
-                        return typeof(System.UInt16);
-                    case XmlTypeCode.UnsignedInt:
-                        return typeof(System.UInt32);
-                    case XmlTypeCode.UnsignedLong:
-                        return typeof(System.UInt64);
-                    case XmlTypeCode.Byte:
-                        return typeof(System.SByte);
-                    case XmlTypeCode.UnsignedByte:
-                        return typeof(System.Byte);
-                    case XmlTypeCode.Float:
-                        return typeof(System.Single);
-                    case XmlTypeCode.Decimal:
-                        return typeof(System.Decimal);
-                    case XmlTypeCode.Double:
-                        return typeof(System.Double);
-                    case XmlTypeCode.DateTime:
-                    case XmlTypeCode.Date:
-                    case XmlTypeCode.Time:
-                        return typeof(System.DateTime);
-                    case XmlTypeCode.String:
-                    case XmlTypeCode.UntypedAtomic:
-                        return typeof(System.String);
-                    case XmlTypeCode.Duration:
-                    case XmlTypeCode.DayTimeDuration:
-                        return typeof(System.TimeSpan);
-                    default:
-                        return typeof(System.Object);
-                }
-            }
-        }
+                    switch (TypeCode)
+                    {
+                        case XmlTypeCode.Text:
+                        case XmlTypeCode.ProcessingInstruction:
+                        case XmlTypeCode.Comment:
+                        case XmlTypeCode.UntypedAtomic:
+                            return typeof(UntypedAtomic);
 
-        public bool IsNode
-        {
-            get
-            {
-                switch (TypeCode)
-                {
-                    case XmlTypeCode.Node:
-                    case XmlTypeCode.Element:
-                    case XmlTypeCode.Attribute:
-                    case XmlTypeCode.Document:
-                    case XmlTypeCode.Comment:
-                    case XmlTypeCode.Text:
-                    case XmlTypeCode.ProcessingInstruction:
-                        return true;
+                        default:
+                            if (SchemaType != null)
+                                return SchemaType.Datatype.ValueType;
+                            else if (SchemaElement != null)
+                            {
+                                if (SchemaElement.ElementSchemaType != null &&
+                                    SchemaElement.ElementSchemaType.Datatype != null)
+                                    return SchemaElement.ElementSchemaType.Datatype.ValueType;
+                            }
+                            else if (SchemaAttribute != null)
+                            {
+                                if (SchemaAttribute.AttributeSchemaType != null &&
+                                    SchemaAttribute.AttributeSchemaType.Datatype != null)
+                                    return SchemaAttribute.AttributeSchemaType.Datatype.ValueType;
+                            }
+                            return typeof(UntypedAtomic);
+                    }
                 }
-                return false;
+                else
+                    return ItemType;
             }
-        }
-
+        }        
+        
         public bool IsNumeric
         {
             get
@@ -262,10 +258,27 @@ namespace DataEngine.XQuery
             }
         }
 
+        public bool IsUntypedAtomic
+        {
+            get
+            {
+                return TypeCode == XmlTypeCode.UntypedAtomic;
+            }
+        }
+
+        private bool MatchName(XPathNavigator nav)
+        {
+            return (NameTest.IsNamespaceWildcard || Object.ReferenceEquals(NameTest.Namespace, nav.NamespaceURI)) &&
+               (NameTest.IsNameWildcard || Object.ReferenceEquals(NameTest.Name, nav.LocalName));
+        }
+
         public bool Match(XPathItem item)
         {
             switch (TypeCode)
             {
+                case XmlTypeCode.None:
+                    return false;
+
                 case XmlTypeCode.Item:
                     return true;
 
@@ -276,7 +289,7 @@ namespace DataEngine.XQuery
                     return !item.IsNode;
 
                 case XmlTypeCode.UntypedAtomic:
-                    return !item.IsNode && item.XmlType == UntypedAtomic;
+                    return !item.IsNode && item.XmlType == XmlSchema.UntypedAtomic;
 
                 case XmlTypeCode.Document:
                     {
@@ -288,11 +301,9 @@ namespace DataEngine.XQuery
                                 XPathNavigator cur = nav.Clone();                                
                                 if (SchemaElement == null)
                                 {
-                                    if (cur.MoveToChild(XPathNodeType.Element) &&
-                                        (NameTest.IsNamespaceWildcard || NameTest.Namespace == cur.NamespaceURI) &&
-                                        (NameTest.IsNameWildcard || NameTest.Name == cur.LocalName))
+                                    if (cur.MoveToChild(XPathNodeType.Element) && MatchName(cur))
                                     {
-                                        if (SchemaType == null)
+                                        if (SchemaType == null || SchemaType == XmlSchema.UntypedAtomic)
                                             return true;
                                         IXmlSchemaInfo schemaInfo = cur.SchemaInfo;
                                         if (schemaInfo != null)
@@ -300,6 +311,8 @@ namespace DataEngine.XQuery
                                             if (XmlSchemaType.IsDerivedFrom(schemaInfo.SchemaType, SchemaType, XmlSchemaDerivationMethod.Empty))
                                                 return !schemaInfo.IsNil || Nillable;
                                         }
+                                        else
+                                            return XmlSchemaType.IsDerivedFrom(XmlSchema.UntypedAtomic, SchemaType, XmlSchemaDerivationMethod.Empty);
                                     }
                                 }
                                 else
@@ -322,10 +335,9 @@ namespace DataEngine.XQuery
                         {
                             if (SchemaElement == null)
                             {
-                                if ((NameTest.IsNamespaceWildcard || NameTest.Namespace == nav.NamespaceURI) &&
-                                    (NameTest.IsNameWildcard || NameTest.Name == nav.LocalName))
+                                if (MatchName(nav))
                                 {
-                                    if (SchemaType == null)
+                                    if (SchemaType == null || SchemaType == XmlSchema.UntypedAtomic)
                                         return true;
                                     IXmlSchemaInfo schemaInfo = nav.SchemaInfo;
                                     if (schemaInfo != null)
@@ -333,6 +345,8 @@ namespace DataEngine.XQuery
                                         if (XmlSchemaType.IsDerivedFrom(schemaInfo.SchemaType, SchemaType, XmlSchemaDerivationMethod.Empty))
                                             return !schemaInfo.IsNil || Nillable;
                                     }
+                                    else
+                                        return XmlSchemaType.IsDerivedFrom(XmlSchema.UntypedAtomic, SchemaType, XmlSchemaDerivationMethod.Empty);
                                 }
                             }
                             else
@@ -352,13 +366,14 @@ namespace DataEngine.XQuery
                         {
                             if (SchemaAttribute == null)
                             {
-                                if ((NameTest.IsNamespaceWildcard || NameTest.Namespace == nav.NamespaceURI) &&
-                                    (NameTest.IsNameWildcard || NameTest.Name == nav.LocalName))
+                                if (MatchName(nav))
                                 {
-                                    if (SchemaType == null)
+                                    if (SchemaType == null || SchemaType == XmlSchema.UntypedAtomic) 
                                         return true;
                                     IXmlSchemaInfo schemaInfo = nav.SchemaInfo;
-                                    if (schemaInfo != null)
+                                    if (schemaInfo == null)
+                                        return XmlSchemaType.IsDerivedFrom(XmlSchema.UntypedAtomic, SchemaType, XmlSchemaDerivationMethod.Empty);
+                                    else
                                         return XmlSchemaType.IsDerivedFrom(schemaInfo.SchemaType, SchemaType, XmlSchemaDerivationMethod.Empty);
                                 }
                             }
@@ -376,7 +391,8 @@ namespace DataEngine.XQuery
                     {
                         XPathNavigator nav = item as XPathNavigator;
                         if (nav != null)
-                            return nav.NodeType == XPathNodeType.ProcessingInstruction;
+                            return (nav.NodeType == XPathNodeType.ProcessingInstruction &&
+                                (NameTest.IsNameWildcard || NameTest.Name == nav.Name));
                     }
                     break;
 
@@ -395,12 +411,70 @@ namespace DataEngine.XQuery
                             return nav.NodeType == XPathNodeType.Text ||
                                 nav.NodeType == XPathNodeType.SignificantWhitespace;
                     }
+                    break;                
+
+                case XmlTypeCode.PositiveInteger:
+                    switch (item.XmlType.TypeCode)
+                    {
+                        case XmlTypeCode.Byte:
+                        case XmlTypeCode.Short:
+                        case XmlTypeCode.Int:
+                        case XmlTypeCode.Long:
+                        case XmlTypeCode.Integer:
+                            return (decimal)item.ValueAs(typeof(System.Decimal)) > 0;
+                    }
                     break;
+
+                case XmlTypeCode.NegativeInteger:
+                    switch (item.XmlType.TypeCode)
+                    {
+                        case XmlTypeCode.Byte:
+                        case XmlTypeCode.Short:
+                        case XmlTypeCode.Int:
+                        case XmlTypeCode.Long:
+                        case XmlTypeCode.Integer:
+                            return (decimal)item.ValueAs(typeof(System.Decimal)) < 0;
+                    }
+                    break;
+
+                case XmlTypeCode.NonPositiveInteger:
+                    switch (item.XmlType.TypeCode)
+                    {
+                        case XmlTypeCode.Byte:
+                        case XmlTypeCode.Short:
+                        case XmlTypeCode.Int:
+                        case XmlTypeCode.Long:
+                        case XmlTypeCode.Integer:
+                            return (decimal)item.ValueAs(typeof(System.Decimal)) <= 0;
+                    }
+                    break;
+
+                case XmlTypeCode.NonNegativeInteger:
+                    switch (item.XmlType.TypeCode)
+                    {
+                        case XmlTypeCode.Byte:
+                        case XmlTypeCode.Short:
+                        case XmlTypeCode.Int:
+                        case XmlTypeCode.Long:
+                        case XmlTypeCode.Integer:
+                            return (decimal)item.ValueAs(typeof(System.Decimal)) >= 0;
+
+                        case XmlTypeCode.UnsignedByte:
+                        case XmlTypeCode.UnsignedShort:
+                        case XmlTypeCode.UnsignedInt:
+                        case XmlTypeCode.UnsignedLong:
+                            return true;
+                    }
+                    break;
+
+                case XmlTypeCode.Entity:
+                    return (item.XmlType.TypeCode == XmlTypeCode.String) ||
+                           (item.XmlType.TypeCode == XmlTypeCode.Entity);
 
                 default:
                     {
                         if (item.XmlType != null)
-                            return XmlSchemaType.IsDerivedFrom(SchemaType, item.XmlType, XmlSchemaDerivationMethod.Empty);
+                            return XmlSchemaType.IsDerivedFrom(item.XmlType, SchemaType, XmlSchemaDerivationMethod.Empty);
                     }
                     break;
             }
@@ -421,7 +495,7 @@ namespace DataEngine.XQuery
                     break;
 
                 case XmlTypeCode.None:
-                    sb.Append("void()");
+                    sb.Append("empty-sequence()");
                     break;
 
                 case XmlTypeCode.Item:
@@ -604,7 +678,10 @@ namespace DataEngine.XQuery
                     break;
 
                 case XmlTypeCode.NmToken:
-                    sb.Append("xs:NMTOKEN");
+                    if (SchemaType == XmlSchema.NMTOKENS)
+                        sb.Append("xs:NMTOKENS");
+                    else
+                        sb.Append("xs:NMTOKEN");
                     break;
 
                 case XmlTypeCode.Name:
@@ -620,11 +697,17 @@ namespace DataEngine.XQuery
                     break;
 
                 case XmlTypeCode.Idref:
-                    sb.Append("xs:IDREF");
+                    if (SchemaType == XmlSchema.IDREFS)
+                        sb.Append("xs:IDREFS");
+                    else
+                        sb.Append("xs:IDREF");
                     break;
 
                 case XmlTypeCode.Entity:
-                    sb.Append("xs:ENTITY");
+                    if (SchemaType == XmlSchema.ENTITIES)
+                        sb.Append("xs:ENTITYS");
+                    else
+                        sb.Append("xs:ENTITY");
                     break;
 
                 case XmlTypeCode.Integer:
@@ -679,6 +762,14 @@ namespace DataEngine.XQuery
                     sb.Append("xs:positiveInteger");
                     break;
 
+                case XmlTypeCode.DayTimeDuration:
+                    sb.Append("xs:dayTimeDuration");
+                    break;
+
+                case XmlTypeCode.YearMonthDuration:
+                    sb.Append("xs:yearMonthDuration");
+                    break;
+
                 default:
                     sb.Append("[]");
                     break;
@@ -727,13 +818,127 @@ namespace DataEngine.XQuery
                         return XmlTypeCode.None;
                 }
             }
+            if (value is XPathItem)
+            {
+                XPathItem item = (XPathItem)value;
+                if (item.XmlType == null)
+                    return XmlTypeCode.UntypedAtomic;
+                return item.XmlType.TypeCode;
+            }
             return GetXmlTypeCode(value.GetType());
+        }
+
+        public static bool TypeCodeIsNodeType(XmlTypeCode typeCode)
+        {
+            switch (typeCode)
+            {
+                case XmlTypeCode.Node:
+                case XmlTypeCode.Element:
+                case XmlTypeCode.Attribute:
+                case XmlTypeCode.Document:
+                case XmlTypeCode.Comment:
+                case XmlTypeCode.Text:
+                case XmlTypeCode.ProcessingInstruction:
+                    return true;
+            }
+            return false;
+        }
+
+        public static Type TypeCodeToItemType(XmlTypeCode typeCode, XmlSchemaType schemaType)
+        {
+            switch (typeCode)
+            {
+                case XmlTypeCode.Boolean:
+                    return typeof(System.Boolean);
+                case XmlTypeCode.Short:
+                    return typeof(System.Int16);
+                case XmlTypeCode.Int:
+                    return typeof(System.Int32);
+                case XmlTypeCode.Long:
+                    return typeof(System.Int64);
+                case XmlTypeCode.UnsignedShort:
+                    return typeof(System.UInt16);
+                case XmlTypeCode.UnsignedInt:
+                    return typeof(System.UInt32);
+                case XmlTypeCode.UnsignedLong:
+                    return typeof(System.UInt64);
+                case XmlTypeCode.Byte:
+                    return typeof(System.SByte);
+                case XmlTypeCode.UnsignedByte:
+                    return typeof(System.Byte);
+                case XmlTypeCode.Float:
+                    return typeof(System.Single);
+                case XmlTypeCode.Decimal:
+                    return typeof(System.Decimal);
+                case XmlTypeCode.Integer:
+                case XmlTypeCode.PositiveInteger:
+                case XmlTypeCode.NegativeInteger:
+                case XmlTypeCode.NonPositiveInteger:
+                case XmlTypeCode.NonNegativeInteger:
+                    return typeof(CoreServices.Integer);
+                case XmlTypeCode.Double:
+                    return typeof(System.Double);
+                case XmlTypeCode.DateTime:
+                    return typeof(DateTimeValue);
+                case XmlTypeCode.Date:
+                    return typeof(DateValue);
+                case XmlTypeCode.Time:
+                    return typeof(TimeValue);
+                case XmlTypeCode.AnyUri:
+                    return typeof(AnyUriValue);
+                case XmlTypeCode.String:
+                case XmlTypeCode.NormalizedString:
+                case XmlTypeCode.Token:
+                case XmlTypeCode.Language:
+                case XmlTypeCode.Name:
+                case XmlTypeCode.NCName:
+                case XmlTypeCode.Id:
+                case XmlTypeCode.Idref:
+                    if (schemaType == XmlSchema.IDREFS)
+                        return typeof(IDREFSValue);
+                    else
+                        return typeof(String);
+                case XmlTypeCode.NmToken:
+                    if (schemaType == XmlSchema.NMTOKENS)
+                        return typeof(NMTOKENSValue);
+                    else
+                        return typeof(String);
+                case XmlTypeCode.Entity:
+                    if (schemaType == XmlSchema.ENTITIES)
+                        return typeof(ENTITIESValue);
+                    else
+                        return typeof(System.String);
+                case XmlTypeCode.UntypedAtomic:
+                    return typeof(UntypedAtomic);
+                case XmlTypeCode.Duration:
+                    return typeof(DurationValue);
+                case XmlTypeCode.DayTimeDuration:
+                    return typeof(DayTimeDurationValue);
+                case XmlTypeCode.YearMonthDuration:
+                    return typeof(YearMonthDurationValue);
+                case XmlTypeCode.GYearMonth:
+                    return typeof(GYearMonthValue);
+                case XmlTypeCode.GYear:
+                    return typeof(GYearValue);
+                case XmlTypeCode.GMonth:
+                    return typeof(GMonthValue);
+                case XmlTypeCode.GMonthDay:
+                    return typeof(GMonthDayValue);
+                case XmlTypeCode.GDay:
+                    return typeof(GDayValue);
+                case XmlTypeCode.QName:
+                    return typeof(QNameValue);
+                case XmlTypeCode.HexBinary:
+                    return typeof(HexBinaryValue);
+                case XmlTypeCode.Base64Binary:
+                    return typeof(Base64BinaryValue);
+                default:
+                    return typeof(System.Object);
+            }
         }
 
         public static XmlTypeCode GetXmlTypeCode(Type type)
         {
-            if (type == typeof(XPathNavigator))
-                return XmlTypeCode.Node;            
             TypeCode typeCode = Type.GetTypeCode(type);
             switch (typeCode)
             {
@@ -764,9 +969,49 @@ namespace DataEngine.XQuery
                 case System.TypeCode.Char:
                 case System.TypeCode.String:
                     return XmlTypeCode.String;
-                case System.TypeCode.DateTime:
-                    return XmlTypeCode.DateTime;
                 default:
+                    if (type == typeof(XPathNavigator))
+                        return XmlTypeCode.Node;
+                    if (type == typeof(UntypedAtomic))
+                        return XmlTypeCode.UntypedAtomic;
+                    if (type == typeof(CoreServices.Integer))
+                        return XmlTypeCode.Integer;
+                    if (type == typeof(DateTimeValue))
+                        return XmlTypeCode.DateTime;
+                    if (type == typeof(DateValue))
+                        return XmlTypeCode.Date;
+                    if (type == typeof(TimeValue))
+                        return XmlTypeCode.Time;
+                    if (type == typeof(DurationValue))
+                        return XmlTypeCode.Duration;
+                    if (type == typeof(YearMonthDurationValue))
+                        return XmlTypeCode.YearMonthDuration;
+                    if (type == typeof(DayTimeDurationValue))
+                        return XmlTypeCode.DayTimeDuration;
+                    if (type == typeof(GYearMonthValue))
+                        return XmlTypeCode.GYearMonth;
+                    if (type == typeof(GYearValue))
+                        return XmlTypeCode.GYear;
+                    if (type == typeof(GDayValue))
+                        return XmlTypeCode.GDay;
+                    if (type == typeof(GMonthValue))
+                        return XmlTypeCode.GMonth;
+                    if (type == typeof(GMonthDayValue))
+                        return XmlTypeCode.GMonthDay;
+                    if (type == typeof(QNameValue))
+                        return XmlTypeCode.QName;
+                    if (type == typeof(AnyUriValue))
+                        return XmlTypeCode.AnyUri;
+                    if (type == typeof(HexBinaryValue))
+                        return XmlTypeCode.HexBinary;
+                    if (type == typeof(Base64BinaryValue))
+                        return XmlTypeCode.Base64Binary;
+                    if (type == typeof(IDREFSValue))
+                        return XmlTypeCode.Idref;
+                    if (type == typeof(ENTITIESValue))
+                        return XmlTypeCode.Entity;
+                    if (type == typeof(NMTOKENSValue))
+                        return XmlTypeCode.NmToken;
                     return XmlTypeCode.Item;
             }
         }
@@ -844,189 +1089,10 @@ namespace DataEngine.XQuery
             return true;
         }
 
-        // See XQuery & XPath 2.0 functions & operators section 17.
-        public static bool CanConvert(XmlTypeCode src, XmlTypeCode dst)
-        {
-            // Notation cannot be converted from other than Notation
-            if (src == XmlTypeCode.Notation && dst != XmlTypeCode.Notation)
-                return false;
-
-            // untypedAtomic and string are convertable unless source type is QName.
-            switch (dst)
-            {
-                case XmlTypeCode.UntypedAtomic:
-                case XmlTypeCode.String:
-                    return src != XmlTypeCode.QName;
-            }
-
-            switch (src)
-            {
-                case XmlTypeCode.None:
-                case XmlTypeCode.Item:
-                case XmlTypeCode.Node:
-                case XmlTypeCode.Document:
-                case XmlTypeCode.Element:
-                case XmlTypeCode.Attribute:
-                case XmlTypeCode.Namespace:
-                case XmlTypeCode.ProcessingInstruction:
-                case XmlTypeCode.Comment:
-                case XmlTypeCode.Text:
-                    return src == dst;
-
-                case XmlTypeCode.AnyAtomicType:
-                case XmlTypeCode.UntypedAtomic:
-                case XmlTypeCode.String:
-                    switch (dst)
-                    {
-                        case XmlTypeCode.Boolean:
-                        case XmlTypeCode.Short:
-                        case XmlTypeCode.Int:
-                        case XmlTypeCode.Long:
-                        case XmlTypeCode.UnsignedShort:
-                        case XmlTypeCode.UnsignedInt:
-                        case XmlTypeCode.UnsignedLong:
-                        case XmlTypeCode.Byte:
-                        case XmlTypeCode.UnsignedByte:
-                        case XmlTypeCode.Float:
-                        case XmlTypeCode.Decimal:
-                        case XmlTypeCode.Double:
-                        case XmlTypeCode.String:
-                        case XmlTypeCode.DateTime:
-                            return true;
-                    }
-                    return false;
-
-                case XmlTypeCode.Boolean:
-                case XmlTypeCode.Decimal:
-                    switch (dst)
-                    {
-                        case XmlTypeCode.Float:
-                        case XmlTypeCode.Double:
-                        case XmlTypeCode.Decimal:
-                        case XmlTypeCode.Boolean:
-                            return true;
-                    }
-                    return false;
-
-                case XmlTypeCode.Int:
-                case XmlTypeCode.PositiveInteger:
-                case XmlTypeCode.Integer:
-                    switch (dst)
-                    {
-                        case XmlTypeCode.Int:
-                        case XmlTypeCode.Integer:
-                        case XmlTypeCode.PositiveInteger:
-                        case XmlTypeCode.NegativeInteger:
-                        case XmlTypeCode.NonPositiveInteger:
-                        case XmlTypeCode.UnsignedInt:
-                        case XmlTypeCode.UnsignedLong:
-                        case XmlTypeCode.Long:
-                        case XmlTypeCode.Float:
-                        case XmlTypeCode.Double:
-                        case XmlTypeCode.Decimal:
-                        case XmlTypeCode.Boolean:
-                            return true;
-                    }
-                    return false;
-
-                case XmlTypeCode.Float:
-                case XmlTypeCode.Double:
-                    goto case XmlTypeCode.Decimal;
-
-                case XmlTypeCode.Duration:
-                    switch (dst)
-                    {
-                        case XmlTypeCode.Duration:
-                        case XmlTypeCode.YearMonthDuration:
-                        case XmlTypeCode.DayTimeDuration:
-                            return true;
-                    }
-                    return false;
-
-                case XmlTypeCode.DateTime:
-                    switch (dst)
-                    {
-                        case XmlTypeCode.DateTime:
-                        case XmlTypeCode.Time:
-                        case XmlTypeCode.Date:
-                        case XmlTypeCode.GYearMonth:
-                        case XmlTypeCode.GYear:
-                        case XmlTypeCode.GMonthDay:
-                        case XmlTypeCode.GDay:
-                        case XmlTypeCode.GMonth:
-                            return true;
-                    }
-                    return false;
-
-                case XmlTypeCode.Time:
-                    switch (dst)
-                    {
-                        case XmlTypeCode.Time:
-                        case XmlTypeCode.Date:
-                            return true;
-                    }
-                    return false;
-
-                case XmlTypeCode.Date:
-                    if (dst == XmlTypeCode.Time)
-                        return false;
-                    goto case XmlTypeCode.DateTime;
-
-                case XmlTypeCode.GYearMonth:
-                case XmlTypeCode.GYear:
-                case XmlTypeCode.GMonthDay:
-                case XmlTypeCode.GDay:
-                case XmlTypeCode.GMonth:
-                    return src == dst;
-
-                case XmlTypeCode.HexBinary:
-                case XmlTypeCode.Base64Binary:
-                    if (src == dst)
-                        return true;
-                    switch (dst)
-                    {
-                        case XmlTypeCode.HexBinary:
-                        case XmlTypeCode.Base64Binary:
-                            return true;
-                    }
-                    return false;
-
-                case XmlTypeCode.AnyUri:
-                case XmlTypeCode.QName:
-                case XmlTypeCode.Notation:
-                    return src == dst;
-
-                case XmlTypeCode.NormalizedString:
-                case XmlTypeCode.Token:
-                case XmlTypeCode.Language:
-                case XmlTypeCode.NmToken:
-                case XmlTypeCode.Name:
-                case XmlTypeCode.NCName:
-                case XmlTypeCode.Id:
-                case XmlTypeCode.Idref:
-                case XmlTypeCode.Entity:
-                case XmlTypeCode.Long:
-                case XmlTypeCode.Short:
-                case XmlTypeCode.Byte:
-                    throw new NotImplementedException();
-
-                // xdt:*
-                case XmlTypeCode.YearMonthDuration:
-                    if (dst == XmlTypeCode.DayTimeDuration)
-                        return false;
-                    goto case XmlTypeCode.Duration;
-                case XmlTypeCode.DayTimeDuration:
-                    if (dst == XmlTypeCode.YearMonthDuration)
-                        return false;
-                    goto case XmlTypeCode.Duration;
-            }
-            return false;
-        }
-
         public override bool Equals(object obj)
         {
             XQuerySequenceType dest = obj as XQuerySequenceType;
-            if (dest != null)
+            if (!Object.ReferenceEquals(obj, null))
                 return TypeCode == dest.TypeCode &&
                     SchemaElement == dest.SchemaElement &&
                     SchemaAttribute == dest.SchemaAttribute &&
@@ -1043,7 +1109,7 @@ namespace DataEngine.XQuery
         public static XQuerySequenceType Create(string name)
         {
             if (name == String.Empty ||
-                name == "void()")
+                name == "empty-sequence()")
                 return null;
             else
             {
@@ -1085,9 +1151,31 @@ namespace DataEngine.XQuery
             }
         }
 
-        public static XmlSchemaType AnyType = XmlSchemaType.GetBuiltInComplexType(new XmlQualifiedName("anyType", XmlReservedNs.NsXs));
-        public static XmlSchemaType AnyAtomicType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.AnyAtomicType);
-        public static XmlSchemaType UntypedAtomic = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.UntypedAtomic);
+        public static class XmlSchema
+        {
+            public static XmlSchemaType AnySimpleType = XmlSchemaType.GetBuiltInSimpleType(new XmlQualifiedName("anySimpleType", XmlReservedNs.NsXs));
+            public static XmlSchemaType AnyType = XmlSchemaType.GetBuiltInComplexType(new XmlQualifiedName("anyType", XmlReservedNs.NsXs));
+            public static XmlSchemaType AnyAtomicType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.AnyAtomicType);
+            public static XmlSchemaType UntypedAtomic = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.UntypedAtomic);
+            public static XmlSchemaType Integer = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Integer);
+            public static XmlSchemaType DateTime = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.DateTime);
+            public static XmlSchemaType Date = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Date);
+            public static XmlSchemaType Time = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Time);
+            public static XmlSchemaType Duration = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Duration);
+            public static XmlSchemaType YearMonthDuration = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.YearMonthDuration);
+            public static XmlSchemaType DayTimeDuration = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.DayTimeDuration);
+            public static XmlSchemaType GYearMonth = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.GYearMonth);
+            public static XmlSchemaType GYear = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.GYear);
+            public static XmlSchemaType GDay = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.GDay);
+            public static XmlSchemaType GMonth = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.GMonth);
+            public static XmlSchemaType GMonthDay = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.GMonthDay);
+            public static XmlSchemaType QName = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.QName);
+            public static XmlSchemaType HexBinary = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.HexBinary);
+            public static XmlSchemaType Base64Binary = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Base64Binary);
+            public static XmlSchemaType IDREFS = XmlSchemaType.GetBuiltInSimpleType(new XmlQualifiedName("IDREFS", XmlReservedNs.NsXs));
+            public static XmlSchemaType NMTOKENS = XmlSchemaType.GetBuiltInSimpleType(new XmlQualifiedName("NMTOKENS", XmlReservedNs.NsXs));
+            public static XmlSchemaType ENTITIES = XmlSchemaType.GetBuiltInSimpleType(new XmlQualifiedName("ENTITIES", XmlReservedNs.NsXs));
+        }
 
         #region build-in
 
@@ -1103,6 +1191,8 @@ namespace DataEngine.XQuery
         internal static XQuerySequenceType Document = new XQuerySequenceType(XmlTypeCode.Document);
 
         internal static XQuerySequenceType Boolean = new XQuerySequenceType(XmlTypeCode.Boolean);
+        internal static XQuerySequenceType AnyAtomicType = new XQuerySequenceType(XmlTypeCode.AnyAtomicType);
+        internal static XQuerySequenceType AnyAtomicTypeO = new XQuerySequenceType(XmlTypeCode.AnyAtomicType, XmlTypeCardinality.ZeroOrOne);        
 
         #endregion
 

@@ -49,6 +49,7 @@ namespace DataEngine.XQuery
         private int pincount;
         private double ratio;
         private int pagecount;
+        private XdmNode lastnode;
         private Page lastpage;
         private Page[] lastblock;
         private List<Page[]> pagelist;
@@ -285,7 +286,7 @@ namespace DataEngine.XQuery
                 for (int k = 0; k < page.nodes.Length; k++)
                 {
                     XdmNode node = page.nodes[k];
-                    if (node.Completed)
+                    if (node != lastnode && node.Completed)
                     {
                         binWriter.Write((byte)node.NodeType);
                         node.Store(this);
@@ -364,9 +365,18 @@ namespace DataEngine.XQuery
                 lastblock[blockcount++] = lastpage;
                 lastcount = 0;                                
             }
-            lastpage.nodes[lastcount++] = node;            
+            lastpage.nodes[lastcount++] = node;
+            lastnode = node;
             count++;
-        }        
+        }
+
+        internal XdmNode LastNode
+        {
+            get
+            {
+                return lastnode;
+            }
+        }
 
         private class Page
         {

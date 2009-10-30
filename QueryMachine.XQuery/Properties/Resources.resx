@@ -235,16 +235,13 @@
     <value>Invalid argument '{0}' to fn:collection</value>
   </data>
   <data name="FOCA0002" xml:space="preserve">
-    <value>Invalid lexical value {0}</value>
+    <value>QName {0} has null namespace but non-empty prefix</value>
   </data>
   <data name="InvalidFormat" xml:space="preserve">
     <value>Input string {0} has invalid format for type {1}</value>
   </data>
   <data name="UnknownExternalVariable" xml:space="preserve">
     <value>Variable  {0} is not defined as external</value>
-  </data>
-  <data name="OptionRedeclared" xml:space="preserve">
-    <value>The module prolog contains more than one option {0} declaration</value>
   </data>
   <data name="XQST0059" xml:space="preserve">
     <value>Implementation is unable to process a schema or module import by finding a schema or module with the specified target namespace {0}.</value>
@@ -254,5 +251,125 @@
   </data>
   <data name="XQST0088" xml:space="preserve">
     <value>The literal that specifies the target namespace in a module import or a module declaration is of zero length</value>
+  </data>
+  <data name="XQST0047" xml:space="preserve">
+    <value>Multiple module imports in the same Prolog specify the same target namespace {0}</value>
+  </data>
+  <data name="XQST0073" xml:space="preserve">
+    <value>The graph of module imports contains a cycle in file {0}</value>
+  </data>
+  <data name="XPTY0018" xml:space="preserve">
+    <value>The result of the last step in a path expression contains both nodes and atomic values {0}</value>
+  </data>
+  <data name="FORG0006" xml:space="preserve">
+    <value>Function 'boolean' in namespace 'http://www.w3.org/2005/xpath-functions' was called with invalid argument type {0}</value>
+  </data>
+  <data name="BinaryOperatorNotDefined" xml:space="preserve">
+    <value>Operator {0}  is not defined for arguments of type {1} and {2}</value>
+  </data>
+  <data name="UnaryOperatorNotDefined" xml:space="preserve">
+    <value>Operator {0}  is not defined for argument of type {1}</value>
+  </data>
+  <data name="FORG0001" xml:space="preserve">
+    <value>The value '"{0}"' is an invalid argument for constructor/cast {1}</value>
+  </data>
+  <data name="FOAR0001" xml:space="preserve">
+    <value>Division by zero</value>
+  </data>
+  <data name="FOAR0002" xml:space="preserve">
+    <value>Numeric operation overflow/underflow</value>
+  </data>
+  <data name="FODT0003" xml:space="preserve">
+    <value>Invalid timezone value {0}</value>
+  </data>
+  <data name="FORG0008" xml:space="preserve">
+    <value>Both arguments to fn:dateTime have a specified timezone</value>
+  </data>
+  <data name="FOCA0005" xml:space="preserve">
+    <value>NaN supplied as float/double value</value>
+  </data>
+  <data name="FODT0001" xml:space="preserve">
+    <value>Overflow/underflow in date/time operation</value>
+  </data>
+  <data name="FODT0002" xml:space="preserve">
+    <value>Overflow/underflow in duration operation</value>
+  </data>
+  <data name="XQST0022" xml:space="preserve">
+    <value>The namespace bound to prefix '{0}' must be a URI literal.  Enclosed expressions are not permitted.</value>
+  </data>
+  <data name="XPST0003" xml:space="preserve">
+    <value>Syntax error. {0}</value>
+  </data>
+  <data name="XQST0040" xml:space="preserve">
+    <value>The attribute '{0}' is a duplicate.  Attributes specified by a direct  element constructor must have distinct expanded qualified names.</value>
+  </data>
+  <data name="FOCH0001" xml:space="preserve">
+    <value>Invalid XML character [x{0}]</value>
+  </data>
+  <data name="XQTY0024" xml:space="preserve">
+    <value>Content sequence in an element constructor contains an attribute node "{0}" following a node that is not an attribute node</value>
+  </data>
+  <data name="XQDY0025" xml:space="preserve">
+    <value>Element constructor "{0}" contains a duplicate attribute node "{1}"</value>
+  </data>
+  <data name="InvalidAttributeSequence" xml:space="preserve">
+    <value>The content sequence of a document node may not contain an attribute node</value>
+  </data>
+  <data name="XQDY0026" xml:space="preserve">
+    <value>The result of the content expression of a computed processing instruction constructor contains the string "?&gt;"</value>
+  </data>
+  <data name="XQDY0044" xml:space="preserve">
+    <value>The node name of a computed attribute may not be 'xmlns' because attribute constructors cannot create namespaces</value>
+  </data>
+  <data name="XQDY0064" xml:space="preserve">
+    <value>The computed processing instruction target cannot be equal to "XML" in any combination of upper or lower case</value>
+  </data>
+  <data name="XQDY0072" xml:space="preserve">
+    <value>The result of the content expression of a computed comment constructor contains two adjacent hyphens or ends with a hyphen</value>
+  </data>
+  <data name="XQST0089" xml:space="preserve">
+    <value>The bound variable '{0}' in a FLWOR expression must be distinct from the positional variable</value>
+  </data>
+  <data name="XQST0076" xml:space="preserve">
+    <value>'{0}' does not identify a collation that is present in statically known collations</value>
+  </data>
+  <data name="XPST0051" xml:space="preserve">
+    <value>The type name '{0}' has been used as an atomic type in a sequence type, but is not defined in the in-scope schema types as an atomic type</value>
+  </data>
+  <data name="XPST0080" xml:space="preserve">
+    <value>Cannot cast to {0}. The target type of a cast or castable expression must be an atomic type that is in the in-scope schema types and is not xs:NOTATION or xs:anyAtomicType, optionally followed by the occurrence indicator "?"</value>
+  </data>
+  <data name="XQST0031" xml:space="preserve">
+    <value>XQuery version '{0}' is not supported by this implementation</value>
+  </data>
+  <data name="XQST0055" xml:space="preserve">
+    <value>The prolog must not contain more than one copy-namespaces declaration</value>
+  </data>
+  <data name="XQST0087" xml:space="preserve">
+    <value>String literal '{0}' is not a valid encoding name</value>
+  </data>
+  <data name="FONS0005" xml:space="preserve">
+    <value>Base-uri not defined in the static context</value>
+  </data>
+  <data name="FORG0009" xml:space="preserve">
+    <value>Error in resolving a relative URI against a base URI in fn:resolve-uri</value>
+  </data>
+  <data name="ExternalVariableNotSet" xml:space="preserve">
+    <value>External variable {0} not set before run command</value>
+  </data>
+  <data name="XQST0039" xml:space="preserve">
+    <value>Function declaration has more than one parameter with name '{0}'</value>
+  </data>
+  <data name="XQST0054" xml:space="preserve">
+    <value>A {0} variable depends on itself</value>
+  </data>
+  <data name="ExpectedQNamePrefix" xml:space="preserve">
+    <value>The {0} qualified name '{1}' must have a prefix</value>
+  </data>
+  <data name="FOER0000" xml:space="preserve">
+    <value>Unidentified error</value>
+  </data>
+  <data name="InvalidRegularExpr" xml:space="preserve">
+    <value>The regular expression '{0}' is invalid</value>
   </data>
 </root>

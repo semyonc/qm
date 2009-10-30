@@ -39,17 +39,31 @@ namespace DataEngine.XQuery
         internal XQuerySchemaInfoTable schemaInfoTable;
         internal PageFile pagefile;        
         internal XmlReader input;
-        internal bool documentStarted;
+        internal bool documentStarted;        
 
         internal XQueryDocumentBuilder builder = null;
-        internal string baseUri = String.Empty;
-        
+        internal string baseUri = String.Empty;       
         internal object internalLockObject = new object();
+
+        internal int sequenceNumber;
+        internal bool preserveSpace;
+        internal static int s_docNumberSequence = 0;
 
         public XQueryDocument()
         {
+            sequenceNumber = s_docNumberSequence++;
             nameTable = new NameTable();
-            nodeInfoTable = new XQueryNodeInfoTable();
+            nodeInfoTable = new XQueryNodeInfoTable(nameTable);
+            schemaInfoTable = new XQuerySchemaInfoTable();
+            pagefile = new PageFile(nodeInfoTable, schemaInfoTable);
+            pagefile.HasSchemaInfo = true;
+        }
+
+        public XQueryDocument(NameTable nameTable)
+        {
+            sequenceNumber = s_docNumberSequence++;
+            this.nameTable = nameTable;
+            nodeInfoTable = new XQueryNodeInfoTable(nameTable);
             schemaInfoTable = new XQuerySchemaInfoTable();
             pagefile = new PageFile(nodeInfoTable, schemaInfoTable);
             pagefile.HasSchemaInfo = true;
@@ -58,6 +72,7 @@ namespace DataEngine.XQuery
         internal XQueryDocument(XmlNameTable nameTable, 
             XQueryNodeInfoTable nodeInfoTable, XQuerySchemaInfoTable schemaInfoTable)
         {
+            sequenceNumber = s_docNumberSequence++;
             this.nameTable = nameTable;
             this.nodeInfoTable = nodeInfoTable;
             this.schemaInfoTable = schemaInfoTable;
@@ -96,9 +111,11 @@ namespace DataEngine.XQuery
             builder = new XQueryDocumentBuilder(this);
             builder.SchemaInfo = input.SchemaInfo;
             baseUri = input.BaseURI;
+            preserveSpace = (space == XmlSpace.Preserve);
         }
 
-        public XQueryDocument(XmlReader reader)
+
+        public XQueryDocument(XmlReader reader, XmlSpace space)
             : this()
         {
             this.input = reader;            
@@ -106,7 +123,12 @@ namespace DataEngine.XQuery
             builder = new XQueryDocumentBuilder(this);
             builder.SchemaInfo = input.SchemaInfo;
             baseUri = reader.BaseURI;
+            preserveSpace = (space == XmlSpace.Preserve);
+        }
 
+        public XQueryDocument(XmlReader reader)
+            : this(reader, XmlSpace.Default)
+        {
         }
 
         public void Open(Uri uri, XmlReaderSettings settings, XmlSpace space)
@@ -116,6 +138,7 @@ namespace DataEngine.XQuery
             builder = new XQueryDocumentBuilder(this);
             builder.SchemaInfo = input.SchemaInfo;
             baseUri = input.BaseURI;
+            preserveSpace = (space == XmlSpace.Preserve);
         }
 
         XPathNavigator IXPathNavigable.CreateNavigator()
@@ -126,6 +149,11 @@ namespace DataEngine.XQuery
         public XQueryNavigator CreateNavigator()
         {
             return new XQueryNavigator(this);
+        }
+
+        public override int GetHashCode()
+        {
+            return sequenceNumber;
         }
 
         public void Close()
@@ -141,27 +169,19 @@ namespace DataEngine.XQuery
         private void Read()
         {
             if (input.Read())
+            {
+                if (!documentStarted)
+                {
+                    builder.WriteStartDocument();
+                    documentStarted = true;
+                }
                 switch (input.NodeType)
                 {
                     case XmlNodeType.XmlDeclaration:
-                        builder.WriteStartDocument();
-                        documentStarted = true;
-                        break;
-
                     case XmlNodeType.DocumentType:
-                        if (!documentStarted)
-                        {
-                            builder.WriteStartDocument();
-                            documentStarted = true;
-                        }
                         break;
 
                     case XmlNodeType.Element:
-                        if (!documentStarted)
-                        {
-                            builder.WriteStartDocument();
-                            documentStarted = true;
-                        }
                         builder.IsEmptyElement = input.IsEmptyElement;
                         builder.WriteStartElement(input.Prefix, input.LocalName, input.NamespaceURI);
                         while (input.MoveToNextAttribute())
@@ -198,9 +218,11 @@ namespace DataEngine.XQuery
 
                     case XmlNodeType.Whitespace:
                     case XmlNodeType.SignificantWhitespace:
-                        //builder.WriteString(input.Value);
+                        if (preserveSpace)
+                            builder.WriteString(input.Value);
                         break;
                 }
+            }
             else
             {
                 builder.WriteEndDocument();
@@ -229,6 +251,6 @@ namespace DataEngine.XQuery
             lock (internalLockObject)
                 while (input != null)
                     Read();
-        }        
+        }
     }
 }

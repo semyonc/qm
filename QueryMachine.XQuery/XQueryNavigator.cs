@@ -58,6 +58,7 @@ namespace DataEngine.XQuery
             public string prefix;
             public string localName;
             public string namespaceUri;
+            public object typedValue;
         }
 
         internal int _pos;
@@ -95,10 +96,13 @@ namespace DataEngine.XQuery
         {
             get 
             { 
-                return _document.baseUri; 
+                if (NodeType == XPathNodeType.Root)
+                    return _document.baseUri;
+                return GetAttribute("base", XmlReservedNs.NsXml);
             }
         }
 
+        [DebuggerStepThrough]
         public override XPathNavigator Clone()
         {
             XQueryNavigator clone = new XQueryNavigator();
@@ -110,6 +114,19 @@ namespace DataEngine.XQuery
             clone._context = _context;            
             return clone;
         }
+
+#if DEBUG
+        public override string ToString()
+        {
+            StringBuilder sb = new StringBuilder();
+            XdmElementStart xdmElem = _curr as XdmElementStart;
+            if (xdmElem != null)
+                sb.AppendFormat("{0}({1},{2})", NodeType, _pos, xdmElem._linkNext);
+            else
+                sb.AppendFormat("{0}({1})", NodeType, _pos);
+            return sb.ToString();
+        }
+#endif
 
         public override bool IsEmptyElement
         {
@@ -328,7 +345,12 @@ namespace DataEngine.XQuery
         public override bool MoveToParent()
         {
             if (NodeType == XPathNodeType.Element ||
-                NodeType == XPathNodeType.Root)
+                NodeType == XPathNodeType.Root
+                //NodeType == XPathNodeType.Comment || 
+                //NodeType == XPathNodeType.ProcessingInstruction ||
+                //NodeType == XPathNodeType.Text ||
+                //NodeType == XPathNodeType.Whitespace)
+                )
             {
                 if (_context.parent == null)
                     return false;
@@ -443,7 +465,8 @@ namespace DataEngine.XQuery
             _props.name = String.Empty;
             _props.prefix = String.Empty;
             _props.localName = String.Empty;
-            _props.namespaceUri = String.Empty;            
+            _props.namespaceUri = String.Empty;
+            _props.typedValue = null;
         }
 
         public override string Name
@@ -486,11 +509,45 @@ namespace DataEngine.XQuery
             }
         }
 
+        public override XmlSchemaType XmlType
+        {
+            get
+            {
+                XmlSchemaType xmlType = base.XmlType;
+                if (xmlType == null)
+                    return XQuerySequenceType.XmlSchema.UntypedAtomic;
+                return xmlType;
+            }
+        }
+
+        public override object TypedValue
+        {
+            get
+            {
+                if (_props.typedValue == null)
+                {
+                    _props.typedValue = XPathFactory.GetNavigatorTypedValue(this);
+                    if (_props.typedValue == null)
+                        _props.typedValue = base.TypedValue;
+                }
+                return _props.typedValue;
+            }
+        }
+
+        public override Type ValueType
+        {
+            get
+            {
+                return XPathFactory.GetNavigatorValueType(this, base.ValueType);
+            }
+        }
+
         public override string Value
         {
             get
             {
-                if (_curr.NodeType == XdmNodeType.ElementStart)
+                if (_curr.NodeType == XdmNodeType.ElementStart ||
+                    _curr.NodeType == XdmNodeType.Document)
                 {
                     StringBuilder sb = new StringBuilder();
                     int p = _pos + 1;
@@ -535,6 +592,8 @@ namespace DataEngine.XQuery
                 return null;
             }
         }
+
+        //public override 
 
         #region IConvertible Members
 
@@ -624,49 +683,6 @@ namespace DataEngine.XQuery
         }
 
         #endregion
-
-        #region XQueryTypedValue Members
-
-        public XQuerySequenceType ItemType
-        {
-            get 
-            {
-                IXmlSchemaInfo schemaInfo = SchemaInfo;
-                switch (NodeType)
-                {
-                    case XPathNodeType.Root:
-                        return new XQuerySequenceType(XmlTypeCode.Document);
-                    
-                    case XPathNodeType.Element:
-                        if (schemaInfo == null)
-                            return new XQuerySequenceType(XmlTypeCode.Element);
-                        else
-                            return new XQuerySequenceType(XmlTypeCode.Element, schemaInfo, ValueType);
-
-                    case XPathNodeType.Attribute:
-                        if (schemaInfo == null)
-                            return new XQuerySequenceType(XmlTypeCode.Attribute);
-                        else
-                            return new XQuerySequenceType(XmlTypeCode.Attribute, schemaInfo, ValueType);
-
-                    case XPathNodeType.Comment:
-                        return new XQuerySequenceType(XmlTypeCode.Comment);
-                    
-                    case XPathNodeType.ProcessingInstruction:
-                        return new XQuerySequenceType(XmlTypeCode.ProcessingInstruction);
-                    
-                    case XPathNodeType.Whitespace:
-                    case XPathNodeType.SignificantWhitespace:
-                    case XPathNodeType.Text:
-                        return new XQuerySequenceType(XmlTypeCode.Text);
-
-                    default:
-                        return XQuerySequenceType.Void;
-                }
-            }
-        }
-
-        #endregion
     }
 
     public class XPathComparer : IComparer<XPathItem>
@@ -691,12 +707,16 @@ namespace DataEngine.XQuery
 
                     default:
                         {
-                            if (nav1.GetHashCode() < nav2.GetHashCode())
+                            XQueryNavigator xnav1 = nav1 as XQueryNavigator;
+                            XQueryNavigator xnav2 = nav2 as XQueryNavigator;
+                            int hashCode1 = (nav1 == null) ? nav1.GetHashCode() : xnav1.Document.GetHashCode();
+                            int hashCode2 = (nav2 == null) ? nav2.GetHashCode() : xnav2.Document.GetHashCode();
+                            if (hashCode1 < hashCode2)
                                 return -1;
-                            else if (nav1.GetHashCode() > nav2.GetHashCode())
+                            else if (hashCode1 > hashCode2)
                                 return 1;
                             else
-                                return 0;
+                                throw new InvalidOperationException();
                         }
                 }
             else
@@ -745,12 +765,12 @@ namespace DataEngine.XQuery
 
         public bool Equals(XPathItem x, XPathItem y)
         {
-            return x.Value == y.Value;
+            return x.TypedValue.Equals(y.TypedValue);
         }
 
         public int GetHashCode(XPathItem obj)
         {
-            return obj.Value.GetHashCode();
+            return obj.TypedValue.GetHashCode();
         }
 
         #endregion

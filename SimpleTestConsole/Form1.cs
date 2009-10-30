@@ -127,6 +127,11 @@ namespace SimpleTestConsole
                 MessageBox.Show(ex.Message, "Execution Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Application Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
             if (switchTab)
             {
                 textBox1.Text = sw.ToString();

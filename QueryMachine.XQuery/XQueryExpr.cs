@@ -42,17 +42,15 @@ namespace DataEngine.XQuery
         Unordered
     }
 
-    class XQueryExpr : XQueryExprBase, Resolver
+    class XQueryExpr : XQueryExprBase
     {
         internal object[] m_expr;
-        private SymbolLink[] m_compiledBody;
+        internal SymbolLink[] m_compiledBody;
         private SymbolLink[] m_compiledAnnotation;        
-        private Executive.Parameter[] m_parameter;
-        private SymbolLink[] m_parameterValues;
+        private SymbolLink m_context;
 
         public XQueryOrder QueryOrder { get; set; }
         public object[] Annotation { get; set; }
-        public bool FunctionExpr { get; set; }
 
         public XQueryExpr(XQueryContext context, object[] expr)
             : base(context)
@@ -68,39 +66,8 @@ namespace DataEngine.XQuery
             Annotation = annotation;
         }
 
-        private IEnumerable<XPathItem> CreateEnumerator(object[] parameters)
+        private IEnumerable<XPathItem> CreateEnumerator(object[] args)
         {
-            object[] oldParameters = null;
-            if (parameters != null)
-            {
-                QueryContext.Engine.Enter(this);
-                oldParameters = new object[m_parameterValues.Length];
-                for (int k = 0; k < m_parameterValues.Length; k++)
-                {
-                    oldParameters[k] = m_parameterValues[k].Value;
-                    m_parameterValues[k].Value = parameters[k];
-                }
-            }
-            if (QueryOrder != XQueryOrder.Default)
-                QueryContext.EnterOrdering(QueryOrder);
-            if (m_compiledBody == null)
-            {
-                m_compiledBody = new SymbolLink[m_expr.Length];
-                for (int k = 0; k < m_expr.Length; k++)
-                {
-                    m_compiledBody[k] = new SymbolLink();
-                    QueryContext.Engine.Compile(null, m_expr[k], m_compiledBody[k]);
-                }
-                if (Annotation != null)
-                {
-                    m_compiledAnnotation = new SymbolLink[Annotation.Length];
-                    for (int k = 0; k < Annotation.Length; k++)
-                    {
-                        m_compiledAnnotation[k] = new SymbolLink();
-                        QueryContext.Engine.Compile(null, Annotation[k], m_compiledAnnotation[k]);
-                    }
-                }
-            }
             object[] annotation;
             if (Annotation != null)
             {
@@ -108,7 +75,7 @@ namespace DataEngine.XQuery
                 for (int k = 0; k < Annotation.Length; k++)
                 {
                     object res = QueryContext.Engine.Apply(null, null,
-                        Annotation[k], null, m_compiledAnnotation[k]);
+                        Annotation[k], args, m_compiledAnnotation[k]);
                     if (res != Undefined.Value)
                         if (res == null)
                             annotation[k] = false;
@@ -121,18 +88,19 @@ namespace DataEngine.XQuery
             for (int k = 0; k < m_expr.Length; k++)
             {
                 object res = QueryContext.Engine.Apply(null, null,
-                    m_expr[k], null, m_compiledBody[k]);
+                    m_expr[k], args, m_compiledBody[k]);
                 if (res != Undefined.Value)
                 {
                     XQueryNodeIterator iter = res as XQueryNodeIterator;
                     if (iter != null)
                     {
-                        foreach (XPathItem item in iter)
+                        iter = iter.Clone();
+                        while (iter.MoveNext())
                         {
                             if (annotation != null)
-                                yield return new XQueryWrappedValue(item, annotation);
+                                yield return new XQueryWrappedValue(iter.Current, annotation);
                             else
-                                yield return item;
+                                yield return iter.Current;
                         }
                     }
                     else
@@ -147,38 +115,38 @@ namespace DataEngine.XQuery
                     }
                 }
             }
-            if (QueryOrder != XQueryOrder.Default)
-                QueryContext.LeaveOrdering();
-            if (parameters != null)
-            {
-                QueryContext.Engine.Leave();
-                for (int k = 0; k < m_parameterValues.Length; k++)
-                    m_parameterValues[k].Value = oldParameters[k];
-            }
         }
 
-        public override XQueryNodeIterator Execute(object[] parameters)
+        public override void Bind(Executive.Parameter[] parameters)
         {
-            object[] currentValues = null;
-            if (FunctionExpr)
+            m_context = new SymbolLink(typeof(IContextProvider));
+            QueryContext.Resolver.SetValue(ID.Context, m_context);
+            m_compiledBody = new SymbolLink[m_expr.Length];
+            for (int k = 0; k < m_expr.Length; k++)
             {
-                if (QueryContext.Engine.CurrentLambda != null &&
-                    QueryContext.Engine.CurrentLambda.Arity > 0)
-                {
-                    CompiledLambda lambda = QueryContext.Engine.CurrentLambda;
-                    if (m_parameter == null)
-                    {
-                        m_parameter = lambda.Parameters;
-                        m_parameterValues = new SymbolLink[lambda.Arity];
-                        for (int k = 0; k < lambda.Arity; k++)
-                            m_parameterValues[k] = new SymbolLink(lambda.Values[k].Type);
-                    }
-                    currentValues = new object[lambda.Arity];
-                    for (int k = 0; k < lambda.Arity; k++)
-                        currentValues[k] = lambda.Values[k].Value;
-                }
+                m_compiledBody[k] = new SymbolLink();
+                QueryContext.Engine.Compile(parameters, m_expr[k], m_compiledBody[k]);
             }
-            return new NodeIterator(CreateEnumerator(currentValues));
+            if (Annotation != null)
+            {
+                m_compiledAnnotation = new SymbolLink[Annotation.Length];
+                for (int k = 0; k < Annotation.Length; k++)
+                {
+                    m_compiledAnnotation[k] = new SymbolLink();
+                    QueryContext.Engine.Compile(parameters, Annotation[k], m_compiledAnnotation[k]);
+                }
+            }            
+        }
+
+        public override IEnumerable<SymbolLink> EnumDynamicFuncs()
+        {
+            return m_compiledBody;
+        }
+
+        public override XQueryNodeIterator Execute(IContextProvider provider, object[] args)
+        {
+            m_context.Value = provider;
+            return new NodeIterator(CreateEnumerator(args));
         }
 
 #if DEBUG
@@ -188,34 +156,20 @@ namespace DataEngine.XQuery
             sb.Append("[");
             sb.Append(base.ToString());
             sb.Append(": ");
-            for (int k = 0; k < m_expr.Length; k++)
+            if (m_expr.Length == 0)
+                sb.Append("()");
+            else
             {
-                if (k > 0)
-                    sb.Append(", ");
-                sb.Append(Lisp.Format(m_expr[k]));
+                for (int k = 0; k < m_expr.Length; k++)
+                {
+                    if (k > 0)
+                        sb.Append(", ");
+                    sb.Append(Lisp.Format(m_expr[k]));
+                }
             }
             sb.Append("]");
             return sb.ToString();
         }
 #endif
-
-        #region Resolver Members
-
-        public bool Get(object atom, out SymbolLink result)
-        {
-            if (m_parameter != null)
-            {
-                for (int k = 0; k < m_parameter.Length; k++)
-                    if (m_parameter[k].ID == atom)
-                    {
-                        result = m_parameterValues[k];
-                        return true;
-                    }
-            }
-            result = null;
-            return false;
-        }
-
-        #endregion
     }
 }

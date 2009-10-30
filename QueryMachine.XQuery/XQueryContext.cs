@@ -36,19 +36,214 @@ using System.Xml.XPath;
 
 using DataEngine.CoreServices;
 using System.Diagnostics;
+using System.Globalization;
+
+using DataEngine.XQuery.Util;
 
 namespace DataEngine.XQuery
 {
+    public enum SchemaProcessingMode
+    {
+        Default,
+        Disable,
+        Force
+    }
+
+    public enum CopyNamespaceMode
+    {
+        PreserveNoInherit,
+        PreserveInherit,
+        NoPreserveNoInherit,
+        NoPreserveInherit
+    }
+
+    public enum NamespacePreserveMode
+    {
+        Preserve,
+        NoPreserve
+    }
+
+    public enum NamespaceInheritanceMode
+    {
+        NoInherit,
+        Inherit        
+    }
+
+    public enum ElementConstructionMode
+    {
+        Strip,
+        Preserve        
+    }
+
     public class XQueryContext
     {
         public class VariableRecord
         {
+            public object id;
             public object expr;
             public XQuerySequenceType varType;
             public SymbolLink link;
+            public XQueryContext module;
         }
 
+        public class ExternalVariableRecord
+        {
+            public XQuerySequenceType varType;
+            public bool requred;
+            public bool initialized;
+        }
+
+        private class InnerExecutive : Executive
+        {
+            public InnerExecutive(object owner)
+                : base(owner)
+            {
+            }
+
+            public override void HandleRuntimeException(Exception exception)
+            {
+                if (exception is Runtime.OperatorMismatchException)
+                {
+                    Runtime.OperatorMismatchException ex = (Runtime.OperatorMismatchException)exception;
+                    if (ex.ID == Funcs.Neg)
+                        throw new XQueryException(Properties.Resources.UnaryOperatorNotDefined, "fn:unary-minus",
+                            new XQuerySequenceType(ex.Arg1.GetType(), XmlTypeCardinality.One));
+                    else if (ex.ID == Funcs.Add)
+                        throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:add",
+                            new XQuerySequenceType(ex.Arg1.GetType(), XmlTypeCardinality.One),
+                            new XQuerySequenceType(ex.Arg2.GetType(), XmlTypeCardinality.One));
+                    else if (ex.ID == Funcs.Sub)
+                        throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:sub",
+                            new XQuerySequenceType(ex.Arg1.GetType(), XmlTypeCardinality.One),
+                            new XQuerySequenceType(ex.Arg2.GetType(), XmlTypeCardinality.One));
+                    else if (ex.ID == Funcs.Mul)
+                        throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:mul",
+                            new XQuerySequenceType(ex.Arg1.GetType(), XmlTypeCardinality.One),
+                            new XQuerySequenceType(ex.Arg2.GetType(), XmlTypeCardinality.One));
+                    else if (ex.ID == Funcs.Div)
+                        throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:div",
+                            new XQuerySequenceType(ex.Arg1.GetType(), XmlTypeCardinality.One),
+                            new XQuerySequenceType(ex.Arg2.GetType(), XmlTypeCardinality.One));
+                    else if (ex.ID == Funcs.IDiv)
+                        throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:idiv",
+                            new XQuerySequenceType(ex.Arg1.GetType(), XmlTypeCardinality.One),
+                            new XQuerySequenceType(ex.Arg2.GetType(), XmlTypeCardinality.One));
+                    else if (ex.ID == Funcs.Mod)
+                        throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:mod",
+                            new XQuerySequenceType(ex.Arg1.GetType(), XmlTypeCardinality.One),
+                            new XQuerySequenceType(ex.Arg2.GetType(), XmlTypeCardinality.One));
+                }
+                else if (exception is System.DivideByZeroException)
+                    throw new XQueryException(Properties.Resources.FOAR0001);
+                else if (exception is System.OverflowException)
+                    throw new XQueryException(Properties.Resources.FOAR0002);
+                throw exception;
+            }
+
+
+            public override object OperatorEq(object arg1, object arg2)
+            {
+                if (Object.ReferenceEquals(arg1, arg2))
+                    return true;
+                else
+                {
+                    if (arg1 == null)
+                        arg1 = false;
+                    if (arg2 == null)
+                        arg2 = false;
+                    if (arg1.Equals(arg2))
+                        return true;
+                    else
+                    {
+                        if (TypeConverter.IsNumberType(arg1.GetType()) &&
+                            TypeConverter.IsNumberType(arg2.GetType()))
+                        {
+                            NumericCode code = TypeConverter.GetNumericCode(arg1, arg2);
+                            if (code == NumericCode.Unknown)
+                                throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:eq",
+                                    new XQuerySequenceType(arg1.GetType(), XmlTypeCardinality.One),
+                                    new XQuerySequenceType(arg2.GetType(), XmlTypeCardinality.One));
+                            object val1 = TypeConverter.ChangeType(arg1, code);
+                            object val2 = TypeConverter.ChangeType(arg2, code);
+                            if (((IComparable)val1).CompareTo(val2) == 0)
+                                return true;
+                        }
+                        else
+                        {
+                            object a = arg1;
+                            object b = arg2;
+                            if (arg1 is UntypedAtomic || arg1 is AnyUriValue)
+                                a = arg1.ToString();
+                            if (arg2 is UntypedAtomic || arg2 is AnyUriValue)
+                                b = arg2.ToString();
+                            if (a.GetType() == b.GetType() || 
+                                (a is DurationValue && b is DurationValue))
+                            {
+                                if (a.Equals(b))
+                                    return true;
+                            }
+                            else
+                                throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:eq",
+                                    new XQuerySequenceType(arg1.GetType(), XmlTypeCardinality.One),
+                                    new XQuerySequenceType(arg2.GetType(), XmlTypeCardinality.One));
+                        }
+                    }
+                }
+                return null;
+            }
+
+            public override object OperatorGt(object arg1, object arg2)
+            {
+                if (arg1 == null)
+                    arg1 = false;
+                if (arg2 == null)
+                    arg2 = false;
+                if (arg1 is IComparable && arg2 is IComparable)
+                {
+                    if (TypeConverter.IsNumberType(arg1.GetType()) &&
+                        TypeConverter.IsNumberType(arg2.GetType()))
+                    {
+                        NumericCode code = TypeConverter.GetNumericCode(arg1, arg2);
+                        if (code == NumericCode.Unknown)
+                            throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:gt",
+                                new XQuerySequenceType(arg1.GetType(), XmlTypeCardinality.One),
+                                new XQuerySequenceType(arg2.GetType(), XmlTypeCardinality.One));
+                        object val1 = TypeConverter.ChangeType(arg1, code);
+                        object val2 = TypeConverter.ChangeType(arg2, code);
+                        if (((IComparable)val1).CompareTo(val2) > 0)
+                            return true;
+                    }
+                    else
+                    {
+                        object a = arg1;
+                        object b = arg2;
+                        if (arg1 is UntypedAtomic || arg1 is AnyUriValue)
+                            a = arg1.ToString();
+                        if (arg2 is UntypedAtomic || arg2 is AnyUriValue)
+                            b = arg2.ToString();
+                        if (a.GetType() == b.GetType())
+                        {
+                            if (((IComparable)a).CompareTo(b) > 0)
+                                return true;
+                        }
+                        else
+                            throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:gt",
+                                new XQuerySequenceType(arg1.GetType(), XmlTypeCardinality.One),
+                                new XQuerySequenceType(arg2.GetType(), XmlTypeCardinality.One));
+                    }
+                }
+                else
+                    throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:gt",
+                        new XQuerySequenceType(arg1.GetType(), XmlTypeCardinality.One),
+                        new XQuerySequenceType(arg2.GetType(), XmlTypeCardinality.One));
+                return null;
+            }
+        }
+
+        internal string moduleNamespace;
+        internal string uri;
         internal bool slave;
+        internal bool needValidationParser;
         internal XQueryContext master;
         internal NameTable nameTable;
         internal XmlSchemaSet schemaSet;
@@ -60,7 +255,7 @@ namespace DataEngine.XQuery
         internal Stack<XQueryOrder> queryOrdering;
         internal List<String> moduleList;
         internal List<VariableRecord> variables;
-        internal Dictionary<object, XQuerySequenceType> externalVars;
+        internal Dictionary<object, ExternalVariableRecord> externalVars;
         internal Dictionary<XmlQualifiedName, string> option;
 
         public XQueryContext()
@@ -68,11 +263,11 @@ namespace DataEngine.XQuery
             DefaultOrdering = XQueryOrder.Ordered;
             EmptyOrderSpec = XQueryEmptyOrderSpec.Least;
             SearchPath = String.Empty;
-            ValidatedParser = true;
+            SchemaProcessing = SchemaProcessingMode.Default;
             
             nameTable = new NameTable();
             schemaSet = new XmlSchemaSet(nameTable);
-            nodeInfoTable = new XQueryNodeInfoTable();
+            nodeInfoTable = new XQueryNodeInfoTable(nameTable);
             schemaInfoTable = new XQuerySchemaInfoTable();
             nsManager = new XmlNamespaceManager(nameTable);
             worklist = new List<XQueryDocument>();
@@ -80,20 +275,25 @@ namespace DataEngine.XQuery
             Resolver = new XQueryResolver();
             moduleList = new List<string>();
             variables = new List<VariableRecord>();
-            externalVars = new Dictionary<object, XQuerySequenceType>();
+            externalVars = new Dictionary<object, ExternalVariableRecord>();
             option = new Dictionary<XmlQualifiedName, string>();
             
             Core.Init();
             FunctionTable = XQueryFunctionTable.CreateInstance();
 
-            lispEngine = new Executive(this);
+            lispEngine = new InnerExecutive(this);
             lispEngine.Set("node#type", typeof(XPathNavigator));
-            lispEngine.Enter(Resolver);            
+            lispEngine.Enter(Resolver);
+            //lispEngine.m_traceOutput = Console.Out;
             
-            nsManager.AddNamespace("xml", XmlReservedNs.NsXml);
+            AddNamespace("xml", XmlReservedNs.NsXml);
+
+            DefaultCulture = (CultureInfo)CultureInfo.InvariantCulture.Clone();
+            DefaultCulture.NumberFormat.CurrencyGroupSeparator = "";
+            DefaultCulture.NumberFormat.NumberGroupSeparator = "";
         }
 
-        internal XQueryContext(XQueryContext master)
+        internal XQueryContext(string moduleNamespace, string uri, XQueryContext master)
         {
             DefaultOrdering = XQueryOrder.Ordered;
             EmptyOrderSpec = XQueryEmptyOrderSpec.Least;
@@ -101,7 +301,7 @@ namespace DataEngine.XQuery
             BaseUri = master.BaseUri;
 
             nameTable = master.nameTable;
-            schemaSet = master.schemaSet;
+            schemaSet = new XmlSchemaSet(nameTable);
             nodeInfoTable = master.nodeInfoTable;
             schemaInfoTable = master.schemaInfoTable;
             variables = master.variables;
@@ -121,6 +321,8 @@ namespace DataEngine.XQuery
             
             this.master = master;
             slave = true;
+            this.moduleNamespace = moduleNamespace;
+            this.uri = uri;
         }
 
         public virtual XmlReaderSettings GetSettings()
@@ -133,7 +335,8 @@ namespace DataEngine.XQuery
             resolver.Credentials = CredentialCache.DefaultCredentials;
             settings.XmlResolver = resolver;
             settings.ValidationEventHandler += new ValidationEventHandler(settings_ValidationEventHandler);
-            if (ValidatedParser)
+            if (SchemaProcessing == SchemaProcessingMode.Force || 
+                (SchemaProcessing != SchemaProcessingMode.Disable && NeedValidatedParser))
             {
                 settings.ValidationFlags = XmlSchemaValidationFlags.ProcessSchemaLocation |
                     XmlSchemaValidationFlags.ProcessInlineSchema;
@@ -144,14 +347,14 @@ namespace DataEngine.XQuery
 
         public virtual void InitNamespaces()
         {
-            if (nsManager.LookupPrefix(XmlReservedNs.NsXs) == null)
-                nsManager.AddNamespace("xs", XmlReservedNs.NsXs);
-            if (nsManager.LookupPrefix(XmlReservedNs.NsXsi) == null)
-                nsManager.AddNamespace("xsi", XmlReservedNs.NsXsi);
-            if (nsManager.LookupPrefix(XmlReservedNs.NsXQueryFunc) == null)
-                nsManager.AddNamespace("fn", XmlReservedNs.NsXQueryFunc);
-            if (nsManager.LookupPrefix(XmlReservedNs.NsXQueryLocalFunc) == null)
-                nsManager.AddNamespace("local", XmlReservedNs.NsXQueryLocalFunc);            
+            if (nsManager.LookupNamespace("xs") == null)
+                AddNamespace("xs", XmlReservedNs.NsXs);
+            if (nsManager.LookupNamespace("xsi") == null)
+                AddNamespace("xsi", XmlReservedNs.NsXsi);
+            if (nsManager.LookupNamespace("fn") == null)
+                AddNamespace("fn", XmlReservedNs.NsXQueryFunc);
+            if (nsManager.LookupNamespace("local") == null)
+                AddNamespace("local", XmlReservedNs.NsXQueryLocalFunc);            
         }
 
         private void settings_ValidationEventHandler(object sender, ValidationEventArgs e)
@@ -177,14 +380,14 @@ namespace DataEngine.XQuery
         public virtual XPathItem CreateItem(object value)
         {
             if (value == null)
-                return new XQueryAtomicValue(false);
+                return new XQueryAtomicValue(false, nsManager);
             else if (value is XQueryDocumentBuilder)
             {
                 XQueryDocumentBuilder builder = (XQueryDocumentBuilder)value;
                 return builder.m_document.CreateNavigator();
             }
             else
-                return new XQueryAtomicValue(value);
+                return new XQueryAtomicValue(value, nsManager);
         }
 
         public virtual string GetFileName(string name)
@@ -230,6 +433,11 @@ namespace DataEngine.XQuery
             return doc;
         }
 
+        public void AddDocument(XQueryDocument doc)
+        {
+            worklist.Add(doc);
+        }
+
         public IXPathNavigable OpenDocument(string fileName)
         {
             if (slave)
@@ -268,14 +476,19 @@ namespace DataEngine.XQuery
             }
         }
 
+        public void AddNamespace(string prefix, string ns)
+        {
+            nsManager.AddNamespace(nameTable.Add(prefix), nameTable.Add(ns));
+        }
+
         public void CopyNamespaces(IXmlNamespaceResolver nsmgr)
         {
             IDictionary<string, string> nss = nsmgr.GetNamespacesInScope(XmlNamespaceScope.All);
             foreach (KeyValuePair<string, string> kvp in nss)
-                nsManager.AddNamespace(kvp.Key, kvp.Value);
+                AddNamespace(kvp.Key, kvp.Value);
         }
 
-        public virtual XPathNavigator CreateCollection(string collection_name)
+        public virtual XQueryNodeIterator CreateCollection(string collection_name)
         {
             if (slave)
                 return master.CreateCollection(collection_name);
@@ -301,6 +514,21 @@ namespace DataEngine.XQuery
             queryOrdering.Push(order);
         }
 
+        public CultureInfo GetCulture(string collationName)
+        {
+            if (String.IsNullOrEmpty(collationName) ||
+                collationName == XmlReservedNs.NsCollationCodepoint)
+                return null;
+            try
+            {
+                return CultureInfo.GetCultureInfoByIetfLanguageTag(collationName);
+            }
+            catch (ArgumentException)
+            {
+                throw new XQueryException(Properties.Resources.XQST0076, collationName);
+            }
+        }
+
         public void LeaveOrdering()
         {
             queryOrdering.Pop();
@@ -308,15 +536,25 @@ namespace DataEngine.XQuery
 
         internal void AddExternalVariable(object var, XQuerySequenceType varType)
         {
-            externalVars.Add(var, varType);
+            ExternalVariableRecord rec = new ExternalVariableRecord();
+            rec.varType = varType;
+            rec.requred = false;
+            externalVars.Add(var, rec);
         }
 
-        internal void AddVariable(object expr, XQuerySequenceType varType, SymbolLink link)
+        internal void MarkExternalVariable(object var)
+        {
+            externalVars[var].requred = true;
+        }
+
+        internal void AddVariable(object id, object expr, XQuerySequenceType varType, SymbolLink link)
         {
             VariableRecord rec = new VariableRecord();
+            rec.id = id;
             rec.expr = expr;
             rec.varType = varType;
             rec.link = link;
+            rec.module = this;
             variables.Add(rec);
         }
 
@@ -327,14 +565,23 @@ namespace DataEngine.XQuery
 
         public void SetExternalVariable(object var, object value)
         {
-            XQuerySequenceType varType;
-            if (!externalVars.TryGetValue(var, out varType))
-                throw new XQueryException(Properties.Resources.UnknownExternalVariable, var);
-            SymbolLink link = lispEngine.Get(var);
-            if (varType == XQuerySequenceType.Item)
-                link.Value = value;
-            else
-                link.Value = Core.CastTo(lispEngine, value, varType);            
+            ExternalVariableRecord rec;
+            if (externalVars.TryGetValue(var, out rec))
+            {
+                rec.initialized = true;
+                SymbolLink link = lispEngine.Get(var);
+                if (rec.varType == XQuerySequenceType.Item)
+                    link.Value = value;
+                else
+                    link.Value = Core.CastTo(lispEngine, value, rec.varType);                
+            }
+        }
+
+        public void CheckExternalVariables()
+        {
+            foreach (KeyValuePair<object, ExternalVariableRecord> kvp in externalVars)
+                if (kvp.Value.requred && !kvp.Value.initialized)
+                    throw new XQueryException(Properties.Resources.ExternalVariableNotSet, kvp.Key);
         }
 
         public XmlSchemaSet SchemaSet
@@ -375,13 +622,19 @@ namespace DataEngine.XQuery
 
         public String BaseUri { get; set; }
 
+        public ElementConstructionMode ConstructionMode { get; set; }
+
         public XQueryEmptyOrderSpec EmptyOrderSpec { get; set; }
+
+        public NamespacePreserveMode NamespacePreserveMode { get; set; }
+
+        public NamespaceInheritanceMode NamespaceInheritanceMode { get; set; }
 
         public XQueryFunctionTable FunctionTable { get; private set; }
 
         public XQueryResolver Resolver { get; private set; }
 
-        public bool ValidatedParser { get; set; }
+        public SchemaProcessingMode SchemaProcessing { get; set; }
 
         public IDictionary<XmlQualifiedName, string> Option
         {
@@ -390,15 +643,36 @@ namespace DataEngine.XQuery
                 return option;
             }
         }
+
+        public CultureInfo DefaultCulture { get; private set; }
+
+        internal bool NeedValidatedParser
+        {
+            get
+            {
+                if (slave)
+                    return master.NeedValidatedParser;
+                else
+                    return needValidationParser;
+            }
+
+            set
+            {
+                if (slave)
+                    master.NeedValidatedParser = value;
+                else
+                    needValidationParser = value;
+            }
+        }
     }
 
     public class XPathContext : XQueryContext
     {
-        private Dictionary<String, XPathDocument> docs;
+        private Dictionary<String, IXPathNavigable> docs;
 
         public XPathContext()
         {
-            docs = new Dictionary<String, XPathDocument>();
+            docs = new Dictionary<String, IXPathNavigable>();
         }
 
         public override XmlReaderSettings GetSettings()
@@ -411,13 +685,13 @@ namespace DataEngine.XQuery
 
         public override IXPathNavigable OpenDocument(Uri uri)
         {
-            XPathDocument doc;
+            IXPathNavigable doc;
             if (docs.TryGetValue(uri.AbsoluteUri, out doc))
                 return doc;
             else
             {
                 XmlReader reader = XmlReader.Create(uri.AbsoluteUri, GetSettings());
-                doc = new XPathDocument(reader, XmlSpace.Default);
+                doc = new XPathNavigableWrapper(new XPathDocument(reader, XmlSpace.Default));
                 reader.Close();
                 docs.Add(uri.AbsoluteUri, doc);
                 return doc;

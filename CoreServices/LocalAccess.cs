@@ -63,6 +63,7 @@ namespace DataEngine.CoreServices
         Dictionary<object, LocalBuilder> locals = new Dictionary<object, LocalBuilder>();
         List<LocalBinding> values = new List<LocalBinding>();
         List<Object> consts = new List<object>();
+        List<LambdaExpr> dependence = new List<LambdaExpr>();
 
         private class Scope
         {
@@ -78,14 +79,25 @@ namespace DataEngine.CoreServices
             }
         }
 
+        private class ParameterBinding
+        {
+            public object id;
+            public Type type;
+            public bool binded;
+        }
+
+        Dictionary<object, ParameterBinding> bindings = new Dictionary<object, ParameterBinding>();
         Stack<Scope> scope = new Stack<Scope>();
         Dictionary<object, Dictionary<object, LocalBuilder>> scope_locals = new Dictionary<object, Dictionary<object, LocalBuilder>>();
         Dictionary<object, LocalBuilder> current_scope = null;
         bool scope_active = false;
 
-        public LocalAccess(ILGen il)
+        public Executive.Parameter[] Parameters { get; private set; }
+
+        public LocalAccess(ILGen il, Executive.Parameter[] parameters)
         {
-            this.il = il;            
+            this.il = il;
+            Parameters = parameters;
         }
 
         public void DeclareScope(object lval)
@@ -174,7 +186,24 @@ namespace DataEngine.CoreServices
             }
             if (!locals.TryGetValue(atom, out localVar))
             {
-                SymbolLink link = engine.Get(atom);
+                SymbolLink link = engine.TryGet(atom, false, true);
+                if (link == null)
+                {
+                    ParameterBinding b;
+                    if (bindings.TryGetValue(atom, out b))
+                    {
+                        localVar = il.DeclareLocal(b.type);
+                        locals.Add(atom, localVar);
+                        b.binded = true;
+                        return;
+                    }
+                    else
+                    {
+                        link = engine.TryGet(atom, true, false);
+                        if (link == null)
+                            throw new ArgumentException("Value not defined", atom.ToString());
+                    }
+                }
                 localVar = il.DeclareLocal(link.Type);
                 locals.Add(atom, localVar);
                 values.Add(new LocalBinding(atom, localVar, link));
@@ -183,10 +212,16 @@ namespace DataEngine.CoreServices
 
         public void BindParameter(object atom, Type type)
         {
-            SymbolLink link = new SymbolLink(type);
-            LocalBuilder localVar = il.DeclareLocal(type);
-            locals.Add(atom, localVar);
-            values.Add(new LocalBinding(null, localVar, link));
+            ParameterBinding b = new ParameterBinding();
+            b.id = atom;
+            b.type = type;
+            b.binded = false;
+            bindings.Add(atom, b);
+        }
+
+        public bool IsParameterBinded(object atom)
+        {
+            return bindings[atom].binded;
         }
 
         public SymbolLink[] GetValues()
@@ -233,12 +268,23 @@ namespace DataEngine.CoreServices
             return consts.Count - 1;
         }
 
+        public void AddDependence(LambdaExpr expr)
+        {
+            if (dependence.IndexOf(expr) == -1)
+                dependence.Add(expr);
+        }
+
         public Object[] GetConsts()
         {
             if (consts.Count == 0)
                 return null;
             else
                 return consts.ToArray();
+        }
+
+        public LambdaExpr[] GetDependences()
+        {
+            return dependence.ToArray();
         }
 
         public bool HasLocals

@@ -35,6 +35,9 @@ using System.Xml.XPath;
 
 using DataEngine.CoreServices;
 using DataEngine.XQuery.Parser;
+using System.Globalization;
+using DataEngine.XQuery.Util;
+using System.Text.RegularExpressions;
 
 
 namespace DataEngine.XQuery
@@ -73,6 +76,7 @@ namespace DataEngine.XQuery
         }
 
         private XQueryContext _context;
+        private List<String> _moduleNs;
         private VarTable _varTable;
         private Dictionary<object, FunctionDecl> _fdecl;
         
@@ -83,19 +87,38 @@ namespace DataEngine.XQuery
         private bool _defaultElementNsDecl;
         private bool _defaultFunctionNsDecl;
         private bool _boundarySpaceDecl;
+        private bool _copyNamespacesDecl;
+        private bool _constructionDecl;
 
         public Translator(XQueryContext context)
         {
             _context = context;
             _varTable = new VarTable();
             _fdecl = new Dictionary<object, FunctionDecl>();
+            _moduleNs = new List<string>();
         }
 
         public void PreProcess(Notation notation)
-        { // Phase 1. Namespace declaration, default function namespace and declare option statement.
+        {
+            if (!String.IsNullOrEmpty(_context.DefaultElementNS))
+                _context.NamespaceManager.AddNamespace("", _context.DefaultElementNS);
+            // Phase 1. Namespace declaration, default function namespace and declare option statement.
             Notation.Record[] recs = notation.Select(Descriptor.Root, 1);
             if (recs.Length == 0)
                 throw new InvalidOperationException();
+            Notation.Record[] recs1 = notation.Select(recs[0].sym, Descriptor.Version, 2);
+            if (recs1.Length > 0)
+            {
+                Literal ver = (Literal)recs1[0].Arg0;
+                if (ver.Data != "1.0")
+                    throw new XQueryException(Properties.Resources.XQST0031, ver.Data);
+                if (recs1[0].Arg1 != null)
+                {
+                    Literal enc = (Literal)recs1[0].Arg1;
+                    if (!Regex.IsMatch(enc.Data, "^[A-Za-z]([A-Za-z0-9._]|-)*$"))
+                        throw new XQueryException(Properties.Resources.XQST0087, enc.Data);
+                }
+            }
             Notation.Record[] recs_c = notation.Select(recs[0].Arg0,
                 new Descriptor[] { Descriptor.Query, Descriptor.Library });
             if (recs_c.Length > 0)
@@ -147,7 +170,7 @@ namespace DataEngine.XQuery
             {
                 Qname name = (Qname)recs[0].Arg0;
                 Literal ns = (Literal)recs[0].Arg1;
-                _context.NamespaceManager.AddNamespace(name.Name, ns.Data);
+                _context.AddNamespace(name.Name, ns.Data);
             }            
         }
 
@@ -171,20 +194,16 @@ namespace DataEngine.XQuery
                                 ProcessNamespace(notation, recs[0]);
                                 break;
 
-                            case Descriptor.OptionDecl:
-                                ProcessOptionDecl(notation, recs[0]);
-                                break;
-
                             case Descriptor.BaseUri:
                                 ProcessBaseUri(notation, recs[0]);
                                 break;
 
-                            case Descriptor.BoundarySpace:
-                                ProcessBoundarySpace(notation, recs[0]);
+                            case Descriptor.ConstructionDecl:
+                                ProcessConstructionDecl(notation, recs[0]);
                                 break;
 
-                            case Descriptor.DefaultCollation:
-                                ProcessDefaultCollation(notation, recs[0]);
+                            case Descriptor.BoundarySpace:
+                                ProcessBoundarySpace(notation, recs[0]);
                                 break;
 
                             case Descriptor.Ordering:
@@ -198,10 +217,52 @@ namespace DataEngine.XQuery
                             case Descriptor.DefaultElement:
                                 ProcessDefaultElementNS(notation, recs[0]);
                                 break;
+
+                            case Descriptor.CopyNamespace:
+                                ProcessCopyNamespace(notation, recs[0]);
+                                break;
+                        }
+                    }
+                }
+                _context.InitNamespaces();
+                foreach (Symbol sym in arr)
+                {
+                    Notation.Record[] recs = notation.Select(sym);
+                    if (recs.Length > 0)
+                    {
+                        switch (recs[0].descriptor)
+                        {
+                            case Descriptor.OptionDecl:
+                                ProcessOptionDecl(notation, recs[0]);
+                                break;
+
+                            case Descriptor.DefaultCollation:
+                                ProcessDefaultCollation(notation, recs[0]);
+                                break;
                         }
                     }
                 }
             }
+            else
+                _context.InitNamespaces();
+        }
+
+        private void ProcessConstructionDecl(Notation notation, Notation.Record rec)
+        {
+            if (_constructionDecl)
+                throw new XQueryException(Properties.Resources.XQST0067);
+            TokenWrapper wrapper = (TokenWrapper)rec.Arg0;
+            switch (wrapper.Data)
+            {
+                case Token.PRESERVE:
+                    _context.ConstructionMode = ElementConstructionMode.Preserve;
+                    break;
+
+                case Token.STRIP:
+                    _context.ConstructionMode = ElementConstructionMode.Strip;
+                    break;
+            }
+            _constructionDecl = true;
         }
 
         private void ProcessSchemaImport(Notation notation, object prolog)
@@ -287,21 +348,49 @@ namespace DataEngine.XQuery
 
         private void ProcessBoundarySpace(Notation notation, Notation.Record rec)
         {
-            if (!_boundarySpaceDecl)
+            if (_boundarySpaceDecl)
+                throw new XQueryException(Properties.Resources.XQST0068);
+            TokenWrapper wrapper = (TokenWrapper)rec.Arg0;
+            switch (wrapper.Data)
             {
-                TokenWrapper wrapper = (TokenWrapper)rec.Arg0;
-                switch (wrapper.Data)
-                {
-                    case Token.PRESERVE:
-                        _context.PreserveBoundarySpace = true;
-                        break;
+                case Token.PRESERVE:
+                    _context.PreserveBoundarySpace = true;
+                    break;
 
-                    case Token.STRIP:
-                        _context.PreserveBoundarySpace = false;
-                        break;
-                }
-                _boundarySpaceDecl = true;
+                case Token.STRIP:
+                    _context.PreserveBoundarySpace = false;
+                    break;
             }
+            _boundarySpaceDecl = true;
+        }
+
+        private void ProcessCopyNamespace(Notation notation, Notation.Record rec)
+        {
+            if (_copyNamespacesDecl)
+                throw new XQueryException(Properties.Resources.XQST0055);
+            TokenWrapper wrapper1 = (TokenWrapper)rec.Arg0;
+            TokenWrapper wrapper2 = (TokenWrapper)rec.Arg1;
+            switch (wrapper1.Data)
+            {
+                case Token.PRESERVE:
+                    _context.NamespacePreserveMode = NamespacePreserveMode.Preserve;
+                    break;
+
+                case Token.NO_PRESERVE:
+                    _context.NamespacePreserveMode = NamespacePreserveMode.NoPreserve;
+                    break;
+            }
+            switch (wrapper2.Data)
+            {
+                case Token.INHERIT:
+                    _context.NamespaceInheritanceMode = NamespaceInheritanceMode.Inherit;
+                    break;
+
+                case Token.NO_INHERIT:
+                    _context.NamespaceInheritanceMode = NamespaceInheritanceMode.NoInherit;
+                    break;
+            }
+            _copyNamespacesDecl = true;
         }
 
         private void ProcessBaseUri(Notation notation, Notation.Record rec)
@@ -322,6 +411,8 @@ namespace DataEngine.XQuery
                 targetNamespace = (Literal)rec.Arg0;
                 if (targetNamespace.Data == "")
                     throw new XQueryException(Properties.Resources.XQST0088);
+                if (_moduleNs.Contains(targetNamespace.Data))
+                    throw new XQueryException(Properties.Resources.XQST0047, targetNamespace.Data);
                 if (rec.args[1] != null)
                     arr = Lisp.ToArray<Literal>(rec.args[1]);
                 else
@@ -333,6 +424,8 @@ namespace DataEngine.XQuery
                 targetNamespace = (Literal)rec.Arg1;
                 if (targetNamespace.Data == "")
                     throw new XQueryException(Properties.Resources.XQST0088);
+                if (_moduleNs.Contains(targetNamespace.Data))
+                    throw new XQueryException(Properties.Resources.XQST0047, targetNamespace.Data);
                 if (prefix.Name == "xml" || prefix.Name == "xmlns")
                     throw new XQueryException(Properties.Resources.XQST0070, targetNamespace.Data);
                 if (rec.args[2] != null)
@@ -341,12 +434,13 @@ namespace DataEngine.XQuery
                     arr = _context.ResolveModuleImport(prefix.Name, targetNamespace.Data);
                 if (_context.NamespaceManager.HasNamespace(prefix.Name))
                     throw new XQueryException(Properties.Resources.XQST0033, prefix.Name);
-                _context.NamespaceManager.AddNamespace(prefix.Name, targetNamespace.Data);
+                _context.AddNamespace(prefix.Name, targetNamespace.Data);
             }
             for (int k = 0; k < arr.Length; k++)
             {
                 Literal filename = (Literal)arr[k];
                 TextReader reader;
+                string absolutePath;
                 if (Uri.IsWellFormedUriString(filename.Data, UriKind.Absolute) ||
                     (_context.BaseUri != null && Uri.IsWellFormedUriString(_context.BaseUri, UriKind.Absolute)))
                 {
@@ -355,16 +449,16 @@ namespace DataEngine.XQuery
                     client.Proxy.Credentials = CredentialCache.DefaultCredentials;
                     if (!Uri.TryCreate(filename.Data, UriKind.Absolute, out uri))
                         uri = new Uri(new Uri(_context.BaseUri), filename.Data);
+                    absolutePath = uri.AbsoluteUri;
                     reader = new StringReader(client.DownloadString(uri));
                 }
                 else
                 {
-                    string filepath;
                     if (_context.BaseUri != null)
-                        filepath = Path.Combine(_context.BaseUri, filename.Data);
+                        absolutePath = Path.Combine(_context.BaseUri, filename.Data);
                     else
-                        filepath = filename.Data;
-                    reader = new StreamReader(new FileStream(filepath,
+                        absolutePath = filename.Data;
+                    reader = new StreamReader(new FileStream(absolutePath,
                         FileMode.Open, FileAccess.Read));
                 }
                 TokenizerBase tok = new Tokenizer(reader.ReadToEnd());
@@ -372,15 +466,15 @@ namespace DataEngine.XQuery
                 Notation notation2 = new Notation();
                 YYParser parser = new YYParser(notation2);
                 parser.yyparseSafe(tok);
-                XQueryContext context = new XQueryContext(_context);
-                Translator translator = new Translator(context);
-                translator._varTable = _varTable;
+                XQueryContext context2 = new XQueryContext(targetNamespace.Data, absolutePath, _context);
+                Translator translator = new Translator(context2);
                 translator.PreProcess(notation2);
-                context.InitNamespaces();
                 translator.Process(notation2);
-                _context.FunctionTable.CopyFrom(context.FunctionTable);
-                context.Close();
+                _varTable.ImportVariables(context2);
+                _context.FunctionTable.CopyFrom(context2.FunctionTable, context2);
+                context2.Close();
             }
+            _moduleNs.Add(targetNamespace.Data);
         }
 
         private void ProcessDefaultCollation(Notation notation, Notation.Record rec)
@@ -388,7 +482,11 @@ namespace DataEngine.XQuery
             if (_defaultCollationDecl)
                 throw new XQueryException(Properties.Resources.XQST0038);
             Literal lit = (Literal)rec.Arg0;
-            _context.DefaultCollation = lit.Data;
+            if (!String.IsNullOrEmpty(_context.BaseUri))
+                _context.DefaultCollation = new Uri(new Uri(_context.BaseUri), lit.Data).ToString();
+            else
+                _context.DefaultCollation = lit.Data;
+            _context.GetCulture(_context.DefaultCollation); // check uri
             _defaultCollationDecl = true;
         }
 
@@ -431,8 +529,8 @@ namespace DataEngine.XQuery
         {
             if (_defaultElementNsDecl)
                 throw new XQueryException(Properties.Resources.XQST0066);
-            Literal uri = (Literal)rec.Arg0;               
-            _context.DefaultElementNS = uri.Data;
+            Literal uri = (Literal)rec.Arg0;
+            _context.NamespaceManager.AddNamespace("", uri.Data);
             _defaultElementNsDecl = true;
         }
 
@@ -448,14 +546,17 @@ namespace DataEngine.XQuery
         private void ProcessNamespace(Notation notation, Notation.Record rec)
         {
             Qname prefix = (Qname)rec.Arg0;
-            if (_context.NamespaceManager.HasNamespace(prefix.Name))
-                throw new XQueryException(Properties.Resources.XQST0033, prefix.Name);
             Literal uri = (Literal)rec.Arg1;
-            _context.NamespaceManager.AddNamespace(prefix.Name, uri.Data);
+            if (prefix.Name == "xml" || prefix.Name == "xmlns" || uri.Data == XmlReservedNs.NsXml)
+                throw new XQueryException(Properties.Resources.XQST0070, uri.Data);
+            if (_context.NamespaceManager.HasNamespace(prefix.Name))
+                throw new XQueryException(Properties.Resources.XQST0033, prefix.Name);            
+            _context.AddNamespace(prefix.Name, uri.Data);
         }
 
         private void ProcessImportSchema(Notation notation, Notation.Record rec)
         {
+            _context.NeedValidatedParser = true;
             Literal uri = (Literal)rec.Arg1;
             if (rec.Arg0 != null)
             {
@@ -465,16 +566,16 @@ namespace DataEngine.XQuery
                     Qname prefix = (Qname)recs[0].Arg0;
                     if (_context.NamespaceManager.HasNamespace(prefix.Name))
                         throw new XQueryException(Properties.Resources.XQST0033, prefix.Name);
-                    _context.NamespaceManager.AddNamespace(prefix.Name, uri.Data);
+                    _context.AddNamespace(prefix.Name, uri.Data);
                 }
                 else
                 {
                     recs = notation.Select(rec.Arg0, Descriptor.DefaultElement, 0);
                     if (recs.Length > 0)
                     {
-                        if (_context.DefaultElementNS != null)
+                        if (_context.NamespaceManager.DefaultNamespace != "")
                             throw new XQueryException(Properties.Resources.XQST0066);
-                        _context.DefaultElementNS = uri.Data;
+                        _context.NamespaceManager.AddNamespace("", uri.Data);
                     }
                     else
                         throw new InvalidOperationException();
@@ -497,7 +598,7 @@ namespace DataEngine.XQuery
         {
             VarName name = (VarName)rec.Arg0;
             object var = ProcessVarName(name);
-            if (_context.Engine.TryGet(var) != null)
+            if (_context.Engine.TryGet(var, true, false) != null)
                 throw new XQueryException(Properties.Resources.XQST0049, name);
             XQuerySequenceType varType;            
             if (rec.Arg1 == null)
@@ -506,18 +607,22 @@ namespace DataEngine.XQuery
                 varType = ProcessTypeDecl(notation, rec.Arg1);
             SymbolLink valueLink = new SymbolLink(varType.ValueType);
             valueLink.Value = Undefined.Value;
+            bool external = false;
             if (rec.args.Length > 2)
-                _context.AddVariable(ProcessExprSingle(notation, rec.Arg2), varType, valueLink);
+                _context.AddVariable(var, ProcessExprSingle(notation, rec.Arg2), varType, valueLink);
             else
-                _context.AddExternalVariable(var, varType);            
+            {
+                _context.AddExternalVariable(var, varType);
+                external = true;
+            }
             _context.Engine.Set(var, valueLink);
-            _varTable.PushVar(var, varType);
+            _varTable.PushVar(var, varType, external);
         }
 
         private void PreProcessFuncDecl(Notation notation, Notation.Record rec)
         {
             Qname qname = (Qname)rec.Arg0;
-            XmlQualifiedName identity = QNameParser.Parse(qname.Name, _context.NamespaceManager);
+            XmlQualifiedName identity = QNameParser.Parse(qname.Name, _context.NamespaceManager, _context.nameTable);
             string ns = identity.Namespace;
             if (ns == String.Empty)
             {
@@ -526,8 +631,11 @@ namespace DataEngine.XQuery
                 else
                     ns = _context.DefaultFunctionNS;
             }
-            if (identity.Namespace == XmlReservedNs.NsXQueryFunc ||
-                identity.Namespace == XmlReservedNs.NsXs)
+            if (ns == String.Empty ||
+                ns == XmlReservedNs.NsXml ||
+                ns == XmlReservedNs.NsXQueryFunc ||
+                ns == XmlReservedNs.NsXs ||
+                ns == XmlReservedNs.NsXsi)
                 throw new XQueryException(Properties.Resources.XQST0045, identity.Name, identity.Namespace);
             object f = Lisp.Defatom(ns, new string[] { identity.Name }, false);
             FunctionParameter[] parameters = ProcessParamList(notation, rec.args[1]);
@@ -543,11 +651,7 @@ namespace DataEngine.XQuery
                 if (rec.args[3] == null) // external
                     throw new NotImplementedException();
                 else
-                {
-                    XQuerySequenceType funcType = new XQuerySequenceType(decl.returnType);
-                    funcType.Cardinality = XmlTypeCardinality.ZeroOrMore;
-                    _context.FunctionTable.Register(f, parameterTypes, funcType);
-                }
+                    _context.FunctionTable.Register(f, _context, parameterTypes, decl.returnType);
             }
             else
             {
@@ -555,7 +659,7 @@ namespace DataEngine.XQuery
                     throw new NotImplementedException();
                 else
                     decl.returnType = XQuerySequenceType.Item;
-                _context.FunctionTable.Register(f, parameterTypes, decl.returnType);
+                _context.FunctionTable.Register(f, _context, parameterTypes, decl.returnType);
             }
             _fdecl.Add(rec.sym, decl);
         }
@@ -580,20 +684,19 @@ namespace DataEngine.XQuery
                 else
                 {
                     XQueryExpr expr = (XQueryExpr)ProcessExpr(notation, rec.args[3]);
-                    expr.FunctionExpr = true;
-                    object body = Lisp.List(ID.DynExecuteExpr, expr);
+                    object body = expr.ToLispFunction();
                     if (decl.returnType != XQuerySequenceType.Item)
                     {
-                        XQuerySequenceType type = EvalExprType(Lisp.Second(body));
+                        XQuerySequenceType type = EvalExprType(body);
                         if (!decl.returnType.Equals(type))
                         {
-                            if (!type.Equals(XQuerySequenceType.Item) && type.IsDerivedFrom(decl.returnType))
-                                throw new XQueryException(Properties.Resources.XPTY0004, type,
-                                    String.Format("{0} in function {1} {{{2}}}", decl.returnType, decl.identity.Name, decl.identity.Namespace));
-                            body = Lisp.List(ID.CastTo, body, decl.returnType);
+                            //if (!(type.Equals(XQuerySequenceType.Item) || type.IsDerivedFrom(decl.returnType)))
+                            //    throw new XQueryException(Properties.Resources.XPTY0004, type,
+                            //        String.Format("{0} in function {1} {{{2}}}", decl.returnType, decl.identity.Name, decl.identity.Namespace));
+                            body = Lisp.List(ID.CastArg, body, decl.returnType);
                         }                        
                     }
-                    LambdaExpr lambdaExpr = new LambdaExpr(decl.f, executiveParameters, typeof(XQueryNodeIterator), body);
+                    LambdaExpr lambdaExpr = new LambdaExpr(decl.f, executiveParameters, typeof(System.Object), body);
                     _context.Engine.Defun(lambdaExpr);
                 }
             }
@@ -604,9 +707,8 @@ namespace DataEngine.XQuery
                 else
                 {
                     XQueryExpr expr = (XQueryExpr)ProcessExpr(notation, rec.args[2]);
-                    expr.FunctionExpr = true;
-                    LambdaExpr lambdaExpr = new LambdaExpr(decl.f, executiveParameters, typeof(XQueryNodeIterator), 
-                        Lisp.List(ID.DynExecuteExpr, expr));
+                    LambdaExpr lambdaExpr = new LambdaExpr(decl.f, executiveParameters, typeof(System.Object),
+                        expr.ToLispFunction());
                     _context.Engine.Defun(lambdaExpr);
                 }
 
@@ -616,14 +718,18 @@ namespace DataEngine.XQuery
 
         private FunctionParameter[] ProcessParamList(Notation notation, object p)
         {
-            List<FunctionParameter> res = new List<FunctionParameter>();
+            List<FunctionParameter> res = new List<FunctionParameter>();            
             if (p != null)
             {
                 Symbol[] arr = Lisp.ToArray<Symbol>(p);
+                HashSet<VarName> hs = new HashSet<VarName>();
                 for (int k = 0; k < arr.Length; k++)
                 {
                     FunctionParameter parameter = new FunctionParameter();
                     VarName name = (VarName)arr[k];
+                    if (hs.Contains(name))
+                        throw new XQueryException(Properties.Resources.XQST0039, name);
+                    hs.Add(name);
                     parameter.id = ProcessVarName(name);
                     Notation.Record[] recs = notation.Select(arr[k], Descriptor.TypeDecl, 1);
                     if (recs.Length > 0)
@@ -638,11 +744,11 @@ namespace DataEngine.XQuery
 
         private void ProcessOptionDecl(Notation notation, Notation.Record rec)
         {
-            XmlQualifiedName qualifiedName = (XmlQualifiedName)ProcessQName(notation, (Qname)rec.Arg0, XmlReservedNs.NsXQueryFunc);
+            QNameValue qn = QNameValue.Parse(((Qname)rec.Arg0).Name, _context.NamespaceManager, "");            
+            if (qn.Prefix == "")
+                throw new XQueryException(Properties.Resources.ExpectedQNamePrefix, "option", qn.ToString());
             Literal lit = (Literal)rec.Arg1;
-            if (_context.Option.ContainsKey(qualifiedName))
-                throw new XQueryException(Properties.Resources.OptionRedeclared, qualifiedName);
-            _context.Option.Add(new KeyValuePair<XmlQualifiedName, string>(qualifiedName, lit.Data));
+            _context.Option[qn.ToQualifiedName()] = lit.Data;
         }
 
         private XQueryExprBase ProcessExpr(Notation notation, object p)
@@ -651,6 +757,8 @@ namespace DataEngine.XQuery
             object[] expr = new object[arr.Length];
             for (int k = 0; k < arr.Length; k++)
                 expr[k] = ProcessExprSingle(notation, arr[k]);
+            if (expr.Length == 1 && Lisp.IsFunctor(expr[0], ID.DynExecuteExpr, 1))
+                return (XQueryExprBase)Lisp.Arg1(expr[0]);
             return new XQueryExpr(_context, expr);
         }
 
@@ -699,14 +807,20 @@ namespace DataEngine.XQuery
                                 {
                                     FLWORItem item = new FLWORItem();
                                     item.desc = Descriptor.For;
-                                    item.var = ProcessVarName((VarName)recs2[0].Arg0);
+                                    VarName name = (VarName)recs2[0].Arg0;
+                                    item.var = ProcessVarName(name);
                                     if (recs2[0].Arg1 == null)
                                         item.varType = XQuerySequenceType.Item;
                                     else
                                         item.varType = ProcessTypeDecl(notation, recs2[0].Arg1);
                                     item.pos = null;
                                     if (recs2[0].Arg2 != null)
-                                        item.pos = ProcessVarName((VarName)recs2[0].Arg2);
+                                    {
+                                        VarName posname = (VarName)recs2[0].Arg2;
+                                        if (posname.Name == name.Name)
+                                            throw new XQueryException(Properties.Resources.XQST0089, posname.Name);
+                                        item.pos = ProcessVarName(posname);
+                                    }
                                     item.assignExpr = ProcessExprSingle(notation, recs2[0].Arg3);
                                     _varTable.PushVar(item.var, item.varType);
                                     if (item.pos != null)
@@ -743,7 +857,8 @@ namespace DataEngine.XQuery
                 }
             }
             XQueryOrderSpec[] orderSpec = null;
-            object expr = ProcessExprSingle(notation, rec.Arg3);
+            XQueryExprBase expr = new XQueryExpr(_context, 
+                new object[] { ProcessExprSingle(notation, rec.Arg3) });
             if (rec.Arg2 != null)
             {
                 Notation.Record[] recs = notation.Select(rec.Arg2, new Descriptor[] { 
@@ -763,15 +878,16 @@ namespace DataEngine.XQuery
                         if (recs1.Length > 0)
                         {
                             Symbol[] modifier = Lisp.ToArray<Symbol>(recs1[0].args[0]);
-                            switch (((TokenWrapper)modifier[0]).Data)
-                            {
-                                case Token.ASCENDING:
-                                    orderSpec[k].direction = XQueryOrderDirection.Ascending;
-                                    break;
-                                case Token.DESCENDING:
-                                    orderSpec[k].direction = XQueryOrderDirection.Descending;
-                                    break;
-                            }
+                            if (modifier[0] != null)
+                                switch (((TokenWrapper)modifier[0]).Data)
+                                {
+                                    case Token.ASCENDING:
+                                        orderSpec[k].direction = XQueryOrderDirection.Ascending;
+                                        break;
+                                    case Token.DESCENDING:
+                                        orderSpec[k].direction = XQueryOrderDirection.Descending;
+                                        break;
+                                }
                             if (modifier[1] != null)
                                 switch (((TokenWrapper)modifier[1]).Data)
                                 {
@@ -786,16 +902,14 @@ namespace DataEngine.XQuery
                                 orderSpec[k].collation = ((Literal)modifier[2]).Data;
                         }
                     }
-                    expr = Lisp.List(ID.DynExecuteExpr, 
-                        new XQueryExpr(_context, new object[] { expr }, sortKey));
+                    ((XQueryExpr)expr).Annotation = sortKey;
                 }
             }
             if (rec.Arg1 != null)
             {
                 Notation.Record[] recs3 = notation.Select(rec.Arg1, Descriptor.Where, 1);
                 if (recs3.Length > 0)
-                    expr = Lisp.List(ID.DynExecuteExpr, new XQueryCondition(_context, expr),
-                        ProcessExprSingle(notation, recs3[0].Arg0));
+                    expr = new XQueryCondition(_context, ProcessExprSingle(notation, recs3[0].Arg0), expr);
             }
             for (int k = flworItems.Count - 1; k >= 0; k--)
             {
@@ -803,21 +917,18 @@ namespace DataEngine.XQuery
                 switch (item.desc)
                 {
                     case Descriptor.For:
-                        expr = Lisp.List(ID.DynExecuteExpr,
-                            new XQueryFLWOR(_context, item.var, item.varType, item.pos, expr), item.assignExpr);
+                        expr = new XQueryFLWOR(_context, item.var, item.varType, item.pos, item.assignExpr, expr);
                         break;
+
                     case Descriptor.Let:
-                        expr = Lisp.List(ID.DynExecuteExpr, 
-                            new XQueryLET(_context, item.var, item.varType, expr), item.assignExpr);
+                        expr = new XQueryLET(_context, item.var, item.varType, item.assignExpr, expr);
                         break;
                 }
             }
             _varTable.EndFrame(stack_pos);
             if (orderSpec != null)
-                return Lisp.List(ID.DynExecuteExpr, 
-                    new XQuerySorter(_context, orderSpec, stable), expr);
-            else
-                return expr;
+                expr = new XQuerySorter(_context, orderSpec, stable, expr);
+            return Lisp.List(ID.DynExecuteExpr, expr, ID.Context, Lisp.ARGV);
         }
 
         private object ProcessQuantifiedExpr(Notation notation, Notation.Record rec)
@@ -841,21 +952,21 @@ namespace DataEngine.XQuery
                     flworItems.Add(item);
                 }
             }
-            object expr = ProcessExprSingle(notation, rec.Arg1);
+            XQueryExprBase expr = new XQueryExpr(_context, 
+                new object[] { Lisp.List(ID.BooleanValue, ProcessExprSingle(notation, rec.Arg1)) });
             for (int k = flworItems.Count - 1; k >= 0; k--)
             {
                 FLWORItem item = flworItems[k];
-                expr = Lisp.List(ID.DynExecuteExpr,
-                    new XQueryFLWOR(_context, item.var, item.varType, null, expr), item.assignExpr);
+                expr = new XQueryFLWOR(_context, item.var, item.varType, null, item.assignExpr, expr);
             }
             _varTable.EndFrame(stack_pos);
             switch (rec.descriptor)
             {
                 case Descriptor.Some:
-                    return Lisp.List(ID.Some, expr);
+                    return Lisp.List(ID.Some, expr.ToLispFunction());
 
                 case Descriptor.Every:
-                    return Lisp.List(ID.Every, expr);
+                    return Lisp.List(ID.Every, expr.ToLispFunction());
 
                 default:
                     throw new InvalidOperationException();
@@ -888,10 +999,11 @@ namespace DataEngine.XQuery
                         XQuerySequenceType seqtype = ProcessTypeDecl(notation, recs[0].Arg1);
                         int stack_pos = _varTable.BeginFrame();
                         _varTable.PushVar(var, seqtype);
-                        object expr = ProcessExprSingle(notation, recs[0].Arg2);
+                        XQueryExprBase expr = new XQueryExpr(_context, 
+                            new object[] { ProcessExprSingle(notation, recs[0].Arg2) });
                         _varTable.EndFrame(stack_pos);
                         branch[k] = Lisp.List(Lisp.List(ID.InstanceOf, x, seqtype),
-                            Lisp.List(ID.DynExecuteExpr, new XQueryLET(_context, var, seqtype, expr), x));
+                            Lisp.List(ID.DynExecuteExpr, new XQueryLET(_context, var, seqtype, x, expr), ID.Context, Lisp.ARGV));
                     }
                     else
                         branch[k] = Lisp.List(Lisp.List(ID.InstanceOf, x, ProcessTypeDecl(notation, recs[0].Arg0)),
@@ -903,15 +1015,17 @@ namespace DataEngine.XQuery
                 object var = ProcessVarName((VarName)rec.Arg2);
                 int stack_pos = _varTable.BeginFrame();
                 _varTable.PushVar(var, XQuerySequenceType.Item);
-                object expr = ProcessExprSingle(notation, rec.Arg3);
+                XQueryExprBase expr = new XQueryExpr(_context, 
+                    new object[] { ProcessExprSingle(notation, rec.Arg3) });
                 _varTable.EndFrame(stack_pos);
                 branch[arr.Length] = Lisp.List(Lisp.T, Lisp.List(ID.DynExecuteExpr, 
-                    new XQueryLET(_context, var, XQuerySequenceType.Item, expr), x));
+                    new XQueryLET(_context, var, XQuerySequenceType.Item, x, expr), ID.Context, Lisp.ARGV));
             }
             else
                 branch[arr.Length] = Lisp.List(Lisp.T, ProcessExprSingle(notation, rec.Arg2));
-            object res = Lisp.List(Funcs.Let1, Lisp.List(Lisp.List(x, Lisp.List(ID.DynExecuteExpr, 
-                ProcessExpr(notation, rec.args[0])))), Lisp.Append(Lisp.Cons(Funcs.Cond), Lisp.List(branch)));
+            object res = new XQueryLET(_context, x, XQuerySequenceType.Item, 
+                ProcessExpr(notation, rec.args[0]).ToLispFunction(), 
+                    new XQueryExpr(_context, new object[] { Lisp.Append(Lisp.Cons(Funcs.Cond), Lisp.List(branch)) })).ToLispFunction();
             return res;
         }
 
@@ -950,7 +1064,7 @@ namespace DataEngine.XQuery
                             switch (w.Data)
                             {
                                 case Token.EQ:
-                                    return Lisp.List(Funcs.Eq, CompileAtomizeValueExpr(arg0), 
+                                    return Lisp.List(Funcs.Eq, CompileAtomizeValueExpr(arg0),
                                         CompileAtomizeValueExpr(ProcessRangeExpr(notation, recs[0].Arg2)));
 
                                 case Token.NE:
@@ -1037,8 +1151,8 @@ namespace DataEngine.XQuery
             Notation.Record[] recs = notation.Select(sym, Descriptor.Range, 2);
             if (recs.Length > 0)
                 return Lisp.List(ID.Range,
-                    CompileAtomizeValueExpr(ProcessAdditiveExpr(notation, recs[0].Arg0)),
-                    CompileAtomizeValueExpr(ProcessAdditiveExpr(notation, recs[0].Arg1)));
+                    ProcessAdditiveExpr(notation, recs[0].Arg0),
+                    ProcessAdditiveExpr(notation, recs[0].Arg1));
             else
                 return ProcessAdditiveExpr(notation, sym);
         }
@@ -1051,12 +1165,12 @@ namespace DataEngine.XQuery
                 TokenWrapper w = (TokenWrapper)recs[0].Arg1;
                 if (w.Data == '+')
                     return Lisp.List(Funcs.Add, 
-                        CompileAtomizeValueExpr(ProcessAdditiveExpr(notation, recs[0].Arg0)),
-                        CompileAtomizeValueExpr(ProcessMultiplicativeExpr(notation, recs[0].Arg2)));
+                        CompileAtomizeNumberExpr(ProcessAdditiveExpr(notation, recs[0].Arg0)),
+                        CompileAtomizeNumberExpr(ProcessMultiplicativeExpr(notation, recs[0].Arg2)));
                 else
                     return Lisp.List(Funcs.Sub,
-                        CompileAtomizeValueExpr(ProcessAdditiveExpr(notation, recs[0].Arg0)),
-                        CompileAtomizeValueExpr(ProcessMultiplicativeExpr(notation, recs[0].Arg2)));
+                        CompileAtomizeNumberExpr(ProcessAdditiveExpr(notation, recs[0].Arg0)),
+                        CompileAtomizeNumberExpr(ProcessMultiplicativeExpr(notation, recs[0].Arg2)));
             }
             else
                 return ProcessMultiplicativeExpr(notation, sym);
@@ -1071,20 +1185,20 @@ namespace DataEngine.XQuery
                 switch (w.Data)
                 {
                     case Token.ML:
-                        return Lisp.List(Funcs.Mul, CompileAtomizeValueExpr(ProcessMultiplicativeExpr(notation, recs[0].Arg0)),
-                            CompileAtomizeValueExpr(ProcessUnionExpr(notation, recs[0].Arg2)));
+                        return Lisp.List(Funcs.Mul, CompileAtomizeNumberExpr(ProcessMultiplicativeExpr(notation, recs[0].Arg0)),
+                            CompileAtomizeNumberExpr(ProcessUnionExpr(notation, recs[0].Arg2)));
 
                     case Token.DIV:
-                        return Lisp.List(ID.Div, CompileAtomizeValueExpr(ProcessMultiplicativeExpr(notation, recs[0].Arg0)),
-                            CompileAtomizeValueExpr(ProcessUnionExpr(notation, recs[0].Arg2)));
+                        return Lisp.List(Funcs.Div, CompileAtomizeNumberExpr(ProcessMultiplicativeExpr(notation, recs[0].Arg0)),
+                            CompileAtomizeNumberExpr(ProcessUnionExpr(notation, recs[0].Arg2)));
 
                     case Token.IDIV:
-                        return Lisp.List(ID.IDiv, CompileAtomizeValueExpr(ProcessMultiplicativeExpr(notation, recs[0].Arg0)),
-                            CompileAtomizeValueExpr(ProcessUnionExpr(notation, recs[0].Arg2)));
+                        return Lisp.List(Funcs.IDiv, CompileAtomizeNumberExpr(ProcessMultiplicativeExpr(notation, recs[0].Arg0)),
+                            CompileAtomizeNumberExpr(ProcessUnionExpr(notation, recs[0].Arg2)));
 
                     case Token.MOD:
-                        return Lisp.List(ID.Mod, CompileAtomizeValueExpr(ProcessMultiplicativeExpr(notation, recs[0].Arg0)),
-                            CompileAtomizeValueExpr(ProcessUnionExpr(notation, recs[0].Arg2)));
+                        return Lisp.List(Funcs.Mod, CompileAtomizeNumberExpr(ProcessMultiplicativeExpr(notation, recs[0].Arg0)),
+                            CompileAtomizeNumberExpr(ProcessUnionExpr(notation, recs[0].Arg2)));
 
                     default:
                         throw new InvalidOperationException();
@@ -1099,7 +1213,7 @@ namespace DataEngine.XQuery
             Notation.Record[] recs = notation.Select(sym, 
                 new Descriptor[] { Descriptor.Union, Descriptor.Concatenate },  2);
             if (recs.Length > 0)
-                return Lisp.List(ID.Union, ProcessUnionExpr(notation, recs[0].Arg0),
+                return Lisp.List(ID.Union, _context.IsOrdered, ProcessUnionExpr(notation, recs[0].Arg0),
                     ProcessIntersectExceptExpr(notation, recs[0].Arg1));
             else
                 return ProcessIntersectExceptExpr(notation, sym);
@@ -1114,11 +1228,11 @@ namespace DataEngine.XQuery
                 switch (w.Data)
                 {
                     case Token.INTERSECT:
-                        return Lisp.List(ID.Intersect, ProcessIntersectExceptExpr(notation, recs[0].Arg0), 
+                        return Lisp.List(ID.Intersect, _context.IsOrdered, ProcessIntersectExceptExpr(notation, recs[0].Arg0), 
                             ProcessInstanceofExpr(notation, recs[0].Arg2));
 
                     case Token.EXCEPT:
-                        return Lisp.List(ID.Except, ProcessIntersectExceptExpr(notation, recs[0].Arg0), 
+                        return Lisp.List(ID.Except, _context.IsOrdered, ProcessIntersectExceptExpr(notation, recs[0].Arg0), 
                             ProcessInstanceofExpr(notation, recs[0].Arg2));
                     
                     default:
@@ -1143,8 +1257,15 @@ namespace DataEngine.XQuery
         {
             Notation.Record[] recs = notation.Select(sym, Descriptor.TreatAs, 2);
             if (recs.Length > 0)
-                return Lisp.List(ID.TreatAs,
-                    ProcessCastableExpr(notation, recs[0].Arg0), ProcessTypeDecl(notation, recs[0].Arg1));
+            {
+                XQuerySequenceType destType = ProcessTypeDecl(notation, recs[0].Arg1);
+                object expr = Lisp.List(ID.TreatAs, 
+                    ProcessCastableExpr(notation, recs[0].Arg0), destType);
+                Type type = destType.ValueType;
+                if (type != typeof(System.Object))
+                    return Lisp.List(Funcs.Cast, expr, type);
+                return expr;
+            }
             else
                 return ProcessCastableExpr(notation, sym);
         }
@@ -1153,8 +1274,22 @@ namespace DataEngine.XQuery
         {
             Notation.Record[] recs = notation.Select(sym, Descriptor.CastableAs, 2);
             if (recs.Length > 0)
-                return Lisp.List(ID.Castable, ProcessCastExpr(notation, recs[0].Arg0),
-                    ProcessTypeDecl(notation, recs[0].Arg1));
+            {
+                XQuerySequenceType destType = ProcessTypeDecl(notation, recs[0].Arg1);
+                if (destType == null)
+                    throw new XQueryException(Properties.Resources.XPST0051, "xs:untyped");
+                if (destType.SchemaType == XQuerySequenceType.XmlSchema.AnyType)
+                    throw new XQueryException(Properties.Resources.XPST0051, "xs:anyType");
+                if (destType.SchemaType == XQuerySequenceType.XmlSchema.AnySimpleType)
+                    throw new XQueryException(Properties.Resources.XPST0051, "xs:anySimpleType");
+                if (destType.TypeCode == XmlTypeCode.AnyAtomicType)
+                    throw new XQueryException(Properties.Resources.XPST0051, "xs:anyAtomicType");
+                if (destType.TypeCode == XmlTypeCode.Notation)
+                    throw new XQueryException(Properties.Resources.XPST0080, destType);
+                if (destType.Cardinality == XmlTypeCardinality.ZeroOrMore || destType.Cardinality == XmlTypeCardinality.OneOrMore)
+                    throw new XQueryException(Properties.Resources.XPST0080, destType);
+                return Lisp.List(ID.Castable, ProcessCastExpr(notation, recs[0].Arg0), destType);
+            }
             else
                 return ProcessCastExpr(notation, sym);
         }
@@ -1164,8 +1299,20 @@ namespace DataEngine.XQuery
             Notation.Record[] recs = notation.Select(sym, Descriptor.CastAs, 2);
             if (recs.Length > 0)
             {
-                XQuerySequenceType seqtype = ProcessTypeDecl(notation, recs[0].Arg1);
-                return Lisp.List(ID.CastTo, ProcessUnaryExpr(notation, recs[0].Arg0), seqtype);
+                XQuerySequenceType destType = ProcessTypeDecl(notation, recs[0].Arg1);
+                if (destType == null)
+                    throw new XQueryException(Properties.Resources.XPST0051, "xs:untyped");
+                if (destType.SchemaType == XQuerySequenceType.XmlSchema.AnyType)
+                    throw new XQueryException(Properties.Resources.XPST0051, "xs:anyType");
+                if (destType.SchemaType == XQuerySequenceType.XmlSchema.AnySimpleType)
+                    throw new XQueryException(Properties.Resources.XPST0051, "xs:anySimpleType");
+                if (destType.TypeCode == XmlTypeCode.AnyAtomicType)
+                    throw new XQueryException(Properties.Resources.XPST0051, "xs:anyAtomicType");
+                if (destType.TypeCode == XmlTypeCode.Notation)
+                    throw new XQueryException(Properties.Resources.XPST0080, destType);
+                if (destType.Cardinality == XmlTypeCardinality.ZeroOrMore || destType.Cardinality == XmlTypeCardinality.OneOrMore)
+                    throw new XQueryException(Properties.Resources.XPST0080, destType);
+                return Lisp.List(ID.CastTo, ProcessUnaryExpr(notation, recs[0].Arg0), destType);
             }
             else
                 return ProcessUnaryExpr(notation, sym);
@@ -1180,7 +1327,9 @@ namespace DataEngine.XQuery
                 object res = ProcessValueExpr(notation, recs[0].Arg1);
                 foreach (TokenWrapper w in arr)
                     if (w.Data == '-')
-                        res = Lisp.List(Funcs.Sub, 0, CompileAtomizeValueExpr(res));
+                        res = Lisp.List(Funcs.Neg, CompileAtomizeNumberExpr(res));
+                    else
+                        res = Lisp.List(Funcs.Add, 0, CompileAtomizeNumberExpr(res));
                 return res;
             }
             else
@@ -1195,7 +1344,7 @@ namespace DataEngine.XQuery
                 switch (recs[0].descriptor)
                 {
                     case Descriptor.ExtensionExpr:
-                        throw new NotImplementedException();
+                        return ProcessExtensionExpr(notation, recs[0]);
                     
                     case Descriptor.Validate:
                         return ProcessValidateExpr(notation, recs[0]);
@@ -1206,6 +1355,24 @@ namespace DataEngine.XQuery
             }
             else
                 throw new InvalidOperationException();
+        }
+
+        private object ProcessExtensionExpr(Notation notation, Notation.Record rec)
+        {
+            Symbol[] arr = Lisp.ToArray<Symbol>(rec.args[0]);
+            foreach (Symbol sym in arr)
+            {
+                Notation.Record[] recs = notation.Select(sym, Descriptor.Pragma, 2);
+                if (recs.Length > 0)
+                {                    
+                    QNameValue qn = QNameValue.Parse(((Qname)recs[0].Arg0).Name, _context.NamespaceManager, "");
+                    if (qn.Prefix == "")
+                        throw new XQueryException(Properties.Resources.ExpectedQNamePrefix, "pragma", qn.ToString());
+                    // ???
+                    Literal lit = (Literal)recs[0].Arg1;
+                }
+            }            
+            return ProcessExpr(notation, rec.args[1]).ToLispFunction();            
         }
 
         private object ProcessValidateExpr(Notation notation, Notation.Record rec)
@@ -1225,62 +1392,63 @@ namespace DataEngine.XQuery
                         break;
                 }
             }
-            return Lisp.List(ID.Validate, 
-                Lisp.List(ID.DynExecuteExpr, ProcessExpr(notation, rec.args[1])), lax);
+            return Lisp.List(ID.Validate, Lisp.List(ID.DynExecuteExpr, 
+                ProcessExpr(notation, rec.args[1]), ID.Context, Lisp.ARGV), lax);
         }
 
         private object ProcessPathExpr(Notation notation, Symbol sym)
         {
             Notation.Record[] recs = notation.Select(sym, new Descriptor[] { Descriptor.Child, 
                 Descriptor.Descendant }, 1);
+            List<XQueryExprBase> steps = new List<XQueryExprBase>();
             if (recs.Length > 0)
             {
-                object ancestor = Lisp.List(ID.Seq, Lisp.List(ID.ContextNode, ID.Context));
                 switch (recs[0].descriptor)
                 {
                     case Descriptor.Child:
                         if (recs[0].Arg0 == null)
-                            return Lisp.List(ID.Seq, Lisp.List(ID.Root, ancestor));
-                        else
-                            return ProcessRelativePathExpr(notation, recs[0].Arg0, ancestor);
+                            return Lisp.List(ID.Seq, Lisp.List(ID.Root, Lisp.List(ID.ContextNode, ID.Context)));
+                        break;
 
                     case Descriptor.Descendant:
-                        return ProcessRelativePathExpr(notation, recs[0].Arg0, 
-                            Lisp.List(ID.Descendant, ancestor));
+                        steps.Add(new XQueryStepExpr(XQuerySequenceType.Node,
+                            XQueryPathExprType.DescendantOrSelf, _context));
+                        break;
 
                     default:
                         throw new InvalidOperationException();
                 }
+                ProcessRelativePathExpr(notation, recs[0].Arg0, steps);
             }
             else
-                return ProcessRelativePathExpr(notation, sym, null);
+                ProcessRelativePathExpr(notation, sym, steps);
+            if (steps.Count == 1 && steps[0] is XQueryExpr)
+            {
+                XQueryExpr expr = (XQueryExpr)steps[0];
+                return expr.ToLispFunction();
+            }
+            else
+                return Lisp.List(ID.DynExecuteExpr,
+                    new XQueryPathExpr(_context, steps.ToArray(), _context.IsOrdered), ID.Context, Lisp.ARGV);
         }
 
-        private object ProcessRelativePathExpr(Notation notation, Symbol sym, object ancestor)
+        private void ProcessRelativePathExpr(Notation notation, Symbol sym, List<XQueryExprBase> steps)
         {
             Notation.Record[] recs = notation.Select(sym, new Descriptor[] { Descriptor.Child, 
                 Descriptor.Descendant }, 2);
             if (recs.Length > 0)
             {
-                switch (recs[0].descriptor)
-                {
-                    case Descriptor.Child:
-                        return ProcessStepExpr(notation, recs[0].Arg1, Lisp.List(ID.Child,
-                            CompileCreateSequence(ProcessRelativePathExpr(notation, recs[0].Arg0, ancestor))));
-
-                    case Descriptor.Descendant:
-                        return ProcessStepExpr(notation, recs[0].Arg1, Lisp.List(ID.Descendant, 
-                            CompileCreateSequence(ProcessRelativePathExpr(notation, recs[0].Arg0, ancestor))));
-
-                    default:
-                        throw new InvalidOperationException();
-                }
+                ProcessRelativePathExpr(notation, recs[0].Arg0, steps);
+                if (recs[0].descriptor == Descriptor.Descendant)
+                  steps.Add(new XQueryStepExpr(XQuerySequenceType.Node,
+                    XQueryPathExprType.DescendantOrSelf, _context));
+                steps.Add(ProcessStepExpr(notation, recs[0].Arg1));
             }
             else
-                return ProcessStepExpr(notation, sym, ancestor);
+                steps.Add(ProcessStepExpr(notation, sym));
         }
 
-        private object ProcessStepExpr(Notation notation, Symbol sym, object ancestor)
+        private XQueryExprBase ProcessStepExpr(Notation notation, Symbol sym)
         {
             Notation.Record[] recs = notation.Select(sym, new Descriptor[] { Descriptor.AxisStep, 
                 Descriptor.FilterExpr }, 1);
@@ -1289,17 +1457,10 @@ namespace DataEngine.XQuery
                 switch (recs[0].descriptor)
                 {
                     case Descriptor.AxisStep:
-                        return ProcessAxisStep(notation, recs[0], ancestor);
+                        return ProcessAxisStep(notation, recs[0]);
 
                     case Descriptor.FilterExpr:
-                        {
-                            object expr = ProcessFilterExpr(notation, recs[0], ancestor);
-                            if (ancestor != null)
-                                return Lisp.List(ID.DynExecuteExpr, new XQueryProduct(_context, expr),
-                                    RemoveChildAxis(ancestor));
-                            else
-                                return expr;
-                        }
+                        return ProcessFilterExpr(notation, recs[0]);
 
                     default:
                         throw new InvalidOperationException();
@@ -1309,12 +1470,10 @@ namespace DataEngine.XQuery
                 throw new InvalidOperationException();
         }
 
-        private object ProcessAxisStep(Notation notation, Notation.Record rec, object ancestor)
+        private XQueryExprBase ProcessAxisStep(Notation notation, Notation.Record rec)
         {
-            if (ancestor == null)
-                ancestor = Lisp.List(ID.Child, Lisp.List(ID.Seq, Lisp.List(ID.ContextNode, ID.Context)));
             if (rec.Arg0.Tag == Tag.TokenWrapper && ((TokenWrapper)rec.Arg0).Data == Token.DOUBLE_PERIOD)
-                return Lisp.List(ID.Parent, RemoveChildAxis(ancestor));
+                return new XQueryStepExpr(XQueryPathExprType.Parent, _context);
             else
             {
                 Notation.Record[] recs = notation.Select(rec.Arg0, new Descriptor[] { Descriptor.ForwardStep,
@@ -1325,125 +1484,114 @@ namespace DataEngine.XQuery
                     {
                         case Descriptor.ForwardStep:
                             return ProcessPredicateList(notation, rec.Arg0, 
-                                ProcessForwardStep(notation, recs[0], ancestor));
+                                ProcessForwardStep(notation, recs[0]));
 
                         case Descriptor.AbbrevForward:
                             return ProcessPredicateList(notation, rec.Arg0,
-                                ProcessAbbrevForward(notation, recs[0], ancestor));
+                                ProcessAbbrevForward(notation, recs[0]));
 
                         case Descriptor.ReverseStep:
                             return ProcessPredicateList(notation, rec.Arg0,
-                                ProcessReverseStep(notation, recs[0], ancestor));
+                                ProcessReverseStep(notation, recs[0]));
 
                         default:
                             throw new InvalidOperationException();
                     }
                 }
                 else
-                    return ProcessPredicateList(notation, rec.Arg0,
-                        ProcessNodeTest(notation, rec.Arg0, ancestor));
+                    return ProcessPredicateList(notation, rec.Arg0, new XQueryStepExpr(
+                        ProcessNodeTest(notation, rec.Arg0, false), XQueryPathExprType.Child, _context));
             }
         }
 
-        private object ProcessForwardStep(Notation notation, Notation.Record rec, object ancestor)
+        private XQueryExprBase ProcessForwardStep(Notation notation, Notation.Record rec)
         {
             TokenWrapper w = (TokenWrapper)rec.Arg0;
             switch (w.Data)
             {
                 case Token.AXIS_CHILD:
-                    return ProcessNodeTest(notation, rec.Arg1, 
-                        Lisp.List(ID.Child, RemoveChildAxis(ancestor)));
+                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false), 
+                        XQueryPathExprType.Child, _context);
 
                 case Token.AXIS_DESCENDANT:
-                    return ProcessNodeTest(notation, rec.Arg1,
-                        Lisp.List(ID.Descendant, RemoveChildAxis(ancestor)));
+                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false), 
+                        XQueryPathExprType.Descendant, _context);
 
                 case Token.AXIS_ATTRIBUTE:
-                    return ProcessNodeTest(notation, rec.Arg1,
-                        Lisp.List(ID.Attribute, RemoveChildAxis(ancestor)));
+                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, true), 
+                        XQueryPathExprType.Attribute, _context);
 
                 case Token.AXIS_SELF:
-                    return ProcessNodeTest(notation, rec.Arg1,
-                        Lisp.List(ID.Self, RemoveChildAxis(ancestor)));
+                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false), 
+                        XQueryPathExprType.Self, _context);
 
                 case Token.AXIS_DESCENDANT_OR_SELF:
-                    return ProcessNodeTest(notation, rec.Arg1,
-                        Lisp.List(ID.DescendantOrSelf, RemoveChildAxis(ancestor)));
+                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false), 
+                        XQueryPathExprType.DescendantOrSelf, _context);
 
                 case Token.AXIS_FOLLOWING_SIBLING:
-                    return ProcessNodeTest(notation, rec.Arg1,
-                        Lisp.List(ID.FollowingSibling, RemoveChildAxis(ancestor)));
+                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false), 
+                        XQueryPathExprType.FollowingSibling, _context);
 
                 case Token.AXIS_FOLLOWING:
-                    return ProcessNodeTest(notation, rec.Arg1,
-                        Lisp.List(ID.Following, RemoveChildAxis(ancestor)));
+                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false), 
+                        XQueryPathExprType.Following, _context);
 
                 case Token.AXIS_NAMESPACE:
-                    return ProcessNodeTest(notation, rec.Arg1,
-                        Lisp.List(ID.Namespace, RemoveChildAxis(ancestor)));
+                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, true), 
+                        XQueryPathExprType.Namespace, _context);
 
                 default:
                     throw new InvalidOperationException();
             }            
         }
 
-        private object ProcessAbbrevForward(Notation notation, Notation.Record rec, object ancestor)
+        private XQueryExprBase ProcessAbbrevForward(Notation notation, Notation.Record rec)
         {
-            return ProcessNodeTest(notation, rec.Arg0, 
-                Lisp.List(ID.Attribute, RemoveChildAxis(ancestor)));
+            return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg0, true), 
+                XQueryPathExprType.Attribute, _context);
         }
 
-        private object ProcessReverseStep(Notation notation, Notation.Record rec, object ancestor)
+        private XQueryExprBase ProcessReverseStep(Notation notation, Notation.Record rec)
         {
             TokenWrapper w = (TokenWrapper)rec.Arg0;
             switch (w.Data)
             {
                 case Token.AXIS_PARENT:
-                    return ProcessNodeTest(notation, rec.Arg1,
-                        Lisp.List(ID.Parent, RemoveChildAxis(ancestor)));
+                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false),
+                        XQueryPathExprType.Parent, _context);
 
                 case Token.AXIS_ANCESTOR:
-                    return ProcessNodeTest(notation, rec.Arg1,
-                        Lisp.List(ID.Ancestor, RemoveChildAxis(ancestor)));
+                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false),
+                        XQueryPathExprType.Ancestor, _context);
 
                 case Token.AXIS_PRECEDING_SIBLING:
-                    return ProcessNodeTest(notation, rec.Arg1,
-                        Lisp.List(ID.PrecedingSibling, RemoveChildAxis((ancestor))));
+                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false),
+                        XQueryPathExprType.PrecedingSibling, _context);
 
                 case Token.AXIS_PRECEDING:
-                    return ProcessNodeTest(notation, rec.Arg1,
-                        Lisp.List(ID.Preceding, RemoveChildAxis(ancestor)));
+                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false),
+                        XQueryPathExprType.Preceding, _context);
 
                 case Token.AXIS_ANCESTOR_OR_SELF:
-                    return ProcessNodeTest(notation, rec.Arg1,
-                        Lisp.List(ID.AncestorOrSelf, RemoveChildAxis(ancestor)));
+                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false),
+                        XQueryPathExprType.AncestorOrSelf, _context);
                 
                 default:
                     throw new InvalidOperationException();
             }            
         }
-
-        private object RemoveChildAxis(object ancestor)
-        {
-            if (Lisp.IsFunctor(ancestor, ID.Child))
-                return Lisp.Second(ancestor);
-            else
-                return ancestor;
-        }
        
-        private object ProcessNodeTest(Notation notation, Symbol sym, object ancestor)
+        private object ProcessNodeTest(Notation notation, Symbol sym, bool attr)
         {
             if (sym.Tag == Tag.TokenWrapper)
-            {
-                return Lisp.List(ID.NameTest,
-                    XmlQualifiedNameTest.New(null, null), ancestor);
-            }
+                return XmlQualifiedNameTest.New(null, null);
             else if (sym.Tag == Tag.Qname)
             {
                 Qname qn = (Qname)sym;
-                XmlQualifiedName qualifiedName = QNameParser.Parse(qn.Name, _context.NamespaceManager);
-                return Lisp.List(ID.NameTest,
-                    XmlQualifiedNameTest.New(qualifiedName.Name, qualifiedName.Namespace), ancestor);
+                XmlQualifiedName qualifiedName = QNameParser.Parse(qn.Name, _context.NamespaceManager, 
+                    attr ?  "" : _context.NamespaceManager.DefaultNamespace, _context.nameTable);
+                return XmlQualifiedNameTest.New(qualifiedName.Name, qualifiedName.Namespace);
             }
             else
             {
@@ -1454,50 +1602,50 @@ namespace DataEngine.XQuery
                     switch (recs[0].descriptor)
                     {
                         case Descriptor.Wildcard1:
-                            return Lisp.List(ID.NameTest,
-                                XmlQualifiedNameTest.New(null, _context.NamespaceManager.LookupNamespace(qname.Name)), ancestor);
+                            {
+                                string ns = _context.NamespaceManager.LookupNamespace(qname.Name);
+                                if (ns == null)
+                                    throw new XQueryException(Properties.Resources.XPST0081, qname.Name);
+                                return XmlQualifiedNameTest.New(null, ns);
+                            }
 
                         case Descriptor.Wildcard2:
-                            return Lisp.List(ID.NameTest, XmlQualifiedNameTest.New(qname.Name, null), ancestor);
+                            return XmlQualifiedNameTest.New(_context.nameTable.Add(qname.Name), null);
 
                         default:
                             throw new InvalidOperationException();
                     }
                 }
                 else
-                    return Lisp.List(ID.TypeTest, ProcessKindTest(notation, sym), ancestor);
+                    return ProcessKindTest(notation, sym);
             }
         }
 
-        private object ProcessPredicateList(Notation notation, Symbol sym, object ancestor)
-        {            
+        private XQueryExprBase ProcessPredicateList(Notation notation, Symbol sym, XQueryExprBase ancestor)
+        {       
             Notation.Record[] recs = notation.Select(sym, Descriptor.PredicateList, 1);
             if (recs.Length > 0)
             {
-                object tail = null;
-                if (Lisp.IsFunctor(ancestor, ID.NameTest) || Lisp.IsFunctor(ancestor, ID.TypeTest))
-                {
-                    tail = Lisp.Second(Lisp.Third(ancestor));
-                    Lisp.Rplacd(Lisp.Third(ancestor), Lisp.Cons(Lisp.List(ID.Seq, Lisp.List(ID.ContextNode, ID.Context))));
-                }                
                 Symbol[] arr = Lisp.ToArray<Symbol>(recs[0].args[0]);
-                foreach (Symbol expr in arr)
+                List<XQueryExpr> filter = new List<XQueryExpr>();
+                for (int k = 0; k < arr.Length; k++)
                 {
-                    Notation.Record[] recs1 = notation.Select(expr, Descriptor.Predicate, 1);
-                    XQueryExpr filter = (XQueryExpr)ProcessExpr(notation, recs1[0].args[0]);
+                    Notation.Record[] recs1 = notation.Select(arr[k], Descriptor.Predicate, 1);
                     if (recs1.Length > 0)
-                        ancestor = Lisp.List(ID.DynExecuteExpr, 
-                            new XQueryFilterExpr(_context, filter), ancestor);
+                        filter.Add((XQueryExpr)ProcessExpr(notation, recs1[0].args[0]));
                 }
-                if (tail != null)
-                    ancestor = Lisp.List(ID.DynExecuteExpr, new XQueryProduct(_context, ancestor), tail);
+                XQueryFilterExpr filterExpr = new XQueryFilterExpr(_context, filter.ToArray());
+                filterExpr.SourceExpr = ancestor;
+                return filterExpr;
             }
             return ancestor;
         }
         
-        private object ProcessFilterExpr(Notation notation, Notation.Record rec, object ancestor)
+        private XQueryExprBase ProcessFilterExpr(Notation notation, Notation.Record rec)
         {
-            return ProcessPredicateList(notation, rec.Arg0, ProcessPrimaryExpr(notation, rec.Arg0));
+
+            return ProcessPredicateList(notation, rec.Arg0, 
+                new XQueryExpr(_context, new object[] { ProcessPrimaryExpr(notation, rec.Arg0) }));
         }
 
         private object ProcessPrimaryExpr(Notation notation, Symbol sym)
@@ -1512,9 +1660,13 @@ namespace DataEngine.XQuery
                 return ((DecimalValue)sym).Data;
             else if (sym.Tag == Tag.VarName)
             {
+                XQuerySequenceType type;
+                bool external;
                 object var = ProcessVarName((VarName)sym);
-                if (_varTable.GetType(var) == null)
+                if (!_varTable.GetType(var, out type, out external))
                     throw new XQueryException(Properties.Resources.XPST0008, sym);
+                if (external)
+                    _context.MarkExternalVariable(var);
                 return var;
             }
             else if (sym.Tag == Tag.TokenWrapper)
@@ -1554,7 +1706,8 @@ namespace DataEngine.XQuery
         private object ProcessParenthesizedExpr(Notation notation, Notation.Record rec)
         {
             if (rec.args[0] == null)
-                return Lisp.List(ID.DynExecuteExpr, new XQueryExpr(_context, new object[0]));
+                return Lisp.List(ID.DynExecuteExpr, 
+                    new XQueryExpr(_context, new object[0]), ID.Context, Lisp.ARGV);
             else
                 return Lisp.List(ID.Par, ProcessExprList(notation, rec.args[0]));
         }
@@ -1572,13 +1725,22 @@ namespace DataEngine.XQuery
                     order = XQueryOrder.Ordered;
                     break;
             }
-            return Lisp.List(ID.DynOrdering, order, ProcessExpr(notation, rec.args[0]));
+            _context.EnterOrdering(order);
+            try
+            {
+                return Lisp.List(ID.DynExecuteExpr, ProcessExpr(notation, rec.args[0]),
+                    ID.Context, Lisp.ARGV);
+            }
+            finally
+            {
+                _context.LeaveOrdering();
+            }
         }
 
         private object ProcessFuncallExpr(Notation notation, Notation.Record rec)
         {
             Qname qname = (Qname)rec.Arg0;
-            XmlQualifiedName identity = QNameParser.Parse(qname.Name, _context.NamespaceManager);
+            XmlQualifiedName identity = QNameParser.Parse(qname.Name, _context.NamespaceManager, _context.nameTable);
             string ns = identity.Namespace;
             if (identity.Namespace == String.Empty)            
             {
@@ -1601,8 +1763,10 @@ namespace DataEngine.XQuery
             if (arg.Length == 2 && ns == XmlReservedNs.NsXs)
             {
                 XQuerySequenceType seqtype = new XQuerySequenceType((XmlSchemaSimpleType)ProcessTypeName(notation, qname), 
-                    XmlTypeCardinality.One, null);                
-                return Lisp.List(ID.CastToItem, arg[1], seqtype);
+                    XmlTypeCardinality.One, null);
+                if (seqtype == null)
+                    throw new XQueryException(Properties.Resources.XPST0051, "untyped");
+                return Lisp.List(ID.CastToItem, arg[1], seqtype);                
             }
             else
             {
@@ -1646,15 +1810,15 @@ namespace DataEngine.XQuery
                     case Descriptor.DirCommentConstructor:
                         {
                             Literal lit = (Literal)recs[0].Arg0;
-                            return Lisp.List(ID.WriteComment, Lisp.Cons(ID.CreateBuilder), lit.Data);
+                            return Lisp.List(ID.CreateNavigator, Lisp.List(ID.WriteComment, Lisp.Cons(ID.CreateBuilder), lit.Data));
                         }
 
                     case Descriptor.DirPIConstructor:
                         {
                             Literal name = (Literal)recs[0].Arg0;
                             Literal data = (Literal)recs[0].Arg1;
-                            return Lisp.List(ID.WritePi, Lisp.Cons(ID.CreateBuilder), name.Data,
-                                data != null ? data.Data : String.Empty);
+                            return Lisp.List(ID.CreateNavigator, Lisp.List(ID.WritePi, Lisp.Cons(ID.CreateBuilder), name.Data,
+                                data != null ? data.Data : String.Empty));
                         }
 
                     default:
@@ -1670,9 +1834,43 @@ namespace DataEngine.XQuery
             string prefix;
             string localName;
             string ns;
+            bool openScope = false;
+            HashSet<XmlQualifiedName> hs = new HashSet<XmlQualifiedName>();
+            foreach (Symbol sym in Lisp.getIterator<Symbol>(rec.args[1]))
+                if (sym.Tag != Tag.Literal)
+                {
+                    Notation.Record[] recs = notation.Select(sym, Descriptor.DirAttribute, 5);
+                    if (recs.Length > 0)
+                    {
+                        Qname name = (Qname)recs[0].Arg0;
+                        QNameParser.Split(name.Name, out prefix, out localName);
+                        if (prefix == "xmlns" || (prefix == "" && localName == "xmlns"))
+                        {
+                            if (!openScope)
+                            {
+                                _context.NamespaceManager.PushScope();
+                                openScope = true;
+                            }
+                            Symbol[] arr = Lisp.ToArray<Symbol>(recs[0].args[4]);
+                            if (arr.Length != 1 || !(arr[0] is Literal))
+                                throw new XQueryException(Properties.Resources.XQST0022, localName);
+                            Literal targetNamespace = (Literal)arr[0];
+                            if (prefix != "" && targetNamespace.Data == "")
+                                throw new XQueryException(Properties.Resources.XQST0088);
+                            if (localName == "xml" || (prefix == "xmlns" && localName == "xmlns"))
+                                throw new XQueryException(Properties.Resources.XQST0070, targetNamespace.Data);
+                            if (prefix == "" && localName == "xmlns")
+                                _context.NamespaceManager.AddNamespace("", targetNamespace.Data);
+                            else
+                                _context.NamespaceManager.AddNamespace(localName, targetNamespace.Data);
+                        }
+                    }
+                }
             ProcessElementQName((Qname)rec.Arg0, out prefix, out localName, out ns);
-            stmt.Add(Lisp.List(ID.WriteBeginElement, builder, prefix, localName, ns));
+            stmt.Add(Lisp.List(ID.WriteBeginElement, builder, 
+                new QNameValue(prefix, localName, ns, _context.nameTable)));
             if (rec.args[1] != null)
+            {
                 foreach (Symbol sym in Lisp.getIterator<Symbol>(rec.args[1]))
                 {
                     if (sym.Tag != Tag.Literal)
@@ -1680,19 +1878,38 @@ namespace DataEngine.XQuery
                         Notation.Record[] recs = notation.Select(sym, Descriptor.DirAttribute, 5);
                         if (recs.Length > 0)
                         {
-                            ProcessAttributeQName((Qname)recs[0].Arg0, out prefix, out localName, out ns);
-                            if (prefix == "xmlns" || (prefix == "" && localName == "xmlns"))
-                                ns = XmlReservedNs.NsXmlNs;
-                            stmt.Add(Lisp.List(ID.WriteBeginAttribute, builder, prefix, localName, ns));
-                            WriteDirAttributeValue(notation, recs[0].args[4], builder, stmt);
-                            stmt.Add(Lisp.List(ID.WriteEndAttribute, builder));
+                            Qname name = (Qname)recs[0].Arg0;
+                            ProcessAttributeQName(name, out prefix, out localName, out ns);
+                            XmlQualifiedName qn = new XmlQualifiedName(localName, ns);
+                            if (hs.Contains(qn))
+                                throw new XQueryException(Properties.Resources.XQST0040, name);
+                            hs.Add(qn);
+                            if (prefix != "xmlns" && (prefix != "" || localName != "xmlns"))
+                            {
+                                stmt.Add(Lisp.List(ID.WriteBeginAttribute, builder, 
+                                    new QNameValue(prefix, localName, ns, _context.nameTable)));
+                                WriteDirAttributeValue(notation, recs[0].args[4], builder, stmt);
+                                stmt.Add(Lisp.List(ID.WriteEndAttribute, builder));
+                            }
+                            else
+                            {
+                                Symbol[] arr = Lisp.ToArray<Symbol>(recs[0].args[4]);
+                                Literal targetNamespace = (Literal)arr[0];
+                                stmt.Add(Lisp.List(ID.WriteBeginAttribute, builder, 
+                                    new QNameValue(prefix, localName, XmlReservedNs.NsXmlNs, _context.nameTable)));
+                                stmt.Add(Lisp.List(ID.WriteString, builder, targetNamespace.Data));
+                                stmt.Add(Lisp.List(ID.WriteEndAttribute, builder));
+                            }
                         }
                     }
                 }
+            }
             if (rec.args.Length > 2 && rec.args[2] != null)
                 foreach (Symbol sym in Lisp.getIterator<Symbol>(rec.args[2]))
                     WriteDirElemContent(notation, sym, builder, stmt);
             stmt.Add(Lisp.List(ID.WriteEndElement, builder));
+            if (openScope)
+                _context.NamespaceManager.PopScope();
         }
 
         private void WriteDirAttributeValue(Notation notation, object expr, object builder, List<object> stmt)
@@ -1704,11 +1921,11 @@ namespace DataEngine.XQuery
                     switch (w.Data)
                     {
                         case Token.EscapeApos:
-                            stmt.Add(Lisp.List(ID.WriteString, builder, "\'\'"));
+                            stmt.Add(Lisp.List(ID.WriteString, builder, "\'"));
                             break;
 
                         case Token.EscapeQuot:
-                            stmt.Add(Lisp.List(ID.WriteString, builder, "\"\""));
+                            stmt.Add(Lisp.List(ID.WriteString, builder, "\""));
                             break;
                     }
                 }
@@ -1724,7 +1941,7 @@ namespace DataEngine.XQuery
                 if (XmlCharType.Instance.IsOnlyWhitespace(lit.Data))
                 {
                     if (_context.PreserveBoundarySpace)
-                        stmt.Add(Lisp.List(ID.WriteWhitespace, builder, lit.Data));
+                        stmt.Add(Lisp.List(ID.WriteString, builder, lit.Data));
                 }
                 else
                     stmt.Add(Lisp.List(ID.WriteString, builder, lit.Data));
@@ -1777,20 +1994,23 @@ namespace DataEngine.XQuery
         private void WriteCommonContent(Notation notation, Symbol sym, object builder, List<object> stmt, bool attr)
         {
             if (sym.Tag == Tag.Literal)
-                stmt.Add(Lisp.List(ID.WriteString, builder, ((Literal)sym).Data));                
+            {
+                string value = ((Literal)sym).Data;
+                stmt.Add(Lisp.List(ID.WriteString, builder, value));
+            }
             else if (sym.Tag == Tag.PredefinedEntityRef)
-                stmt.Add(Lisp.List(ID.WriteEntityRef, builder, ((PredefinedEntityRef)sym).Data));                                
+                stmt.Add(Lisp.List(ID.WriteString, builder, ((PredefinedEntityRef)sym).Data));
             else if (sym.Tag == Tag.CharRef)
             {
                 if (sym is CharRefHex)
                 {
                     CharRefHex charRef = (CharRefHex)sym;
-                    stmt.Add(Lisp.List(ID.WriteRaw, builder, String.Format("&x{0};", charRef.Data)));
+                    stmt.Add(Lisp.List(ID.WriteString, builder, String.Format("&#x{0};", charRef.Data)));
                 }
                 else
                 {
                     CharRef charRef = (CharRef)sym;
-                    stmt.Add(Lisp.List(ID.WriteRaw, builder, String.Format("&{0};", charRef.Data)));
+                    stmt.Add(Lisp.List(ID.WriteString, builder, String.Format("&#{0};", charRef.Data)));
                 }
             }
             else
@@ -1825,21 +2045,33 @@ namespace DataEngine.XQuery
                     case Descriptor.CompElemConstructor:
                     case Descriptor.CompAttrConstructor:
                         {
-                            object name;
-                            if (recs[0].args[0] is Qname)
-                                if (recs[0].descriptor == Descriptor.CompElemConstructor)
-                                    name = ProcessQName(notation, (Qname)recs[0].args[0], _context.DefaultElementNS);
-                                else
-                                    name = ProcessQName(notation, (Qname)recs[0].args[0], String.Empty);
-                            else
-                                name = Lisp.List(ID.Atomize, ProcessExprList(notation, recs[0].args[0]));
-                            object expr = null;
+                            object expr = EmptyIterator.Shared;
                             if (recs[0].args[1] != null)
                                 expr = ProcessExprList(notation, recs[0].args[1]);
-                            if (recs[0].descriptor == Descriptor.CompElemConstructor)
-                                return Lisp.List(ID.DynCreateElement, name, expr);
+                            object name;
+                            if (recs[0].args[0] is Qname)
+                            {
+                                Qname qn = (Qname)recs[0].args[0];
+                                if (recs[0].descriptor == Descriptor.CompElemConstructor)
+                                    name = QNameValue.Parse(qn.Name, _context.NamespaceManager, _context.NamespaceManager.DefaultNamespace);
+                                else
+                                    name = QNameValue.Parse(qn.Name, _context.NamespaceManager, String.Empty);
+                                if (recs[0].descriptor == Descriptor.CompElemConstructor)
+                                    return Lisp.List(ID.DynCreateElement, name, expr);
+                                else
+                                    return Lisp.List(ID.DynCreateAttribute, name, Lisp.List(ID.FormatValue, expr));
+                            }
                             else
-                                return Lisp.List(ID.DynCreateAttribute, name, Lisp.List(ID.FormatValue, expr));
+                            {
+                                XmlNamespaceManager nsmgr = new XmlNamespaceManager(_context.nameTable);
+                                foreach (KeyValuePair<string, string> k in _context.NamespaceManager.GetNamespacesInScope(XmlNamespaceScope.ExcludeXml))
+                                    nsmgr.AddNamespace(k.Key, k.Value);
+                                name = Lisp.List(ID.AtomizeX, ProcessExprList(notation, recs[0].args[0]));
+                                if (recs[0].descriptor == Descriptor.CompElemConstructor)
+                                    return Lisp.List(ID.DynCreateElement, name, nsmgr, expr);
+                                else
+                                    return Lisp.List(ID.DynCreateAttribute, name, nsmgr, Lisp.List(ID.FormatValue, expr));
+                            }
                         }
 
                     case Descriptor.CompTextConstructor:
@@ -1854,7 +2086,7 @@ namespace DataEngine.XQuery
                         {
                             object name;
                             if (recs[0].args[0] is Qname)
-                                name = ProcessQName(notation, (Qname)recs[0].args[0], String.Empty);
+                                name = ((Qname)recs[0].args[0]).Name;
                             else
                                 name = Lisp.List(ID.FormatValue, ProcessExprList(notation, recs[0].args[0]));
                             return Lisp.List(ID.DynCreatePi, name, Lisp.List(ID.FormatValue, 
@@ -1896,6 +2128,9 @@ namespace DataEngine.XQuery
 
                         case Token.DOCUMENT_NODE:
                             return XQuerySequenceType.Document;
+
+                        case Token.PROCESSING_INSTRUCTION:
+                            return XQuerySequenceType.ProcessingInstruction;
 
                         default:
                             throw new InvalidOperationException();
@@ -1963,12 +2198,12 @@ namespace DataEngine.XQuery
             if (rec.Arg0.Tag == Tag.Qname)
             {
                 Qname qn = (Qname)rec.Arg0;
-                nameTest = XmlQualifiedNameTest.New(null, qn.Name);
+                nameTest = XmlQualifiedNameTest.New(qn.Name, null);
             }
             else
             {
                 Literal lit = (Literal)rec.Arg0;
-                nameTest = XmlQualifiedNameTest.New(null, lit.Data);
+                nameTest = XmlQualifiedNameTest.New(lit.Data, null);
             }
             return new XQuerySequenceType(XmlTypeCode.ProcessingInstruction, nameTest);
         }
@@ -1980,7 +2215,7 @@ namespace DataEngine.XQuery
                 nameTest = XmlQualifiedNameTest.New(null, null);
             else
                 nameTest = XmlQualifiedNameTest.New((XmlQualifiedName)ProcessQName(notation, 
-                    (Qname)rec.Arg0, _context.DefaultElementNS));
+                    (Qname)rec.Arg0, _context.NamespaceManager.DefaultNamespace));
             if (rec.args.Length > 1)
             {
                 XmlSchemaType schemaType = (XmlSchemaType)ProcessTypeName(notation, (Qname)rec.Arg1);
@@ -2010,7 +2245,7 @@ namespace DataEngine.XQuery
 
         private XQuerySequenceType ProcessSchemaElementTest(Notation notation, Notation.Record rec)
         {
-            XmlQualifiedName qname = (XmlQualifiedName)ProcessQName(notation, (Qname)rec.Arg0, _context.DefaultElementNS);
+            XmlQualifiedName qname = (XmlQualifiedName)ProcessQName(notation, (Qname)rec.Arg0, _context.NamespaceManager.DefaultNamespace);
             XmlSchemaElement schemaElement = (XmlSchemaElement)_context.SchemaSet.GlobalElements[qname];
             if (schemaElement == null)
                 throw new XQueryException(Properties.Resources.XPST0008, qname);
@@ -2029,7 +2264,7 @@ namespace DataEngine.XQuery
         private XQuerySequenceType ProcessTypeDecl(Notation notation, Symbol sym)
         {
             if (sym.Tag == Tag.TokenWrapper &&
-                ((TokenWrapper)sym).Data == Token.VOID)
+                ((TokenWrapper)sym).Data == Token.EMPTY_SEQUENCE)
                 return XQuerySequenceType.Void;
             else
             {
@@ -2069,8 +2304,12 @@ namespace DataEngine.XQuery
                     throw new InvalidOperationException();
             }
             else if (sym.Tag == Tag.Qname)
-                return new XQuerySequenceType((XmlSchemaType)ProcessTypeName(notation, (Qname)sym), 
-                    XmlTypeCardinality.One, null);
+            {
+                XmlSchemaType xmlType = (XmlSchemaType)ProcessTypeName(notation, (Qname)sym);
+                if (xmlType == null)
+                    return null;
+                return new XQuerySequenceType(xmlType, XmlTypeCardinality.One, null);
+            }
             else
                 return ProcessKindTest(notation, sym);
         }
@@ -2078,15 +2317,19 @@ namespace DataEngine.XQuery
         private XmlSchemaObject ProcessTypeName(Notation notation, Qname qname)
         {
             XmlQualifiedName qualifiedName = 
-                (XmlQualifiedName)ProcessQName(notation, qname, _context.DefaultElementNS);
+                (XmlQualifiedName)ProcessQName(notation, qname, _context.NamespaceManager.DefaultNamespace);
             if (qualifiedName.Name == "anyAtomicType" && qualifiedName.Namespace == XmlReservedNs.NsXs)
-                return XQuerySequenceType.AnyAtomicType;
+                return XQuerySequenceType.XmlSchema.AnyAtomicType;
             if (qualifiedName.Name == "untypedAtomic" && qualifiedName.Namespace == XmlReservedNs.NsXs)
-                return XQuerySequenceType.UntypedAtomic;
+                return XQuerySequenceType.XmlSchema.UntypedAtomic;
             if (qualifiedName.Name == "anyType" && qualifiedName.Namespace == XmlReservedNs.NsXs)
-                return XQuerySequenceType.AnyType;
+                return XQuerySequenceType.XmlSchema.AnyType;
             if (qualifiedName.Name == "untyped" && qualifiedName.Namespace == XmlReservedNs.NsXs)
                 return null;
+            if (qualifiedName.Name == "yearMonthDuration" && qualifiedName.Namespace == XmlReservedNs.NsXs)
+                return XQuerySequenceType.XmlSchema.YearMonthDuration;
+            if (qualifiedName.Name == "dayTimeDuration" && qualifiedName.Namespace == XmlReservedNs.NsXs)
+                return XQuerySequenceType.XmlSchema.DayTimeDuration;
             XmlSchemaObject schemaObject;
             if (qualifiedName.Namespace == XmlReservedNs.NsXs)
                 schemaObject = XmlSchemaType.GetBuiltInSimpleType(qualifiedName);
@@ -2098,24 +2341,18 @@ namespace DataEngine.XQuery
         }
 
         private object ProcessQName(Notation notation, Qname qname, String defaultNS)
-        {            
-            return QNameParser.Parse(qname.Name, _context.NamespaceManager, defaultNS);
+        {
+            return QNameParser.Parse(qname.Name, _context.NamespaceManager, defaultNS, _context.nameTable);
         }
 
         private void ProcessElementQName(Qname qname, out string prefix, out string localName, out string ns)
         {
             QNameParser.Split(qname.Name, out prefix, out localName);
-            if (String.IsNullOrEmpty(prefix))
-                if (_context.DefaultElementNS != null)
-                    ns = _context.DefaultElementNS;
-                else
-                    ns = String.Empty;
-            else
-            {
-                ns = _context.NamespaceManager.LookupNamespace(prefix);
-                if (ns == null)
-                    throw new XQueryException(Properties.Resources.XPST0081, prefix);
-            }
+             ns = _context.NamespaceManager.LookupNamespace(prefix);
+             if (ns == null && !String.IsNullOrEmpty(prefix))             
+                 throw new XQueryException(Properties.Resources.XPST0081, prefix);
+            prefix = _context.nameTable.Add(prefix);
+            localName = _context.nameTable.Add(localName);
         }
 
         private void ProcessAttributeQName(Qname qname, out string prefix, out string localName, out string ns)
@@ -2129,6 +2366,8 @@ namespace DataEngine.XQuery
                 if (ns == null)
                     throw new XQueryException(Properties.Resources.XPST0081, prefix);
             }
+            prefix = _context.nameTable.Add(prefix);
+            localName = _context.nameTable.Add(localName);
         }
 
         private object ProcessVarName(VarName varName)
@@ -2180,37 +2419,49 @@ namespace DataEngine.XQuery
         private bool IsXPathFunctor(object expr)
         {
             return
-                Lisp.IsFunctor(expr, ID.NameTest) ||
-                Lisp.IsFunctor(expr, ID.TypeTest) ||
-                Lisp.IsFunctor(expr, ID.Union) ||
-                Lisp.IsFunctor(expr, ID.Intersect) ||
-                Lisp.IsFunctor(expr, ID.Except) ||
-                Lisp.IsFunctor(expr, ID.Range) ||
-                Lisp.IsFunctor(expr, ID.Ancestor) ||
-                Lisp.IsFunctor(expr, ID.AncestorOrSelf) ||
-                Lisp.IsFunctor(expr, ID.Attribute) ||
-                Lisp.IsFunctor(expr, ID.Child) ||
-                Lisp.IsFunctor(expr, ID.Descendant) ||
-                Lisp.IsFunctor(expr, ID.DescendantOrSelf) ||
-                Lisp.IsFunctor(expr, ID.Parent) ||
-                Lisp.IsFunctor(expr, ID.Preceding) ||
-                Lisp.IsFunctor(expr, ID.Following) ||
-                Lisp.IsFunctor(expr, ID.FollowingSibling) ||
-                Lisp.IsFunctor(expr, ID.Namespace) ||
                 Lisp.IsFunctor(expr, ID.DynExecuteExpr) ||
                 Lisp.IsFunctor(expr, ID.Validate) ||
-                Lisp.IsFunctor(expr, ID.CastTo);
+                Lisp.IsFunctor(expr, ID.CastTo) ||
+                Lisp.IsFunctor(expr, Funcs.Let1) ||
+                Lisp.IsFunctor(expr, Funcs.Let2);
         }
 
-        private bool IsValueFunctor(object expr)
+        private bool IsNumberFunctor(object expr)
         {
             return
                 Lisp.IsFunctor(expr, Funcs.Add) ||
                 Lisp.IsFunctor(expr, Funcs.Sub) ||
                 Lisp.IsFunctor(expr, Funcs.Mul) ||
-                Lisp.IsFunctor(expr, ID.Div) ||
-                Lisp.IsFunctor(expr, ID.IDiv) ||
-                Lisp.IsFunctor(expr, ID.Mod);
+                Lisp.IsFunctor(expr, Funcs.Div) ||
+                Lisp.IsFunctor(expr, Funcs.IDiv) ||
+                Lisp.IsFunctor(expr, Funcs.Mod) ||
+                Lisp.IsFunctor(expr, Funcs.Neg);
+        }
+
+        private XQuerySequenceType GetXPathValueType(object expr)
+        {            
+            if (Lisp.IsFunctor(expr, Funcs.Let1) ||
+                Lisp.IsFunctor(expr, Funcs.Let2))
+                return new XQuerySequenceType(XmlTypeCode.Node);
+            if (Lisp.IsFunctor(expr, ID.DynExecuteExpr))
+            {
+                XQueryPathExpr pathExpr = Lisp.Arg1(expr) as XQueryPathExpr;
+                if (pathExpr != null)
+                {
+                    XQueryStepExpr lastStep = pathExpr.LastStep as XQueryStepExpr;
+                    if (lastStep != null)
+                    {
+                        if (lastStep.TypeTest != null)
+                            return lastStep.TypeTest;
+                        else if (lastStep.NameTest != null)
+                        {
+                            if (_context.SchemaProcessing != SchemaProcessingMode.Force && !_context.needValidationParser)
+                                return new XQuerySequenceType(XmlTypeCode.Node);
+                        }
+                    }
+                }
+            }
+            return XQuerySequenceType.Item;
         }
 
         private object CompileBooleanConvertion(object expr)
@@ -2219,37 +2470,117 @@ namespace DataEngine.XQuery
             {
                 if (IsBooleanFunctor(expr))
                     return expr;
-
             }
             return Lisp.List(ID.BooleanValue, expr);
         }
 
-        private object CompileAtomizeValueExpr(object expr)
+        private object CompileAtomizeNumberExpr(object expr, XQuerySequenceType type)
         {
-            if (Lisp.IsFunctor(expr))
+            if (type == XQuerySequenceType.Item)
+                return Lisp.List(ID.CastToNumber1, Lisp.List(ID.Atomize, expr));
+            else if (type.IsNode || type.Cardinality != XmlTypeCardinality.One)
             {
-                if (IsValueFunctor(expr) || IsBooleanFunctor(expr))
-                    return expr;
-                XQueryFunctionRecord fr = 
-                    _context.FunctionTable.GetRecord(Lisp.Car(expr), Lisp.Length(expr) - 1);
-                if (fr != null)
+                Type resType = type.AtomizedValueType;
+                if (type.Cardinality == XmlTypeCardinality.One ||
+                    type.Cardinality == XmlTypeCardinality.OneOrMore)
                 {
-                    if (fr.returnType.ParameterType != null && 
-                        fr.returnType.ParameterType.IsValueType)
-                        return expr;
-                    Type valueType = fr.returnType.ItemType;
-                    if (valueType != typeof(System.Object))
-                    {
-                        if (fr.returnType.Cardinality == XmlTypeCardinality.One)
-                            return expr;
-                        else
-                            return Lisp.List(Funcs.Cast,
-                                Lisp.List(ID.Atomize, expr), valueType);
-                    }
+                    if (TypeConverter.IsNumberType(resType))
+                        return Lisp.List(Funcs.Cast, Lisp.List(ID.AtomizeX, expr), resType);
+                    else if (resType == typeof(UntypedAtomic) && !_context.NeedValidatedParser)
+                        return Lisp.List(ID.CastToNumber2, Lisp.List(ID.AtomizeX, expr));
+                    else
+                        return Lisp.List(ID.CastToNumber1, Lisp.List(ID.AtomizeX, expr));
+                }
+                else
+                {
+                    if (TypeConverter.IsNumberType(resType))
+                        return Lisp.List(Funcs.Cast, Lisp.List(ID.Atomize, expr), resType);
+                    else if (resType == typeof(UntypedAtomic) && !_context.NeedValidatedParser)
+                        return Lisp.List(ID.CastToNumber2, Lisp.List(ID.Atomize, expr));
+                    else
+                        return Lisp.List(ID.CastToNumber1, Lisp.List(ID.Atomize, expr));
+                }
+            }
+            else
+            {
+                if (type.IsNumeric)
+                    return Lisp.List(Funcs.Cast, expr, type.ItemType);
+                else if (type.IsUntypedAtomic)
+                    return Lisp.List(ID.CastToNumber2, expr);
+                else
+                    return Lisp.List(ID.CastToNumber1, expr);
+            }
+        }
+
+        private object CompileAtomizeValueExpr(object expr, XQuerySequenceType type)
+        {
+            if (type == XQuerySequenceType.Item)
+                return Lisp.List(ID.Atomize, expr);
+            else if (type.IsNode || type.Cardinality != XmlTypeCardinality.One)
+            {
+                Type resType = type.AtomizedValueType;
+                if (type.Cardinality == XmlTypeCardinality.One ||
+                    type.Cardinality == XmlTypeCardinality.OneOrMore)
+                {
+                    if (resType != typeof(System.Object))
+                        return Lisp.List(Funcs.Cast, Lisp.List(ID.AtomizeX, expr), resType);
+                    else
+                        return Lisp.List(ID.AtomizeX, expr);
+                }
+                else
+                {
+                    if (resType != typeof(System.Object))
+                        return Lisp.List(Funcs.Cast, Lisp.List(ID.Atomize, expr), resType);
                     else
                         return Lisp.List(ID.Atomize, expr);
                 }
-                return Lisp.List(ID.Atomize, expr);
+            }
+            else
+            {
+                if (type.ItemType != typeof(System.Object))
+                    return Lisp.List(Funcs.Cast, expr, type.ItemType);
+                else
+                    return expr;
+            }
+        }
+
+        private object CompileAtomizeNumberExpr(object expr)
+        {
+            if (Lisp.IsFunctor(expr))
+            {
+                if (IsNumberFunctor(expr) ||
+                    IsBooleanFunctor(expr) ||
+                    Lisp.IsFunctor(expr, ID.CastToNumber1) ||
+                    Lisp.IsFunctor(expr, ID.CastToNumber2) ||
+                    Lisp.IsFunctor(expr, ID.Number))
+                    return expr;
+                if (Lisp.IsFunctor(expr, ID.Par))
+                    return CompileAtomizeNumberExpr(Lisp.Second(expr));
+                if (Lisp.IsFunctor(expr, ID.CastToItem))
+                {
+                    XQuerySequenceType seqType = (XQuerySequenceType)Lisp.Arg2(expr);
+                    if (seqType.TypeCode == XmlTypeCode.UntypedAtomic)
+                        return Lisp.List(ID.CastToNumber2, Lisp.List(ID.Atomize, expr));                        
+                    else
+                        return Lisp.List(Funcs.Cast, 
+                            Lisp.List(ID.Atomize, expr), seqType.ValueType);
+                }
+                else if (IsXPathFunctor(expr))
+                    return CompileAtomizeNumberExpr(expr, GetXPathValueType(expr));
+                else
+                {
+                    XQueryFunctionRecord fr =
+                        _context.FunctionTable.GetRecord(Lisp.Car(expr), Lisp.Length(expr) - 1);
+                    if (fr != null)
+                    {
+                        if (fr.returnType.ParameterType != null &&
+                            TypeConverter.IsNumberType(fr.returnType.ParameterType))
+                            return expr;
+                        return CompileAtomizeNumberExpr(expr, fr.returnType);
+                    }
+                    else
+                        return Lisp.List(ID.CastToNumber1, Lisp.List(ID.Atomize, expr));
+                }
             }
             else
                 if (Lisp.IsAtom(expr))
@@ -2257,33 +2588,62 @@ namespace DataEngine.XQuery
                     XQuerySequenceType type = _varTable.GetType(expr);
                     if (type == null)
                         throw new XQueryException(Properties.Resources.XPST0008, expr);
-                    Type valueType = type.ItemType;
-                    if (valueType != typeof(System.Object))
-                    {
-                         if (type.Cardinality == XmlTypeCardinality.One)
-                            return expr;
-                         else
-                            return Lisp.List(Funcs.Cast,
-                                Lisp.List(ID.Atomize, expr), valueType);
-                    }
-                    else
-                        return Lisp.List(ID.Atomize, expr);
+                    return CompileAtomizeNumberExpr(expr, type);
                 }
             return expr;
         }
 
-        private object CompileCreateSequence(object expr)
+        private object CompileAtomizeValueExpr(object expr)
         {
-            if (IsXPathFunctor(expr))
-                return expr;
+            if (Lisp.IsFunctor(expr))
+            {
+                if (IsNumberFunctor(expr) ||
+                    IsBooleanFunctor(expr) ||
+                    Lisp.IsFunctor(expr, ID.CastToNumber1) ||
+                    Lisp.IsFunctor(expr, ID.CastToNumber2) ||
+                    Lisp.IsFunctor(expr, ID.Number))
+                    return expr;
+                if (Lisp.IsFunctor(expr, ID.Par))
+                    return CompileAtomizeValueExpr(Lisp.Second(expr));
+                if (Lisp.IsFunctor(expr, ID.CastToItem))
+                {
+                    XQuerySequenceType seqType = (XQuerySequenceType)Lisp.Arg2(expr);
+                    if (seqType.ValueType != typeof(System.Object))
+                        return Lisp.List(Funcs.Cast,
+                            Lisp.List(ID.Atomize, expr), seqType.ValueType);
+                }
+                else if (IsXPathFunctor(expr))
+                    return CompileAtomizeValueExpr(expr, GetXPathValueType(expr));
+                else
+                {
+                    XQueryFunctionRecord fr =
+                        _context.FunctionTable.GetRecord(Lisp.Car(expr), Lisp.Length(expr) - 1);
+                    if (fr != null)
+                    {
+                        if (fr.returnType.ParameterType != null &&
+                            TypeConverter.IsNumberType(fr.returnType.ParameterType))
+                            return expr;
+                        return CompileAtomizeValueExpr(expr, fr.returnType);
+                    }
+                    else
+                        return Lisp.List(ID.Atomize, expr);
+                }
+            }
             else
-                return Lisp.List(ID.Seq, Lisp.List(ID.CheckIsNode, expr));                
+                if (Lisp.IsAtom(expr))
+                {
+                    XQuerySequenceType type = _varTable.GetType(expr);
+                    if (type == null)
+                        throw new XQueryException(Properties.Resources.XPST0008, expr);
+                    return CompileAtomizeValueExpr(expr, type);
+                }
+            return expr;
         }
 
         private object ProcessExprList(Notation notation, object lval)
         {
-            if (Lisp.Length(lval) > 1)
-                return Lisp.List(ID.DynExecuteExpr, ProcessExpr(notation, lval));
+            if (lval == null || Lisp.Length(lval) > 1)
+                return Lisp.List(ID.DynExecuteExpr, ProcessExpr(notation, lval), ID.Context, Lisp.ARGV);
             else
                 return ProcessExprSingle(notation, (Symbol)Lisp.First(lval));
         }
@@ -2298,10 +2658,11 @@ namespace DataEngine.XQuery
                     return XQuerySequenceType.Boolean;
                 else if (Lisp.IsFunctor(expr, Funcs.Cast))
                     return new XQuerySequenceType((Type)Lisp.Arg2(expr), XmlTypeCardinality.One);
-                else if (Lisp.IsFunctor(expr, ID.DateTimeValue))
-                    return new XQuerySequenceType(XmlTypeCode.DateTime);
                 else if (Lisp.IsFunctor(expr, ID.Par))
                     return GetExprType(Lisp.Second(expr));
+                else if (Lisp.IsFunctor(expr, ID.CastToNumber2) ||
+                         Lisp.IsFunctor(expr, ID.Number))
+                    return new XQuerySequenceType(XmlTypeCode.Double);
                 else
                 {
                     XQueryFunctionRecord rec = _context.FunctionTable.GetRecord(expr);
@@ -2329,24 +2690,24 @@ namespace DataEngine.XQuery
             if (Lisp.IsFunctor(expr))
             {
                 if (IsBooleanFunctor(expr))
-                {
-                    XQuerySequenceType typ = EvalExprType(Lisp.Arg1(expr));
-                    if (typ.Cardinality == XmlTypeCardinality.ZeroOrOne)
-                        return new XQuerySequenceType(XmlTypeCode.Boolean, XmlTypeCardinality.ZeroOrOne);
-                    else
-                        return new XQuerySequenceType(XmlTypeCode.Boolean, XmlTypeCardinality.One);
-                }
-                else if (IsValueFunctor(expr))
+                    return new XQuerySequenceType(XmlTypeCode.Boolean, XmlTypeCardinality.ZeroOrOne);
+                else if (Lisp.IsFunctor(expr, Funcs.Neg))
+                    return EvalExprType(Lisp.Arg1(expr));
+                else if (IsNumberFunctor(expr))
                 {
                     XQuerySequenceType typ1 = EvalExprType(Lisp.Arg1(expr));
                     XQuerySequenceType typ2 = EvalExprType(Lisp.Arg2(expr));
+                    if (typ1.IsUntypedAtomic)
+                        typ1 = new XQuerySequenceType(XmlTypeCode.Double, typ1.Cardinality);
+                    if (typ2.IsUntypedAtomic)
+                        typ2 = new XQuerySequenceType(XmlTypeCode.Double, typ2.Cardinality);
                     XmlTypeCardinality cardinality;
                     if (typ1.Cardinality == XmlTypeCardinality.ZeroOrOne ||
                         typ2.Cardinality == XmlTypeCardinality.ZeroOrOne)
                         cardinality = XmlTypeCardinality.ZeroOrOne;
                     else
                         cardinality = XmlTypeCardinality.One;
-                    if (Lisp.IsFunctor(expr, ID.IDiv))
+                    if (Lisp.IsFunctor(expr, Funcs.IDiv))
                         return new XQuerySequenceType(typeof(System.Int32), cardinality);
                     else
                     {
@@ -2354,9 +2715,29 @@ namespace DataEngine.XQuery
                         return new XQuerySequenceType(typ3, cardinality);
                     }
                 }
+                else if (Lisp.IsFunctor(expr, ID.CastToItem))
+                {
+                    XQuerySequenceType type = (XQuerySequenceType)Lisp.Arg2(expr);
+                    if (type.Cardinality == XmlTypeCardinality.One)
+                        return new XQuerySequenceType(type.SchemaType, XmlTypeCardinality.ZeroOrOne, type.ParameterType);
+                    return new XQuerySequenceType(type);
+                }
+                else if (Lisp.IsFunctor(expr, Funcs.Cast))
+                {
+                    object arg = Lisp.Arg2(expr);
+                    if ((Type)arg == typeof(XQuerySequenceType))
+                        return new XQuerySequenceType(XQuerySequenceType.ItemS);
+                    else
+                        return new XQuerySequenceType((Type)arg, XmlTypeCardinality.One);
+                }
+                else if (Lisp.IsFunctor(expr, ID.Number) ||
+                    Lisp.IsFunctor(expr, ID.CastToNumber2))
+                    return new XQuerySequenceType(XmlTypeCode.Double);
+                else if (Lisp.IsFunctor(expr, ID.CastToNumber1))
+                    return EvalExprType(Lisp.Second(expr));
                 else if (Lisp.IsFunctor(expr, Funcs.Cast))
                     return EvalExprType(Lisp.Second(expr));
-                else if (Lisp.IsFunctor(expr, ID.Atomize) || 
+                else if (Lisp.IsFunctor(expr, ID.Atomize) ||
                     Lisp.IsFunctor(expr, ID.AtomizeBody))
                 {
                     XQuerySequenceType typ = EvalExprType(Lisp.Second(expr));
@@ -2386,7 +2767,7 @@ namespace DataEngine.XQuery
                 {
                     XQuerySequenceType typ1 = EvalExprType(Lisp.Arg2(expr));
                     XQuerySequenceType typ2 = EvalExprType(Lisp.Arg3(expr));
-                    if (typ1 == typ2)
+                    if (typ1.Equals(typ2))
                         return typ1;
                 }
                 else
@@ -2442,19 +2823,31 @@ namespace DataEngine.XQuery
         {
             if (destType == XQuerySequenceType.Item)
                 return expr;
-            XQuerySequenceType type = GetExprType(expr);
+            XQuerySequenceType type = EvalExprType(expr);
+            if (destType.TypeCode == XmlTypeCode.None)
+            {
+                if (type != XQuerySequenceType.Item &&
+                    (type.Cardinality == XmlTypeCardinality.One ||
+                     type.Cardinality == XmlTypeCardinality.OneOrMore))
+                  throw new XQueryException(Properties.Resources.XPTY0004, type, destType);
+                return Lisp.List(ID.CastArg, expr, destType);
+            }
             if ((destType.Cardinality == XmlTypeCardinality.ZeroOrMore ||
                  destType.Cardinality == XmlTypeCardinality.OneOrMore) &&
                 (type.Cardinality == XmlTypeCardinality.One ||
-                 type.Cardinality == XmlTypeCardinality.ZeroOrOne))
-               return Lisp.List(ID.Seq, Lisp.List(Funcs.LambdaQuote, expr));
+                 type.Cardinality == XmlTypeCardinality.ZeroOrOne ||
+                 Lisp.IsFunctor(expr, Funcs.Let1) || Lisp.IsFunctor(expr, Funcs.Let2)))
+                expr = Lisp.List(ID.Seq, Lisp.List(Funcs.LambdaQuote, expr)); // !!
             Type clrType = destType.ParameterType;
+            if (clrType != null && clrType.IsArray)
+                clrType = clrType.GetElementType();
             if (clrType == null)
                 clrType = destType.ValueType;
             if ((destType.Cardinality == XmlTypeCardinality.One ||
                  destType.Cardinality == XmlTypeCardinality.ZeroOrOne) &&
-                   (type.Cardinality == XmlTypeCardinality.ZeroOrMore ||
-                    type.Cardinality == XmlTypeCardinality.OneOrMore ||
+                   (type.Cardinality == XmlTypeCardinality.ZeroOrOne ||
+                    type.Cardinality == XmlTypeCardinality.ZeroOrMore ||
+                    type.Cardinality == XmlTypeCardinality.OneOrMore ||                    
                     type == XQuerySequenceType.Item))
             {
                 if (destType.IsNode)
@@ -2474,7 +2867,7 @@ namespace DataEngine.XQuery
                 {
                     if (destType.Cardinality == XmlTypeCardinality.One)
                     {
-                        if (IsValueFunctor(expr))
+                        if (IsNumberFunctor(expr))
                             expr = Lisp.List(ID.ExactlyOne, 
                                 Lisp.List(Funcs.LambdaQuote, expr));
                         else
@@ -2489,20 +2882,21 @@ namespace DataEngine.XQuery
                     }
                 }
             }
-            if (destType.ItemType != typeof(System.Object) && type != destType)
-            {
-                if (destType.TypeCode == XmlTypeCode.Double &&
-                    clrType == typeof(System.Double) && type.IsNumeric)
-                    expr = Lisp.List(ID.Number, expr);
-                else
-                {
-                    expr = Lisp.List(ID.CastTo, expr, destType);
-                    if (clrType != typeof(System.Object))
-                        expr = Lisp.List(Funcs.Cast, expr, clrType);
-                }
-            }
             if (clrType == typeof(XPathNavigator) && !type.IsNode)
                 throw new XQueryException(Properties.Resources.XPTY0004, type, destType);
+            if (destType.ItemType != typeof(System.Object) &&
+                 type.ItemType != destType.ItemType)
+            {
+                //if (destType.TypeCode == XmlTypeCode.Double &&
+                //    clrType == typeof(System.Double) && type.IsNumeric)
+                //    expr = Lisp.List(ID.Number, expr);
+                //else
+                //    expr = Lisp.List(ID.CastTo, expr, destType);
+                if (destType.TypeCode != XmlTypeCode.AnyAtomicType)
+                    expr = Lisp.List(ID.CastArg, expr, destType);
+            }
+            if (clrType != typeof(System.Object))
+                expr = Lisp.List(Funcs.Cast, expr, clrType);
             return expr;
         }
     }

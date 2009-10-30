@@ -37,51 +37,43 @@ namespace DataEngine.XQuery
 {
     internal class XQueryLET : XQueryFLWORBase
     {
-        private SymbolLink m_compiledBody;
-        private SymbolLink m_value;
+        private SymbolLink m_value;        
 
-        public XQueryLET(XQueryContext context, object var, XQuerySequenceType varType, object body)
-            : base(context, var, varType, body)
+        public XQueryLET(XQueryContext context, object var, XQuerySequenceType varType, object expr, XQueryExprBase bodyExpr)
+            : base(context, var, varType, expr, bodyExpr)
         {
             m_value = new SymbolLink(varType.ValueType);
         }
 
-        private IEnumerable<XPathItem> Iterator(object value, object exprStack)
+        private IEnumerable<XPathItem> Iterator(IContextProvider provider, object[] args, object value)
         {
-            if (m_compiledBody == null)
-            {
-                m_compiledBody = new SymbolLink();
-                QueryContext.Resolver.RevertToStack(exprStack);
-                QueryContext.Resolver.SetValue(m_var, m_value);
-            }
             m_value.Value = value;
-            object res = QueryContext.Engine.Apply(null, null,
-                m_body, null, m_compiledBody);
-            if (res != Undefined.Value)
-            {
-                XQueryNodeIterator iter = res as XQueryNodeIterator;
-                if (iter != null)
-                    foreach (XPathItem item in iter)
-                        yield return item;
-                else
-                {
-                    XPathItem item = res as XPathItem;
-                    if (item == null)
-                        item = QueryContext.CreateItem(res);
-                    yield return item;
-                }
-            }
+            XQueryNodeIterator iter = m_bodyExpr.Execute(provider, args);
+            iter = iter.Clone();
+            while (iter.MoveNext())
+                yield return iter.Current;
         }
 
-        public override XQueryNodeIterator Execute(object[] parameters)
+        public override void Bind(Executive.Parameter[] parameters)
         {
-            if (parameters.Length != 1)
-                throw new InvalidOperationException();
-            if (m_compiledBody == null)            
-                return new NodeIterator(Iterator(Core.CastTo(QueryContext.Engine, parameters[0], m_varType),
-                    QueryContext.Resolver.GetCurrentStack()));
-            else
-                return new NodeIterator(Iterator(Core.CastTo(QueryContext.Engine, parameters[0], m_varType), null));
+            m_compiledExpr = new SymbolLink();
+            QueryContext.Engine.Compile(parameters, m_expr, m_compiledExpr);
+            object data = QueryContext.Resolver.GetCurrentStack();
+            QueryContext.Resolver.SetValue(m_var, m_value);
+            m_bodyExpr.Bind(parameters);
+            QueryContext.Resolver.RevertToStack(data);
+        }
+
+        public override XQueryNodeIterator Execute(IContextProvider provider, object[] args)
+        {
+            object value = QueryContext.Engine.Apply(null, null, m_expr, args, m_compiledExpr);
+            if (value == null)
+                value = DataEngine.CoreServices.Generation.RuntimeOps.False;
+            if (m_varType != XQuerySequenceType.Item)
+                value = Core.TreatAs(QueryContext.Engine, value, m_varType);
+            if (value is XQueryNodeIterator && !(value is BufferedNodeIterator))
+                value = new BufferedNodeIterator((XQueryNodeIterator)value);
+            return new NodeIterator(Iterator(provider, args, value));
         }
 
 #if DEBUG
@@ -94,8 +86,10 @@ namespace DataEngine.XQuery
             sb.Append(Lisp.Format(m_var));
             sb.Append(" as ");
             sb.Append(m_varType.ToString());
+            sb.Append(" := ");
+            sb.Append(m_expr.ToString());
             sb.Append(" return ");
-            sb.Append(Lisp.Format(m_body));
+            sb.Append(m_bodyExpr.ToString());
             sb.Append("]");
             return sb.ToString();
         }
