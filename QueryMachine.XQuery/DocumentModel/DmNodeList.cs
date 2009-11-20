@@ -26,45 +26,54 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Xml.XPath;
-using DataEngine.CoreServices;
+using System.Collections;
 
-namespace DataEngine.XQuery
+using System.Xml;
+using System.Xml.Schema;
+
+
+namespace DataEngine.XQuery.DocumentModel
 {
-    internal class EmptySequnceException: Exception
+    internal sealed class DmNodeList : IEnumerable
     {
-    }
+        private ICollection<DmNode> nodes;
 
-    public abstract class XQueryExprBase: IBindableObject
-    {
-        private XQueryContext _queryContext;
-
-        public XQueryExprBase(XQueryContext queryContext)
+        public DmNodeList(ICollection<DmNode> nodes)
         {
-            _queryContext = queryContext;
+            this.nodes = nodes;
         }
 
-        public abstract void Bind(Executive.Parameter[] parameters);
-
-        public abstract IEnumerable<SymbolLink> EnumDynamicFuncs();
-
-        public abstract object Execute(IContextProvider provider, object[] args);
-
-        public XQueryContext QueryContext
+        public int Count
         {
             get
             {
-                return _queryContext;
+                return nodes.Count;
             }
         }
 
-        public object ToLispFunction()
+        public DmNode Item(int index)
         {
-            XQueryExpr expr = this as XQueryExpr;
-            if (expr != null && expr.m_expr.Length == 1)
-                return expr.m_expr[0];
-            else
-                return Lisp.List(ID.DynExecuteExpr, this, ID.Context, Lisp.ARGV);
+            if (index >= 0)
+            {
+                IEnumerator<DmNode> e = nodes.GetEnumerator();
+                while (e.MoveNext())
+                {
+                    if (index == 0)
+                        return e.Current;
+                    index--;
+                }
+            }
+            return null;
         }
+
+
+        #region IEnumerable Members
+
+        public IEnumerator GetEnumerator()
+        {
+            return nodes.GetEnumerator();
+        }
+
+        #endregion
     }
 }

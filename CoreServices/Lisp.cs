@@ -226,6 +226,11 @@ namespace DataEngine.CoreServices
             return !IsNode(lval) && IsAtom(Car(lval)) && IsEqual(Car(lval), a) && Length(lval) == arity + 1;
         }
 
+        public static string SName(object lval)
+        {
+            return Nth(lval, 0).ToString();
+        }
+
 		public static string SArg1(object lval)
 		{
 			return Nth(lval, 1).ToString();

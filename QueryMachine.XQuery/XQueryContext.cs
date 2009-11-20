@@ -102,9 +102,9 @@ namespace DataEngine.XQuery
 
             public override void HandleRuntimeException(Exception exception)
             {
-                if (exception is Runtime.OperatorMismatchException)
+                if (exception is OperatorMismatchException)
                 {
-                    Runtime.OperatorMismatchException ex = (Runtime.OperatorMismatchException)exception;
+                    OperatorMismatchException ex = (OperatorMismatchException)exception;
                     if (ex.ID == Funcs.Neg)
                         throw new XQueryException(Properties.Resources.UnaryOperatorNotDefined, "fn:unary-minus",
                             new XQuerySequenceType(ex.Arg1.GetType(), XmlTypeCardinality.One));
@@ -140,97 +140,113 @@ namespace DataEngine.XQuery
                 throw exception;
             }
 
+            protected override OperatorManager InitDynamicOperators()
+            {
+                OperatorManager mgr = base.InitDynamicOperators();
+                mgr.DefineProxy(typeof(DateTimeValue), typeof(DateTimeValue), new DateTimeValue.Proxy());
+                mgr.DefineProxy(typeof(DateTimeValue), typeof(YearMonthDurationValue), new DateTimeValue.Proxy());
+                mgr.DefineProxy(typeof(DateTimeValue), typeof(DayTimeDurationValue), new DateTimeValue.Proxy());
+                mgr.DefineProxy(typeof(DateValue), typeof(DateValue), new DateValue.Proxy());
+                mgr.DefineProxy(typeof(DateValue), typeof(YearMonthDurationValue), new DateValue.Proxy());
+                mgr.DefineProxy(typeof(DateValue), typeof(DayTimeDurationValue), new DateValue.Proxy());
+                mgr.DefineProxy(typeof(TimeValue), typeof(TimeValue), new TimeValue.Proxy());
+                mgr.DefineProxy(typeof(TimeValue), typeof(DayTimeDurationValue), new TimeValue.Proxy());
+                mgr.DefineProxy(typeof(YearMonthDurationValue), typeof(YearMonthDurationValue), new YearMonthDurationValue.Proxy());
+                mgr.DefineProxy(typeof(YearMonthDurationValue), typeof(DateTimeValue), new YearMonthDurationValue.Proxy());
+                mgr.DefineProxy(typeof(YearMonthDurationValue), typeof(DateValue), new YearMonthDurationValue.Proxy());
+                mgr.DefineProxy(typeof(YearMonthDurationValue), typeof(System.Int16), new YearMonthDurationValue.Proxy());
+                mgr.DefineProxy(typeof(YearMonthDurationValue), typeof(System.Int32), new YearMonthDurationValue.Proxy());
+                mgr.DefineProxy(typeof(YearMonthDurationValue), typeof(System.Int64), new YearMonthDurationValue.Proxy());
+                mgr.DefineProxy(typeof(YearMonthDurationValue), typeof(Integer), new YearMonthDurationValue.Proxy());
+                mgr.DefineProxy(typeof(YearMonthDurationValue), typeof(System.Single), new YearMonthDurationValue.Proxy());
+                mgr.DefineProxy(typeof(YearMonthDurationValue), typeof(System.Double), new YearMonthDurationValue.Proxy());
+                mgr.DefineProxy(typeof(YearMonthDurationValue), typeof(System.Decimal), new YearMonthDurationValue.Proxy());
+                mgr.DefineProxy(typeof(System.Int16), typeof(YearMonthDurationValue), new YearMonthDurationValue.Proxy());
+                mgr.DefineProxy(typeof(System.Int32), typeof(YearMonthDurationValue), new YearMonthDurationValue.Proxy());
+                mgr.DefineProxy(typeof(System.Int64), typeof(YearMonthDurationValue), new YearMonthDurationValue.Proxy());
+                mgr.DefineProxy(typeof(Integer), typeof(YearMonthDurationValue), new YearMonthDurationValue.Proxy());
+                mgr.DefineProxy(typeof(System.Single), typeof(YearMonthDurationValue), new YearMonthDurationValue.Proxy());
+                mgr.DefineProxy(typeof(System.Double), typeof(YearMonthDurationValue), new YearMonthDurationValue.Proxy());
+                mgr.DefineProxy(typeof(System.Decimal), typeof(YearMonthDurationValue), new YearMonthDurationValue.Proxy());
+                mgr.DefineProxy(typeof(DayTimeDurationValue), typeof(DayTimeDurationValue), new DayTimeDurationValue.Proxy());
+                mgr.DefineProxy(typeof(DayTimeDurationValue), typeof(DateTimeValue), new DayTimeDurationValue.Proxy());
+                mgr.DefineProxy(typeof(DayTimeDurationValue), typeof(DateValue), new DayTimeDurationValue.Proxy());
+                mgr.DefineProxy(typeof(DayTimeDurationValue), typeof(TimeValue), new DayTimeDurationValue.Proxy());
+                mgr.DefineProxy(typeof(DayTimeDurationValue), typeof(System.Int16), new DayTimeDurationValue.Proxy());
+                mgr.DefineProxy(typeof(DayTimeDurationValue), typeof(System.Int32), new DayTimeDurationValue.Proxy());
+                mgr.DefineProxy(typeof(DayTimeDurationValue), typeof(System.Int64), new DayTimeDurationValue.Proxy());
+                mgr.DefineProxy(typeof(DayTimeDurationValue), typeof(Integer), new DayTimeDurationValue.Proxy());
+                mgr.DefineProxy(typeof(DayTimeDurationValue), typeof(System.Single), new DayTimeDurationValue.Proxy());
+                mgr.DefineProxy(typeof(DayTimeDurationValue), typeof(System.Double), new DayTimeDurationValue.Proxy());
+                mgr.DefineProxy(typeof(DayTimeDurationValue), typeof(System.Decimal), new DayTimeDurationValue.Proxy());
+                mgr.DefineProxy(typeof(System.Int16), typeof(DayTimeDurationValue), new DayTimeDurationValue.Proxy());
+                mgr.DefineProxy(typeof(System.Int32), typeof(DayTimeDurationValue), new DayTimeDurationValue.Proxy());
+                mgr.DefineProxy(typeof(System.Int64), typeof(DayTimeDurationValue), new DayTimeDurationValue.Proxy());
+                mgr.DefineProxy(typeof(Integer), typeof(DayTimeDurationValue), new DayTimeDurationValue.Proxy());
+                mgr.DefineProxy(typeof(System.Single), typeof(DayTimeDurationValue), new DayTimeDurationValue.Proxy());
+                mgr.DefineProxy(typeof(System.Double), typeof(DayTimeDurationValue), new DayTimeDurationValue.Proxy());
+                mgr.DefineProxy(typeof(System.Decimal), typeof(DayTimeDurationValue), new DayTimeDurationValue.Proxy());
+                return mgr;
+            }
 
             public override object OperatorEq(object arg1, object arg2)
             {
                 if (Object.ReferenceEquals(arg1, arg2))
                     return true;
-                else
+                if (arg1 == null)
+                    arg1 = CoreServices.Generation.RuntimeOps.False;
+                if (arg2 == null)
+                    arg2 = CoreServices.Generation.RuntimeOps.False;
+                object res;
+                if (DynamicOperators.Eq(arg1, arg2, out res))
+                    return res;
+                object a = arg1;
+                object b = arg2;
+                if (arg1 is UntypedAtomic || arg1 is AnyUriValue)
+                    a = arg1.ToString();
+                if (arg2 is UntypedAtomic || arg2 is AnyUriValue)
+                    b = arg2.ToString();
+                if (a.GetType() == b.GetType() ||
+                    (a is DurationValue && b is DurationValue))
                 {
-                    if (arg1 == null)
-                        arg1 = false;
-                    if (arg2 == null)
-                        arg2 = false;
-                    if (arg1.Equals(arg2))
+                    if (a.Equals(b))
                         return true;
-                    else
-                    {
-                        if (TypeConverter.IsNumberType(arg1.GetType()) &&
-                            TypeConverter.IsNumberType(arg2.GetType()))
-                        {
-                            NumericCode code = TypeConverter.GetNumericCode(arg1, arg2);
-                            if (code == NumericCode.Unknown)
-                                throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:eq",
-                                    new XQuerySequenceType(arg1.GetType(), XmlTypeCardinality.One),
-                                    new XQuerySequenceType(arg2.GetType(), XmlTypeCardinality.One));
-                            object val1 = TypeConverter.ChangeType(arg1, code);
-                            object val2 = TypeConverter.ChangeType(arg2, code);
-                            if (((IComparable)val1).CompareTo(val2) == 0)
-                                return true;
-                        }
-                        else
-                        {
-                            object a = arg1;
-                            object b = arg2;
-                            if (arg1 is UntypedAtomic || arg1 is AnyUriValue)
-                                a = arg1.ToString();
-                            if (arg2 is UntypedAtomic || arg2 is AnyUriValue)
-                                b = arg2.ToString();
-                            if (a.GetType() == b.GetType() || 
-                                (a is DurationValue && b is DurationValue))
-                            {
-                                if (a.Equals(b))
-                                    return true;
-                            }
-                            else
-                                throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:eq",
-                                    new XQuerySequenceType(arg1.GetType(), XmlTypeCardinality.One),
-                                    new XQuerySequenceType(arg2.GetType(), XmlTypeCardinality.One));
-                        }
-                    }
                 }
+                else
+                    throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:eq",
+                        new XQuerySequenceType(arg1.GetType(), XmlTypeCardinality.One),
+                        new XQuerySequenceType(arg2.GetType(), XmlTypeCardinality.One));
                 return null;
             }
 
             public override object OperatorGt(object arg1, object arg2)
             {
+                if (Object.ReferenceEquals(arg1, arg2))
+                    return null;
                 if (arg1 == null)
-                    arg1 = false;
+                    arg1 = CoreServices.Generation.RuntimeOps.False;
                 if (arg2 == null)
-                    arg2 = false;
+                    arg2 = CoreServices.Generation.RuntimeOps.False;
+                object res;
+                if (DynamicOperators.Gt(arg1, arg2, out res))
+                    return res;
                 if (arg1 is IComparable && arg2 is IComparable)
                 {
-                    if (TypeConverter.IsNumberType(arg1.GetType()) &&
-                        TypeConverter.IsNumberType(arg2.GetType()))
+                    object a = arg1;
+                    object b = arg2;
+                    if (arg1 is UntypedAtomic || arg1 is AnyUriValue)
+                        a = arg1.ToString();
+                    if (arg2 is UntypedAtomic || arg2 is AnyUriValue)
+                        b = arg2.ToString();
+                    if (a.GetType() == b.GetType())
                     {
-                        NumericCode code = TypeConverter.GetNumericCode(arg1, arg2);
-                        if (code == NumericCode.Unknown)
-                            throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:gt",
-                                new XQuerySequenceType(arg1.GetType(), XmlTypeCardinality.One),
-                                new XQuerySequenceType(arg2.GetType(), XmlTypeCardinality.One));
-                        object val1 = TypeConverter.ChangeType(arg1, code);
-                        object val2 = TypeConverter.ChangeType(arg2, code);
-                        if (((IComparable)val1).CompareTo(val2) > 0)
+                        if (((IComparable)a).CompareTo(b) > 0)
                             return true;
                     }
                     else
-                    {
-                        object a = arg1;
-                        object b = arg2;
-                        if (arg1 is UntypedAtomic || arg1 is AnyUriValue)
-                            a = arg1.ToString();
-                        if (arg2 is UntypedAtomic || arg2 is AnyUriValue)
-                            b = arg2.ToString();
-                        if (a.GetType() == b.GetType())
-                        {
-                            if (((IComparable)a).CompareTo(b) > 0)
-                                return true;
-                        }
-                        else
-                            throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:gt",
-                                new XQuerySequenceType(arg1.GetType(), XmlTypeCardinality.One),
-                                new XQuerySequenceType(arg2.GetType(), XmlTypeCardinality.One));
-                    }
+                        throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:gt",
+                            new XQuerySequenceType(arg1.GetType(), XmlTypeCardinality.One),
+                            new XQuerySequenceType(arg2.GetType(), XmlTypeCardinality.One));
                 }
                 else
                     throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:gt",
@@ -245,10 +261,8 @@ namespace DataEngine.XQuery
         internal bool slave;
         internal bool needValidationParser;
         internal XQueryContext master;
-        internal NameTable nameTable;
+        internal XmlNameTable nameTable;
         internal XmlSchemaSet schemaSet;
-        internal XQueryNodeInfoTable nodeInfoTable;
-        internal XQuerySchemaInfoTable schemaInfoTable;
         internal XmlNamespaceManager nsManager;
         internal Executive lispEngine;
         internal List<XQueryDocument> worklist;
@@ -257,18 +271,17 @@ namespace DataEngine.XQuery
         internal List<VariableRecord> variables;
         internal Dictionary<object, ExternalVariableRecord> externalVars;
         internal Dictionary<XmlQualifiedName, string> option;
+        internal Dictionary<object, object> extraProps;
 
-        public XQueryContext()
+        public XQueryContext(XmlNameTable nameTable)
         {
             DefaultOrdering = XQueryOrder.Ordered;
             EmptyOrderSpec = XQueryEmptyOrderSpec.Least;
             SearchPath = String.Empty;
             SchemaProcessing = SchemaProcessingMode.Default;
-            
-            nameTable = new NameTable();
+
+            this.nameTable = nameTable;
             schemaSet = new XmlSchemaSet(nameTable);
-            nodeInfoTable = new XQueryNodeInfoTable(nameTable);
-            schemaInfoTable = new XQuerySchemaInfoTable();
             nsManager = new XmlNamespaceManager(nameTable);
             worklist = new List<XQueryDocument>();
             queryOrdering = new Stack<XQueryOrder>();  
@@ -277,6 +290,7 @@ namespace DataEngine.XQuery
             variables = new List<VariableRecord>();
             externalVars = new Dictionary<object, ExternalVariableRecord>();
             option = new Dictionary<XmlQualifiedName, string>();
+            extraProps = new Dictionary<object, object>();
             
             Core.Init();
             FunctionTable = XQueryFunctionTable.CreateInstance();
@@ -302,8 +316,6 @@ namespace DataEngine.XQuery
 
             nameTable = master.nameTable;
             schemaSet = new XmlSchemaSet(nameTable);
-            nodeInfoTable = master.nodeInfoTable;
-            schemaInfoTable = master.schemaInfoTable;
             variables = master.variables;
             externalVars = master.externalVars;
             option = new Dictionary<XmlQualifiedName, string>();
@@ -325,6 +337,11 @@ namespace DataEngine.XQuery
             this.uri = uri;
         }
 
+        public XQueryContext()
+            : this(new NameTable())
+        {
+        }
+
         public virtual XmlReaderSettings GetSettings()
         {
             XmlReaderSettings settings = new XmlReaderSettings();
@@ -332,7 +349,7 @@ namespace DataEngine.XQuery
             settings.Schemas = schemaSet;
             settings.ProhibitDtd = false;
             XmlUrlResolver resolver = new XmlUrlResolver();
-            resolver.Credentials = CredentialCache.DefaultCredentials;
+            resolver.Credentials = CredentialCache.DefaultCredentials;            
             settings.XmlResolver = resolver;
             settings.ValidationEventHandler += new ValidationEventHandler(settings_ValidationEventHandler);
             if (SchemaProcessing == SchemaProcessingMode.Force || 
@@ -377,19 +394,6 @@ namespace DataEngine.XQuery
             return XmlReader.Create(uri, GetSettings());
         }
 
-        public virtual XPathItem CreateItem(object value)
-        {
-            if (value == null)
-                return new XQueryAtomicValue(false, nsManager);
-            else if (value is XQueryDocumentBuilder)
-            {
-                XQueryDocumentBuilder builder = (XQueryDocumentBuilder)value;
-                return builder.m_document.CreateNavigator();
-            }
-            else
-                return new XQueryAtomicValue(value, nsManager);
-        }
-
         public virtual string GetFileName(string name)
         {
             if (Uri.IsWellFormedUriString(name, UriKind.Absolute))
@@ -425,10 +429,18 @@ namespace DataEngine.XQuery
             else
                 throw new XQueryException(Properties.Resources.XQST0059, targetNamespace);
         }
+
+        public virtual Literal[] ResolveSchemaImport(string prefix, string targetNamespace)
+        {
+            if (slave)
+                return master.ResolveSchemaImport(prefix, targetNamespace);
+            else
+                throw new XQueryException(Properties.Resources.XQST0059, targetNamespace);
+        }
         
         public XQueryDocument CreateDocument()
         {
-            XQueryDocument doc = new XQueryDocument(nameTable, nodeInfoTable, schemaInfoTable);
+            XQueryDocument doc = new XQueryDocument(nameTable);
             worklist.Add(doc);
             return doc;
         }
@@ -473,6 +485,12 @@ namespace DataEngine.XQuery
                 lispEngine.Leave();
                 foreach (XQueryDocument doc in worklist)
                     doc.Close();
+                foreach (object prop in extraProps.Values)
+                {
+                    IDisposable disp = prop as IDisposable;
+                    if (disp != null)
+                        disp.Dispose();
+                }
             }
         }
 
@@ -573,7 +591,7 @@ namespace DataEngine.XQuery
                 if (rec.varType == XQuerySequenceType.Item)
                     link.Value = value;
                 else
-                    link.Value = Core.CastTo(lispEngine, value, rec.varType);                
+                    link.Value = Core.CastTo(lispEngine, value, rec.varType, typeof(System.Object));                
             }
         }
 
@@ -646,6 +664,17 @@ namespace DataEngine.XQuery
 
         public CultureInfo DefaultCulture { get; private set; }
 
+        public IDictionary<object, object> ExtraProperties
+        {
+            get
+            {
+                if (slave)
+                    return master.ExtraProperties;
+                else
+                    return extraProps;
+            }
+        }
+
         internal bool NeedValidatedParser
         {
             get
@@ -668,11 +697,11 @@ namespace DataEngine.XQuery
 
     public class XPathContext : XQueryContext
     {
-        private Dictionary<String, IXPathNavigable> docs;
+        private Dictionary<String, IXPathNavigable> docs = new Dictionary<String, IXPathNavigable>();
 
-        public XPathContext()
+        public XPathContext(XmlNameTable nameTable)
+            : base(nameTable)
         {
-            docs = new Dictionary<String, IXPathNavigable>();
         }
 
         public override XmlReaderSettings GetSettings()

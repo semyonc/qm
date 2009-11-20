@@ -3,6 +3,8 @@
 
 #line 35 "XQuery.y"
 
+#pragma warning disable 162
+
 using System;
 using System.IO;
 using System.Collections;
@@ -688,794 +690,794 @@ namespace DataEngine.XQuery.Parser
         yyVal = yyDefault(yyV > yyTop ? null : yyVals[yyV]);
         switch (yyN) {
 case 1:
-#line 214 "XQuery.y"
+#line 216 "XQuery.y"
   {
      notation.ConfirmTag(Tag.Module, Descriptor.Root, yyVals[0+yyTop]);
      yyVal = notation.ResolveTag(Tag.Module);	 
   }
   break;
 case 2:
-#line 219 "XQuery.y"
+#line 221 "XQuery.y"
   {
 	 notation.ConfirmTag(Tag.Module, Descriptor.Root, yyVals[0+yyTop]);	 
 	 yyVal = notation.ResolveTag(Tag.Module);	 
   }
   break;
 case 3:
-#line 224 "XQuery.y"
+#line 226 "XQuery.y"
   {
      notation.ConfirmTag(Tag.Module, Descriptor.Root, yyVals[0+yyTop]);	 
      yyVal = notation.ResolveTag(Tag.Module);	 
   }
   break;
 case 4:
-#line 229 "XQuery.y"
+#line 231 "XQuery.y"
   {
 	 notation.ConfirmTag(Tag.Module, Descriptor.Root, yyVals[0+yyTop]);	 
 	 yyVal = notation.ResolveTag(Tag.Module);	 
   }
   break;
 case 5:
-#line 237 "XQuery.y"
+#line 239 "XQuery.y"
   {
      notation.ConfirmTag(Tag.Module, Descriptor.Version, yyVals[-1+yyTop], null);
   }
   break;
 case 6:
-#line 241 "XQuery.y"
+#line 243 "XQuery.y"
   {
      notation.ConfirmTag(Tag.Module, Descriptor.Version, yyVals[-3+yyTop], yyVals[-1+yyTop]);
   }
   break;
 case 7:
-#line 248 "XQuery.y"
+#line 250 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Module), Descriptor.Query, yyVals[-1+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 8:
-#line 255 "XQuery.y"
+#line 257 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Module), Descriptor.Library, yyVals[-1+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 9:
-#line 262 "XQuery.y"
+#line 264 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Module), Descriptor.ModuleNamespace, yyVals[-3+yyTop], yyVals[-1+yyTop]);
   }
   break;
 case 10:
-#line 269 "XQuery.y"
+#line 271 "XQuery.y"
   {
      yyVal = null;
   }
   break;
 case 13:
-#line 275 "XQuery.y"
+#line 277 "XQuery.y"
   {
      yyVal = Lisp.Append(yyVals[-1+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 14:
-#line 282 "XQuery.y"
+#line 284 "XQuery.y"
   {
       yyVal = Lisp.Cons(yyVals[-1+yyTop]);
    }
   break;
 case 15:
-#line 286 "XQuery.y"
+#line 288 "XQuery.y"
   {
       yyVal = Lisp.Append(yyVals[-2+yyTop], Lisp.Cons(yyVals[-1+yyTop]));
    }
   break;
 case 16:
-#line 293 "XQuery.y"
+#line 295 "XQuery.y"
   {
       yyVal = Lisp.Cons(yyVals[-1+yyTop]);
    }
   break;
 case 17:
-#line 297 "XQuery.y"
+#line 299 "XQuery.y"
   {
       yyVal = Lisp.Append(yyVals[-2+yyTop], Lisp.Cons(yyVals[-1+yyTop]));
    }
   break;
 case 35:
-#line 336 "XQuery.y"
+#line 338 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Module), Descriptor.Namespace, yyVals[-2+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 36:
-#line 343 "XQuery.y"
+#line 345 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Module), 
 		Descriptor.BoundarySpace, new TokenWrapper(Token.PRESERVE));
   }
   break;
 case 37:
-#line 348 "XQuery.y"
+#line 350 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Module), 
 		Descriptor.BoundarySpace, new TokenWrapper(Token.STRIP));  
   }
   break;
 case 38:
-#line 356 "XQuery.y"
+#line 358 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Module), Descriptor.DefaultElement, yyVals[0+yyTop]);
   }
   break;
 case 39:
-#line 360 "XQuery.y"
+#line 362 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Module), Descriptor.DefaultFunction, yyVals[0+yyTop]);
   }
   break;
 case 40:
-#line 367 "XQuery.y"
+#line 369 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Module), Descriptor.OptionDecl, yyVals[-1+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 41:
-#line 374 "XQuery.y"
+#line 376 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Module), 
 		Descriptor.Ordering, new TokenWrapper(Token.ORDERED));  
   }
   break;
 case 42:
-#line 379 "XQuery.y"
+#line 381 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Module), 
 		Descriptor.Ordering, new TokenWrapper(Token.UNORDERED));  
   }
   break;
 case 43:
-#line 387 "XQuery.y"
+#line 389 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Module), 
 		Descriptor.DefaultOrder, new TokenWrapper(Token.EMPTY_GREATEST));  
   }
   break;
 case 44:
-#line 392 "XQuery.y"
+#line 394 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Module), 
 		Descriptor.DefaultOrder, new TokenWrapper(Token.EMPTY_LEAST));  
   }
   break;
 case 45:
-#line 400 "XQuery.y"
+#line 402 "XQuery.y"
   {
 	  yyVal = notation.Confirm(new Symbol(Tag.Module), 
 	    Descriptor.CopyNamespace, yyVals[-2+yyTop], yyVals[0+yyTop]); 
   }
   break;
 case 46:
-#line 408 "XQuery.y"
+#line 410 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.PRESERVE);
   }
   break;
 case 47:
-#line 412 "XQuery.y"
+#line 414 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.NO_PRESERVE);
   }
   break;
 case 48:
-#line 419 "XQuery.y"
+#line 421 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.INHERIT);
   }
   break;
 case 49:
-#line 423 "XQuery.y"
+#line 425 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.NO_INHERIT);
   }
   break;
 case 50:
-#line 430 "XQuery.y"
+#line 432 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Module), Descriptor.DefaultCollation, yyVals[0+yyTop]);
   }
   break;
 case 51:
-#line 437 "XQuery.y"
+#line 439 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Module), Descriptor.BaseUri, yyVals[0+yyTop]);
   }
   break;
 case 52:
-#line 444 "XQuery.y"
+#line 446 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Module), 
          Descriptor.ImportSchema, yyVals[-1+yyTop], yyVals[0+yyTop], null);
   }
   break;
 case 53:
-#line 449 "XQuery.y"
+#line 451 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Module), 
          Descriptor.ImportSchema, yyVals[-3+yyTop], yyVals[-2+yyTop], yyVals[0+yyTop]);  
   }
   break;
 case 54:
-#line 457 "XQuery.y"
+#line 459 "XQuery.y"
   { 
      yyVal = null;
   }
   break;
 case 56:
-#line 465 "XQuery.y"
+#line 467 "XQuery.y"
   {
      yyVal = Lisp.Cons(yyVals[0+yyTop]);
   }
   break;
 case 57:
-#line 469 "XQuery.y"
+#line 471 "XQuery.y"
   {
      yyVal = Lisp.Append(yyVals[-2+yyTop], Lisp.Cons(yyVals[0+yyTop]));
   }
   break;
 case 58:
-#line 476 "XQuery.y"
+#line 478 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Module), Descriptor.Namespace, yyVals[-1+yyTop]);
   }
   break;
 case 59:
-#line 480 "XQuery.y"
+#line 482 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Module), Descriptor.DefaultElement);
   }
   break;
 case 60:
-#line 487 "XQuery.y"
+#line 489 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Module), Descriptor.ImportModule, yyVals[-1+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 61:
-#line 491 "XQuery.y"
+#line 493 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Module), Descriptor.ImportModule, yyVals[-3+yyTop], yyVals[-1+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 62:
-#line 498 "XQuery.y"
+#line 500 "XQuery.y"
   {
      yyVal = null;
   }
   break;
 case 63:
-#line 502 "XQuery.y"
+#line 504 "XQuery.y"
   {
      yyVal = yyVals[0+yyTop];
   }
   break;
 case 64:
-#line 508 "XQuery.y"
+#line 510 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Module), Descriptor.VarDecl, yyVals[-4+yyTop], yyVals[-3+yyTop], yyVals[0+yyTop]); 
   }
   break;
 case 65:
-#line 512 "XQuery.y"
+#line 514 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Module), Descriptor.VarDecl, yyVals[-2+yyTop], yyVals[-1+yyTop]); 
   }
   break;
 case 66:
-#line 519 "XQuery.y"
+#line 521 "XQuery.y"
   {
      yyVal = null;
   }
   break;
 case 68:
-#line 527 "XQuery.y"
+#line 529 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Module), Descriptor.ConstructionDecl, 
 		new TokenWrapper(Token.PRESERVE));
   }
   break;
 case 69:
-#line 532 "XQuery.y"
+#line 534 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Module), Descriptor.ConstructionDecl, 
 		new TokenWrapper(Token.STRIP));
   }
   break;
 case 70:
-#line 540 "XQuery.y"
+#line 542 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Module), Descriptor.DeclareFunction, yyVals[-4+yyTop], yyVals[-2+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 71:
-#line 544 "XQuery.y"
+#line 546 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Module), Descriptor.DeclareFunction, yyVals[-6+yyTop], yyVals[-4+yyTop], yyVals[-1+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 73:
-#line 552 "XQuery.y"
+#line 554 "XQuery.y"
   {
      yyVal = null;
   }
   break;
 case 74:
-#line 559 "XQuery.y"
+#line 561 "XQuery.y"
   {
      yyVal = null;
   }
   break;
 case 76:
-#line 567 "XQuery.y"
+#line 569 "XQuery.y"
   {
      yyVal = Lisp.Cons(yyVals[0+yyTop]);
   }
   break;
 case 77:
-#line 571 "XQuery.y"
+#line 573 "XQuery.y"
   {
      yyVal = Lisp.Append(yyVals[-2+yyTop], Lisp.Cons(yyVals[0+yyTop]));
   }
   break;
 case 78:
-#line 578 "XQuery.y"
+#line 580 "XQuery.y"
   {
      yyVal = yyVals[0+yyTop];
   }
   break;
 case 79:
-#line 582 "XQuery.y"
+#line 584 "XQuery.y"
   {
      yyVal = yyVals[-1+yyTop];
      notation.Confirm((Symbol)yyVals[-1+yyTop], Descriptor.TypeDecl, yyVals[0+yyTop]);
   }
   break;
 case 80:
-#line 590 "XQuery.y"
+#line 592 "XQuery.y"
   {
      yyVal = yyVals[-1+yyTop];
   }
   break;
 case 82:
-#line 601 "XQuery.y"
+#line 603 "XQuery.y"
   {
      yyVal = Lisp.Cons(yyVals[0+yyTop]);
   }
   break;
 case 83:
-#line 605 "XQuery.y"
+#line 607 "XQuery.y"
   {
      yyVal = Lisp.Append(yyVals[-2+yyTop], Lisp.Cons(yyVals[0+yyTop]));
   }
   break;
 case 89:
-#line 620 "XQuery.y"
+#line 622 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.FLWORExpr, yyVals[-2+yyTop], null, null, yyVals[0+yyTop]);
   }
   break;
 case 90:
-#line 624 "XQuery.y"
+#line 626 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.FLWORExpr, yyVals[-3+yyTop], yyVals[-2+yyTop], null, yyVals[0+yyTop]);
   }
   break;
 case 91:
-#line 628 "XQuery.y"
+#line 630 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.FLWORExpr, yyVals[-3+yyTop], null, yyVals[-2+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 92:
-#line 632 "XQuery.y"
+#line 634 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.FLWORExpr, yyVals[-4+yyTop], yyVals[-3+yyTop], yyVals[-2+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 93:
-#line 639 "XQuery.y"
+#line 641 "XQuery.y"
   {
      yyVal = Lisp.Cons(yyVals[0+yyTop]);
   }
   break;
 case 94:
-#line 643 "XQuery.y"
+#line 645 "XQuery.y"
   {
      yyVal = Lisp.Cons(yyVals[0+yyTop]);
   }
   break;
 case 95:
-#line 647 "XQuery.y"
+#line 649 "XQuery.y"
   {
      yyVal = Lisp.Append(yyVals[-1+yyTop], Lisp.Cons(yyVals[0+yyTop]));
   }
   break;
 case 96:
-#line 651 "XQuery.y"
+#line 653 "XQuery.y"
   {
      yyVal = Lisp.Append(yyVals[-1+yyTop], Lisp.Cons(yyVals[0+yyTop]));
   }
   break;
 case 97:
-#line 658 "XQuery.y"
+#line 660 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.For, yyVals[0+yyTop]);
   }
   break;
 case 98:
-#line 665 "XQuery.y"
+#line 667 "XQuery.y"
   {
      yyVal = Lisp.Cons(yyVals[0+yyTop]);
   }
   break;
 case 99:
-#line 669 "XQuery.y"
+#line 671 "XQuery.y"
   {
      yyVal = Lisp.Append(yyVals[-2+yyTop], Lisp.Cons(yyVals[0+yyTop]));
   }
   break;
 case 100:
-#line 676 "XQuery.y"
+#line 678 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.ForClauseOperator, yyVals[-4+yyTop], yyVals[-3+yyTop], yyVals[-2+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 101:
-#line 683 "XQuery.y"
+#line 685 "XQuery.y"
   {
      yyVal = null;
   }
   break;
 case 103:
-#line 691 "XQuery.y"
+#line 693 "XQuery.y"
   {
      yyVal = yyVals[0+yyTop];
   }
   break;
 case 104:
-#line 698 "XQuery.y"
+#line 700 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Let, yyVals[0+yyTop]);
   }
   break;
 case 105:
-#line 705 "XQuery.y"
+#line 707 "XQuery.y"
   {
      yyVal = Lisp.Cons(yyVals[0+yyTop]);
   }
   break;
 case 106:
-#line 709 "XQuery.y"
+#line 711 "XQuery.y"
   {
      yyVal = Lisp.Append(yyVals[-2+yyTop], Lisp.Cons(yyVals[0+yyTop]));
   }
   break;
 case 107:
-#line 716 "XQuery.y"
+#line 718 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.LetClauseOperator, yyVals[-4+yyTop], yyVals[-3+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 108:
-#line 723 "XQuery.y"
+#line 725 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Where, yyVals[0+yyTop]);
   }
   break;
 case 109:
-#line 730 "XQuery.y"
+#line 732 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.OrderBy, yyVals[0+yyTop]);
   }
   break;
 case 110:
-#line 734 "XQuery.y"
+#line 736 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.StableOrderBy, yyVals[0+yyTop]);
   }
   break;
 case 111:
-#line 741 "XQuery.y"
+#line 743 "XQuery.y"
   {
      yyVal = Lisp.Cons(yyVals[0+yyTop]);
   }
   break;
 case 112:
-#line 745 "XQuery.y"
+#line 747 "XQuery.y"
   {
      yyVal = Lisp.Append(yyVals[-2+yyTop], Lisp.Cons(yyVals[0+yyTop]));
   }
   break;
 case 114:
-#line 753 "XQuery.y"
+#line 755 "XQuery.y"
   {
      yyVal = yyVals[-1+yyTop];
      notation.Confirm((Symbol)yyVals[-1+yyTop], Descriptor.Modifier, yyVals[0+yyTop]);
   }
   break;
 case 115:
-#line 761 "XQuery.y"
+#line 763 "XQuery.y"
   {
      yyVal = Lisp.List(yyVals[0+yyTop], null, null);
   }
   break;
 case 116:
-#line 765 "XQuery.y"
+#line 767 "XQuery.y"
   {
      yyVal = Lisp.List(null, null, yyVals[0+yyTop]);
   }
   break;
 case 117:
-#line 769 "XQuery.y"
+#line 771 "XQuery.y"
   {
      yyVal = Lisp.List(yyVals[-1+yyTop], yyVals[0+yyTop], null);
   }
   break;
 case 118:
-#line 773 "XQuery.y"
+#line 775 "XQuery.y"
   {
      yyVal = Lisp.List(yyVals[-2+yyTop], null, yyVals[0+yyTop]);
   }
   break;
 case 119:
-#line 777 "XQuery.y"
+#line 779 "XQuery.y"
   {
      yyVal = Lisp.List(yyVals[-3+yyTop], yyVals[-2+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 120:
-#line 781 "XQuery.y"
+#line 783 "XQuery.y"
   {
      yyVal = Lisp.List(null, yyVals[0+yyTop], null);
   }
   break;
 case 121:
-#line 785 "XQuery.y"
+#line 787 "XQuery.y"
   {
      yyVal = Lisp.List(null, yyVals[-2+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 122:
-#line 792 "XQuery.y"
+#line 794 "XQuery.y"
   {
      yyVal = new TokenWrapper(Token.ASCENDING);
   }
   break;
 case 123:
-#line 796 "XQuery.y"
+#line 798 "XQuery.y"
   {
      yyVal = new TokenWrapper(Token.DESCENDING);
   }
   break;
 case 124:
-#line 803 "XQuery.y"
+#line 805 "XQuery.y"
   {
      yyVal = new TokenWrapper(Token.EMPTY_GREATEST); 
   }
   break;
 case 125:
-#line 807 "XQuery.y"
+#line 809 "XQuery.y"
   {
      yyVal = new TokenWrapper(Token.EMPTY_LEAST); 
   }
   break;
 case 126:
-#line 814 "XQuery.y"
+#line 816 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Some, yyVals[-2+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 127:
-#line 818 "XQuery.y"
+#line 820 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Every, yyVals[-2+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 128:
-#line 825 "XQuery.y"
+#line 827 "XQuery.y"
   {
      yyVal = Lisp.Cons(yyVals[0+yyTop]);
   }
   break;
 case 129:
-#line 829 "XQuery.y"
+#line 831 "XQuery.y"
   {
      yyVal = Lisp.Append(yyVals[-2+yyTop], Lisp.Cons(yyVals[0+yyTop]));
   }
   break;
 case 130:
-#line 836 "XQuery.y"
+#line 838 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.QuantifiedExprOper, yyVals[-3+yyTop], yyVals[-2+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 131:
-#line 843 "XQuery.y"
+#line 845 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Typeswitch, yyVals[-5+yyTop], yyVals[-3+yyTop], yyVals[0+yyTop]); 
   }
   break;
 case 132:
-#line 847 "XQuery.y"
+#line 849 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Typeswitch, yyVals[-7+yyTop], yyVals[-5+yyTop], yyVals[-2+yyTop], yyVals[0+yyTop]); 
   }
   break;
 case 133:
-#line 854 "XQuery.y"
+#line 856 "XQuery.y"
   {
      yyVal = Lisp.Cons(yyVals[0+yyTop]);
   }
   break;
 case 134:
-#line 858 "XQuery.y"
+#line 860 "XQuery.y"
   {
      yyVal = Lisp.Append(yyVals[-1+yyTop], Lisp.Cons(yyVals[0+yyTop]));
   }
   break;
 case 135:
-#line 865 "XQuery.y"
+#line 867 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Case, yyVals[-4+yyTop], yyVals[-2+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 136:
-#line 869 "XQuery.y"
+#line 871 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Case, yyVals[-2+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 137:
-#line 876 "XQuery.y"
+#line 878 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.If, yyVals[-5+yyTop], yyVals[-2+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 139:
-#line 884 "XQuery.y"
+#line 886 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Or, yyVals[-2+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 141:
-#line 892 "XQuery.y"
+#line 894 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.And, yyVals[-2+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 143:
-#line 900 "XQuery.y"
+#line 902 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), 
 		Descriptor.ValueComp, yyVals[-2+yyTop], yyVals[-1+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 144:
-#line 905 "XQuery.y"
+#line 907 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), 
 		Descriptor.GeneralComp, yyVals[-2+yyTop], yyVals[-1+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 145:
-#line 910 "XQuery.y"
+#line 912 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), 
 		Descriptor.NodeComp, yyVals[-2+yyTop], yyVals[-1+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 147:
-#line 919 "XQuery.y"
+#line 921 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr),
         Descriptor.Range, yyVals[-2+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 149:
-#line 928 "XQuery.y"
+#line 930 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr),
         Descriptor.Add, yyVals[-2+yyTop], new TokenWrapper('+'), yyVals[0+yyTop]);
   }
   break;
 case 150:
-#line 933 "XQuery.y"
+#line 935 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr),
         Descriptor.Add, yyVals[-2+yyTop], new TokenWrapper('-'), yyVals[0+yyTop]);
   }
   break;
 case 152:
-#line 942 "XQuery.y"
+#line 944 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr),
         Descriptor.Mul, yyVals[-2+yyTop], new TokenWrapper(Token.ML), yyVals[0+yyTop]);
   }
   break;
 case 153:
-#line 947 "XQuery.y"
+#line 949 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr),
         Descriptor.Mul, yyVals[-2+yyTop], new TokenWrapper(Token.DIV), yyVals[0+yyTop]);
   }
   break;
 case 154:
-#line 952 "XQuery.y"
+#line 954 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr),
         Descriptor.Mul, yyVals[-2+yyTop], new TokenWrapper(Token.IDIV), yyVals[0+yyTop]);
   }
   break;
 case 155:
-#line 957 "XQuery.y"
+#line 959 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr),
         Descriptor.Mul, yyVals[-2+yyTop], new TokenWrapper(Token.MOD), yyVals[0+yyTop]);
   }
   break;
 case 157:
-#line 966 "XQuery.y"
+#line 968 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr),
         Descriptor.Union, yyVals[-2+yyTop], yyVals[0+yyTop]);  
   }
   break;
 case 158:
-#line 971 "XQuery.y"
+#line 973 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr),
         Descriptor.Concatenate, yyVals[-2+yyTop], yyVals[0+yyTop]);  
   }
   break;
 case 160:
-#line 980 "XQuery.y"
+#line 982 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr),
         Descriptor.IntersectExcept, yyVals[-2+yyTop], new TokenWrapper(Token.INTERSECT), yyVals[0+yyTop]);  
   }
   break;
 case 161:
-#line 985 "XQuery.y"
+#line 987 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr),
         Descriptor.IntersectExcept, yyVals[-2+yyTop], new TokenWrapper(Token.EXCEPT), yyVals[0+yyTop]);  
   }
   break;
 case 163:
-#line 994 "XQuery.y"
+#line 996 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.InstanceOf, yyVals[-2+yyTop], yyVals[0+yyTop]);    
   }
   break;
 case 165:
-#line 1002 "XQuery.y"
+#line 1004 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.TreatAs, yyVals[-2+yyTop], yyVals[0+yyTop]);    
   }
   break;
 case 167:
-#line 1010 "XQuery.y"
+#line 1012 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.CastableAs, yyVals[-2+yyTop], yyVals[0+yyTop]);    
   }
   break;
 case 169:
-#line 1018 "XQuery.y"
+#line 1020 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.CastAs, yyVals[-2+yyTop], yyVals[0+yyTop]);    
   }
   break;
 case 170:
-#line 1025 "XQuery.y"
+#line 1027 "XQuery.y"
   {
      if (yyVals[-1+yyTop] == null)
        yyVal = yyVals[0+yyTop];
@@ -1484,723 +1486,723 @@ case 170:
   }
   break;
 case 171:
-#line 1035 "XQuery.y"
+#line 1037 "XQuery.y"
   {
      yyVal = null;
   }
   break;
 case 172:
-#line 1039 "XQuery.y"
+#line 1041 "XQuery.y"
   {
      yyVal = Lisp.Append(Lisp.Cons(new TokenWrapper('+')), yyVals[0+yyTop]);
   }
   break;
 case 173:
-#line 1043 "XQuery.y"
+#line 1045 "XQuery.y"
   {
      yyVal = Lisp.Append(Lisp.Cons(new TokenWrapper('-')), yyVals[0+yyTop]);
   }
   break;
 case 174:
-#line 1050 "XQuery.y"
+#line 1052 "XQuery.y"
   {
      yyVal = new Literal("=");
   }
   break;
 case 175:
-#line 1054 "XQuery.y"
+#line 1056 "XQuery.y"
   {
      yyVal = new Literal("!=");
   }
   break;
 case 176:
-#line 1058 "XQuery.y"
+#line 1060 "XQuery.y"
   {
      yyVal = new Literal("<");
   }
   break;
 case 177:
-#line 1062 "XQuery.y"
+#line 1064 "XQuery.y"
   {
      yyVal = new Literal("<=");
   }
   break;
 case 178:
-#line 1066 "XQuery.y"
+#line 1068 "XQuery.y"
   {
      yyVal = new Literal(">");
   }
   break;
 case 179:
-#line 1070 "XQuery.y"
+#line 1072 "XQuery.y"
   {
      yyVal = new Literal(">=");
   }
   break;
 case 180:
-#line 1077 "XQuery.y"
+#line 1079 "XQuery.y"
   {
      yyVal = new TokenWrapper(Token.EQ);
   }
   break;
 case 181:
-#line 1081 "XQuery.y"
+#line 1083 "XQuery.y"
   {
      yyVal = new TokenWrapper(Token.NE);
   }
   break;
 case 182:
-#line 1085 "XQuery.y"
+#line 1087 "XQuery.y"
   {
      yyVal = new TokenWrapper(Token.LT);
   }
   break;
 case 183:
-#line 1089 "XQuery.y"
+#line 1091 "XQuery.y"
   {
      yyVal = new TokenWrapper(Token.LE);
   }
   break;
 case 184:
-#line 1093 "XQuery.y"
+#line 1095 "XQuery.y"
   {
      yyVal = new TokenWrapper(Token.GT);
   }
   break;
 case 185:
-#line 1097 "XQuery.y"
+#line 1099 "XQuery.y"
   {
      yyVal = new TokenWrapper(Token.GE);
   }
   break;
 case 186:
-#line 1104 "XQuery.y"
+#line 1106 "XQuery.y"
   {
      yyVal = new TokenWrapper(Token.IS);
   }
   break;
 case 187:
-#line 1108 "XQuery.y"
+#line 1110 "XQuery.y"
   {
      yyVal = new Literal("<<");
   }
   break;
 case 188:
-#line 1112 "XQuery.y"
+#line 1114 "XQuery.y"
   {
      yyVal = new Literal(">>");
   }
   break;
 case 192:
-#line 1126 "XQuery.y"
+#line 1128 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Validate, null, yyVals[-1+yyTop]);
   }
   break;
 case 193:
-#line 1130 "XQuery.y"
+#line 1132 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Validate, yyVals[-3+yyTop], yyVals[-1+yyTop]);
   }
   break;
 case 194:
-#line 1137 "XQuery.y"
+#line 1139 "XQuery.y"
   {
      yyVal = new TokenWrapper(Token.LAX);
   }
   break;
 case 195:
-#line 1141 "XQuery.y"
+#line 1143 "XQuery.y"
   {
      yyVal = new TokenWrapper(Token.STRICT);
   }
   break;
 case 196:
-#line 1148 "XQuery.y"
+#line 1150 "XQuery.y"
   {
      yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.ExtensionExpr, yyVals[-3+yyTop], yyVals[-1+yyTop]);
   }
   break;
 case 197:
-#line 1155 "XQuery.y"
+#line 1157 "XQuery.y"
   {
      yyVal = Lisp.Cons(yyVals[0+yyTop]);
   }
   break;
 case 198:
-#line 1159 "XQuery.y"
+#line 1161 "XQuery.y"
   {
      yyVal = Lisp.Append(yyVals[-1+yyTop], Lisp.Cons(yyVals[0+yyTop]));
   }
   break;
 case 199:
-#line 1166 "XQuery.y"
+#line 1168 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Pragma, yyVals[-2+yyTop], new Literal(yyVals[-1+yyTop]));
    }
   break;
 case 200:
-#line 1173 "XQuery.y"
+#line 1175 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Child, new object[] { null });
   }
   break;
 case 201:
-#line 1177 "XQuery.y"
+#line 1179 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Child, yyVals[0+yyTop]);
   }
   break;
 case 202:
-#line 1181 "XQuery.y"
+#line 1183 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Descendant, yyVals[0+yyTop]);
   }
   break;
 case 205:
-#line 1190 "XQuery.y"
+#line 1192 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Child, yyVals[-2+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 206:
-#line 1194 "XQuery.y"
+#line 1196 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Descendant, yyVals[-2+yyTop], yyVals[0+yyTop]);
   }
   break;
 case 207:
-#line 1201 "XQuery.y"
+#line 1203 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.AxisStep, yyVals[0+yyTop]);
   }
   break;
 case 208:
-#line 1205 "XQuery.y"
+#line 1207 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.FilterExpr, yyVals[0+yyTop]);
   }
   break;
 case 210:
-#line 1213 "XQuery.y"
+#line 1215 "XQuery.y"
   {
       yyVal = yyVals[-1+yyTop];
       notation.Confirm((Symbol)yyVals[-1+yyTop], Descriptor.PredicateList, yyVals[0+yyTop]);
   }
   break;
 case 212:
-#line 1219 "XQuery.y"
+#line 1221 "XQuery.y"
   {
       yyVal = yyVals[-1+yyTop];
       notation.Confirm((Symbol)yyVals[-1+yyTop], Descriptor.PredicateList, yyVals[0+yyTop]);
   }
   break;
 case 213:
-#line 1227 "XQuery.y"
+#line 1229 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.ForwardStep, yyVals[-1+yyTop], yyVals[0+yyTop]);
    }
   break;
 case 215:
-#line 1235 "XQuery.y"
+#line 1237 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.AXIS_CHILD);
    }
   break;
 case 216:
-#line 1239 "XQuery.y"
+#line 1241 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.AXIS_DESCENDANT);
    }
   break;
 case 217:
-#line 1243 "XQuery.y"
+#line 1245 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.AXIS_ATTRIBUTE);
    }
   break;
 case 218:
-#line 1247 "XQuery.y"
+#line 1249 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.AXIS_SELF);
    }
   break;
 case 219:
-#line 1251 "XQuery.y"
+#line 1253 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.AXIS_DESCENDANT_OR_SELF);
    }
   break;
 case 220:
-#line 1255 "XQuery.y"
+#line 1257 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.AXIS_FOLLOWING_SIBLING);
    }
   break;
 case 221:
-#line 1259 "XQuery.y"
+#line 1261 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.AXIS_FOLLOWING);
    }
   break;
 case 222:
-#line 1263 "XQuery.y"
+#line 1265 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.AXIS_NAMESPACE);
    }
   break;
 case 223:
-#line 1270 "XQuery.y"
+#line 1272 "XQuery.y"
   {  
 	  yyVal = notation.Confirm((Symbol)yyVals[0+yyTop], Descriptor.AbbrevForward, yyVals[0+yyTop]); 
    }
   break;
 case 225:
-#line 1278 "XQuery.y"
+#line 1280 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.ReverseStep, yyVals[-1+yyTop], yyVals[0+yyTop]);
    }
   break;
 case 227:
-#line 1286 "XQuery.y"
+#line 1288 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.AXIS_PARENT);
    }
   break;
 case 228:
-#line 1290 "XQuery.y"
+#line 1292 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.AXIS_ANCESTOR);
    }
   break;
 case 229:
-#line 1294 "XQuery.y"
+#line 1296 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.AXIS_PRECEDING_SIBLING);
    }
   break;
 case 230:
-#line 1298 "XQuery.y"
+#line 1300 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.AXIS_PRECEDING);
    }
   break;
 case 231:
-#line 1302 "XQuery.y"
+#line 1304 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.AXIS_ANCESTOR_OR_SELF);
    }
   break;
 case 232:
-#line 1309 "XQuery.y"
+#line 1311 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.DOUBLE_PERIOD);
    }
   break;
 case 237:
-#line 1326 "XQuery.y"
+#line 1328 "XQuery.y"
   {
       yyVal = new TokenWrapper('*');
    }
   break;
 case 238:
-#line 1330 "XQuery.y"
+#line 1332 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Wildcard1, yyVals[-2+yyTop]);
    }
   break;
 case 239:
-#line 1334 "XQuery.y"
+#line 1336 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Wildcard2, yyVals[0+yyTop]);
    }
   break;
 case 241:
-#line 1342 "XQuery.y"
+#line 1344 "XQuery.y"
   {
       yyVal = yyVals[-1+yyTop];
       notation.Confirm((Symbol)yyVals[-1+yyTop], Descriptor.PredicateList, yyVals[0+yyTop]);
    }
   break;
 case 242:
-#line 1350 "XQuery.y"
+#line 1352 "XQuery.y"
   {
       yyVal = Lisp.Cons(yyVals[0+yyTop]);
    }
   break;
 case 243:
-#line 1354 "XQuery.y"
+#line 1356 "XQuery.y"
   {
       yyVal = Lisp.Append(yyVals[-1+yyTop], Lisp.Cons(yyVals[0+yyTop]));
    }
   break;
 case 244:
-#line 1361 "XQuery.y"
+#line 1363 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Predicate, yyVals[-1+yyTop]);
    }
   break;
 case 258:
-#line 1390 "XQuery.y"
+#line 1392 "XQuery.y"
   {
       yyVal = yyVals[0+yyTop];
    }
   break;
 case 259:
-#line 1397 "XQuery.y"
+#line 1399 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.ParenthesizedExpr, new object[] { null });
    }
   break;
 case 260:
-#line 1401 "XQuery.y"
+#line 1403 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.ParenthesizedExpr, yyVals[-1+yyTop]);
    }
   break;
 case 261:
-#line 1408 "XQuery.y"
+#line 1410 "XQuery.y"
   {
       yyVal = new TokenWrapper('.');
    }
   break;
 case 262:
-#line 1415 "XQuery.y"
+#line 1417 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Ordered, yyVals[-1+yyTop]);
    }
   break;
 case 263:
-#line 1422 "XQuery.y"
+#line 1424 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Unordered, yyVals[-1+yyTop]);
    }
   break;
 case 264:
-#line 1429 "XQuery.y"
+#line 1431 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Funcall, yyVals[-2+yyTop], null);
    }
   break;
 case 265:
-#line 1433 "XQuery.y"
+#line 1435 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Funcall, yyVals[-3+yyTop], yyVals[-1+yyTop]);
    }
   break;
 case 266:
-#line 1440 "XQuery.y"
+#line 1442 "XQuery.y"
   {
       yyVal = Lisp.Cons(yyVals[0+yyTop]);
    }
   break;
 case 267:
-#line 1444 "XQuery.y"
+#line 1446 "XQuery.y"
   {
       yyVal = Lisp.Append(yyVals[-2+yyTop], Lisp.Cons(yyVals[0+yyTop]));
    }
   break;
 case 273:
-#line 1462 "XQuery.y"
+#line 1464 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, yyVals[-3+yyTop], yyVals[-2+yyTop]);
    }
   break;
 case 274:
-#line 1466 "XQuery.y"
+#line 1468 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, yyVals[-3+yyTop], null);
    }
   break;
 case 275:
-#line 1470 "XQuery.y"
+#line 1472 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
 		 yyVals[-7+yyTop], yyVals[-6+yyTop], null, yyVals[-2+yyTop], yyVals[-1+yyTop]);
    }
   break;
 case 276:
-#line 1475 "XQuery.y"
+#line 1477 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
 		 yyVals[-7+yyTop], null, null, yyVals[-2+yyTop], yyVals[-1+yyTop]);
    }
   break;
 case 277:
-#line 1480 "XQuery.y"
+#line 1482 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
 		 yyVals[-8+yyTop], yyVals[-7+yyTop], yyVals[-5+yyTop], yyVals[-2+yyTop], yyVals[-1+yyTop]);
    }
   break;
 case 278:
-#line 1485 "XQuery.y"
+#line 1487 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
 		 yyVals[-8+yyTop], null, yyVals[-5+yyTop], yyVals[-2+yyTop], yyVals[-1+yyTop]);
    }
   break;
 case 279:
-#line 1493 "XQuery.y"
+#line 1495 "XQuery.y"
   {
       yyVal = Lisp.Cons(yyVals[0+yyTop]);
    }
   break;
 case 280:
-#line 1497 "XQuery.y"
+#line 1499 "XQuery.y"
   {      
       yyVal = Lisp.Append(yyVals[-1+yyTop], Lisp.Cons(yyVals[0+yyTop]));
    }
   break;
 case 281:
-#line 1504 "XQuery.y"
+#line 1506 "XQuery.y"
   {
       yyVal = null;
    }
   break;
 case 283:
-#line 1512 "XQuery.y"
+#line 1514 "XQuery.y"
   {
       yyVal = Lisp.List(yyVals[-1+yyTop], yyVals[0+yyTop]);   
    }
   break;
 case 284:
-#line 1516 "XQuery.y"
+#line 1518 "XQuery.y"
   {
       yyVal = Lisp.Append(yyVals[-1+yyTop], Lisp.Cons(yyVals[0+yyTop]));
    }
   break;
 case 285:
-#line 1520 "XQuery.y"
+#line 1522 "XQuery.y"
   {
       yyVal = Lisp.Append(yyVals[-2+yyTop], Lisp.List(yyVals[-1+yyTop], yyVals[0+yyTop]));
    }
   break;
 case 286:
-#line 1527 "XQuery.y"
+#line 1529 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirAttribute,
 		 yyVals[-5+yyTop], yyVals[-4+yyTop], yyVals[-2+yyTop], new Literal("\""), Lisp.Cons(new Literal("")));   
    }
   break;
 case 287:
-#line 1532 "XQuery.y"
+#line 1534 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirAttribute,
 		 yyVals[-6+yyTop], yyVals[-5+yyTop], yyVals[-3+yyTop], new Literal("\""), yyVals[-1+yyTop]);
    }
   break;
 case 288:
-#line 1537 "XQuery.y"
+#line 1539 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirAttribute,
 		 yyVals[-5+yyTop], yyVals[-4+yyTop], yyVals[-2+yyTop], new Literal("\'"), Lisp.Cons(new Literal("")));   
    }
   break;
 case 289:
-#line 1542 "XQuery.y"
+#line 1544 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirAttribute,
 		 yyVals[-6+yyTop], yyVals[-5+yyTop], yyVals[-3+yyTop], new Literal("\'"), yyVals[-1+yyTop]);
    }
   break;
 case 290:
-#line 1550 "XQuery.y"
+#line 1552 "XQuery.y"
   {
       yyVal = Lisp.Cons(new TokenWrapper(Token.EscapeQuot));
    }
   break;
 case 291:
-#line 1554 "XQuery.y"
+#line 1556 "XQuery.y"
   {
       yyVal = Lisp.Cons(yyVals[0+yyTop]);
    }
   break;
 case 292:
-#line 1558 "XQuery.y"
+#line 1560 "XQuery.y"
   {
       yyVal = Lisp.Append(yyVals[-1+yyTop], Lisp.Cons(new TokenWrapper(Token.EscapeQuot)));
    }
   break;
 case 293:
-#line 1562 "XQuery.y"
+#line 1564 "XQuery.y"
   {
       yyVal = Lisp.Append(yyVals[-1+yyTop], Lisp.Cons(yyVals[0+yyTop]));
    }
   break;
 case 294:
-#line 1569 "XQuery.y"
+#line 1571 "XQuery.y"
   {
       yyVal = Lisp.Cons(new TokenWrapper(Token.EscapeApos));
    }
   break;
 case 295:
-#line 1573 "XQuery.y"
+#line 1575 "XQuery.y"
   {
       yyVal = Lisp.Cons(yyVals[0+yyTop]);
    }
   break;
 case 296:
-#line 1577 "XQuery.y"
+#line 1579 "XQuery.y"
   {
       yyVal = Lisp.Append(yyVals[-1+yyTop], Lisp.Cons(new TokenWrapper(Token.EscapeApos)));
    }
   break;
 case 297:
-#line 1581 "XQuery.y"
+#line 1583 "XQuery.y"
   {
       yyVal = Lisp.Append(yyVals[-1+yyTop], Lisp.Cons(yyVals[0+yyTop]));
    }
   break;
 case 308:
-#line 1607 "XQuery.y"
+#line 1609 "XQuery.y"
   {
       yyVal = new Literal("{");
    }
   break;
 case 309:
-#line 1611 "XQuery.y"
+#line 1613 "XQuery.y"
   {
       yyVal = new Literal("}");
    }
   break;
 case 310:
-#line 1615 "XQuery.y"
+#line 1617 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.CommonContent), Descriptor.EnclosedExpr, yyVals[0+yyTop]); 
    }
   break;
 case 311:
-#line 1622 "XQuery.y"
+#line 1624 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirCommentConstructor, yyVals[-1+yyTop]);
    }
   break;
 case 312:
-#line 1629 "XQuery.y"
+#line 1631 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirPIConstructor, yyVals[-1+yyTop], null);
    }
   break;
 case 313:
-#line 1633 "XQuery.y"
+#line 1635 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirPIConstructor, yyVals[-3+yyTop], yyVals[-1+yyTop]);
    }
   break;
 case 314:
-#line 1640 "XQuery.y"
+#line 1642 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.CData), Descriptor.CDataSection, yyVals[-1+yyTop]);
    }
   break;
 case 321:
-#line 1656 "XQuery.y"
+#line 1658 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.CompConstructor), 
 		Descriptor.CompDocConstructor, yyVals[-1+yyTop]);
    }
   break;
 case 322:
-#line 1664 "XQuery.y"
+#line 1666 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.CompConstructor), 
 		Descriptor.CompElemConstructor, yyVals[-3+yyTop], yyVals[-1+yyTop]);   
    }
   break;
 case 323:
-#line 1669 "XQuery.y"
+#line 1671 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.CompConstructor), 
 		Descriptor.CompElemConstructor, yyVals[-2+yyTop], null);   
    }
   break;
 case 324:
-#line 1674 "XQuery.y"
+#line 1676 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.CompConstructor), 
 		Descriptor.CompElemConstructor, yyVals[-4+yyTop], yyVals[-1+yyTop]);   
    }
   break;
 case 325:
-#line 1679 "XQuery.y"
+#line 1681 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.CompConstructor), 
 		Descriptor.CompElemConstructor, yyVals[-3+yyTop], null);   
    }
   break;
 case 327:
-#line 1691 "XQuery.y"
+#line 1693 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.CompConstructor), 
 		Descriptor.CompAttrConstructor, yyVals[-3+yyTop], yyVals[-1+yyTop]);   
    }
   break;
 case 328:
-#line 1696 "XQuery.y"
+#line 1698 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.CompConstructor), 
 		Descriptor.CompAttrConstructor, yyVals[-2+yyTop], null);   
    }
   break;
 case 329:
-#line 1701 "XQuery.y"
+#line 1703 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.CompConstructor), 
 		Descriptor.CompAttrConstructor, yyVals[-4+yyTop], yyVals[-1+yyTop]);   
    }
   break;
 case 330:
-#line 1706 "XQuery.y"
+#line 1708 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.CompConstructor), 
 		Descriptor.CompAttrConstructor, yyVals[-3+yyTop], null);   
    }
   break;
 case 331:
-#line 1714 "XQuery.y"
+#line 1716 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.CompConstructor), 
 		Descriptor.CompTextConstructor, yyVals[-1+yyTop]);   
    }
   break;
 case 332:
-#line 1722 "XQuery.y"
+#line 1724 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.CompConstructor), 
 		Descriptor.CompCommentConstructor, yyVals[-1+yyTop]);   
    }
   break;
 case 333:
-#line 1730 "XQuery.y"
+#line 1732 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.CompConstructor), 
 		Descriptor.CompPIConstructor, yyVals[-3+yyTop], yyVals[-1+yyTop]);   
    }
   break;
 case 334:
-#line 1735 "XQuery.y"
+#line 1737 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.CompConstructor), 
 		Descriptor.CompPIConstructor, yyVals[-2+yyTop], null);   
    }
   break;
 case 335:
-#line 1740 "XQuery.y"
+#line 1742 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.CompConstructor), 
 		Descriptor.CompPIConstructor, yyVals[-4+yyTop], yyVals[-1+yyTop]);   
    }
   break;
 case 336:
-#line 1745 "XQuery.y"
+#line 1747 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.CompConstructor), 
 		Descriptor.CompPIConstructor, yyVals[-3+yyTop], null);   
    }
   break;
 case 338:
-#line 1754 "XQuery.y"
+#line 1756 "XQuery.y"
   {
       yyVal = yyVals[-1+yyTop];
       notation.Confirm((Symbol)yyVals[-1+yyTop], Descriptor.Occurrence, 
@@ -2208,177 +2210,177 @@ case 338:
    }
   break;
 case 339:
-#line 1763 "XQuery.y"
+#line 1765 "XQuery.y"
   {
       yyVal = yyVals[0+yyTop];
    }
   break;
 case 341:
-#line 1771 "XQuery.y"
+#line 1773 "XQuery.y"
   {
       yyVal = yyVals[-1+yyTop];
       notation.Confirm((Symbol)yyVals[-1+yyTop], Descriptor.Occurrence, yyVals[0+yyTop]);
    }
   break;
 case 342:
-#line 1776 "XQuery.y"
+#line 1778 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.EMPTY_SEQUENCE);
    }
   break;
 case 343:
-#line 1783 "XQuery.y"
+#line 1785 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.Indicator1);
    }
   break;
 case 344:
-#line 1787 "XQuery.y"
+#line 1789 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.Indicator2);
    }
   break;
 case 345:
-#line 1791 "XQuery.y"
+#line 1793 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.Indicator3);
    }
   break;
 case 348:
-#line 1800 "XQuery.y"
+#line 1802 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.ITEM);
    }
   break;
 case 350:
-#line 1811 "XQuery.y"
+#line 1813 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.KindTest, yyVals[0+yyTop]);
    }
   break;
 case 360:
-#line 1829 "XQuery.y"
+#line 1831 "XQuery.y"
   {
        yyVal = new TokenWrapper(Token.NODE);
    }
   break;
 case 361:
-#line 1836 "XQuery.y"
+#line 1838 "XQuery.y"
   {
        yyVal = new TokenWrapper(Token.DOCUMENT_NODE);
    }
   break;
 case 362:
-#line 1840 "XQuery.y"
+#line 1842 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.DocumentNode, yyVals[-1+yyTop]);
    }
   break;
 case 363:
-#line 1844 "XQuery.y"
+#line 1846 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.DocumentNode, yyVals[-1+yyTop]);
    }
   break;
 case 364:
-#line 1851 "XQuery.y"
+#line 1853 "XQuery.y"
   {
        yyVal = new TokenWrapper(Token.TEXT);
    }
   break;
 case 365:
-#line 1858 "XQuery.y"
+#line 1860 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.COMMENT);
    }
   break;
 case 366:
-#line 1866 "XQuery.y"
+#line 1868 "XQuery.y"
   {
        yyVal = new TokenWrapper(Token.PROCESSING_INSTRUCTION);
    }
   break;
 case 367:
-#line 1870 "XQuery.y"
+#line 1872 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.ProcessingInstruction, yyVals[-1+yyTop]);
    }
   break;
 case 368:
-#line 1874 "XQuery.y"
+#line 1876 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.ProcessingInstruction, yyVals[-1+yyTop]);
    }
   break;
 case 369:
-#line 1881 "XQuery.y"
+#line 1883 "XQuery.y"
   {
        yyVal = new TokenWrapper(Token.ELEMENT);
    }
   break;
 case 370:
-#line 1885 "XQuery.y"
+#line 1887 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Element, yyVals[-1+yyTop]);
    }
   break;
 case 371:
-#line 1889 "XQuery.y"
+#line 1891 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Element, yyVals[-3+yyTop], yyVals[-1+yyTop]);
    }
   break;
 case 372:
-#line 1893 "XQuery.y"
+#line 1895 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Element, 
 		yyVals[-4+yyTop], yyVals[-2+yyTop], new TokenWrapper('?'));
    }
   break;
 case 374:
-#line 1902 "XQuery.y"
+#line 1904 "XQuery.y"
   {
       yyVal = new TokenWrapper('*');
    }
   break;
 case 375:
-#line 1909 "XQuery.y"
+#line 1911 "XQuery.y"
   {
        yyVal = new TokenWrapper(Token.ATTRIBUTE);
    }
   break;
 case 376:
-#line 1913 "XQuery.y"
+#line 1915 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Attribute, yyVals[-1+yyTop]);
    }
   break;
 case 377:
-#line 1917 "XQuery.y"
+#line 1919 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Attribute, yyVals[-3+yyTop], yyVals[-1+yyTop]);
    }
   break;
 case 379:
-#line 1925 "XQuery.y"
+#line 1927 "XQuery.y"
   {
       yyVal = new TokenWrapper('*');
    }
   break;
 case 380:
-#line 1932 "XQuery.y"
+#line 1934 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.SchemaElement, yyVals[-1+yyTop]);
    }
   break;
 case 381:
-#line 1939 "XQuery.y"
+#line 1941 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.SchemaAttribute, yyVals[-1+yyTop]);
    }
   break;
 case 385:
-#line 1958 "XQuery.y"
+#line 1960 "XQuery.y"
   {
       yyVal = null;
    }
@@ -3849,7 +3851,7 @@ case 385:
   374,  375,  376,  377,   -1,   -1,  380,
   };
 
-#line 1981 "XQuery.y"
+#line 1983 "XQuery.y"
 }
 #line default
 namespace yydebug {

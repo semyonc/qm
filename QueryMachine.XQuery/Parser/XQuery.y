@@ -33,6 +33,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 %{
 
+#pragma warning disable 162
+
 using System;
 using System.IO;
 using System.Collections;

@@ -34,7 +34,7 @@ using DataEngine.CoreServices;
 
 namespace DataEngine.XQuery.Util
 {
-    public class TimeValue: IComparable, IRuntimeExtension, IXmlConvertable
+    public class TimeValue: IComparable, IXmlConvertable
     {
         public TimeValue(DateTimeOffset value)
         {
@@ -175,37 +175,69 @@ namespace DataEngine.XQuery.Util
             return new DayTimeDurationValue(tm1.Value - tm2.Value);
         }
 
-        #region IRuntimeExtension Members
-
-        object IRuntimeExtension.OperatorAdd(object arg1, object arg2)
+        internal class Proxy : TypeProxy
         {
-            if (arg1 is TimeValue && arg2 is DayTimeDurationValue)
-                return Add((TimeValue)arg1, (DayTimeDurationValue)arg2);
-            else
-                throw new Runtime.OperatorMismatchException(Funcs.Add, arg1, arg2);
-        }
+            public override bool Eq(object arg1, object arg2)
+            {
+                return arg1.Equals(arg2);
+            }
 
-        object IRuntimeExtension.OperatorSub(object arg1, object arg2)
-        {
-            if (arg1 is TimeValue && arg2 is TimeValue)
-                return Sub((TimeValue)arg1, (TimeValue)arg2);
-            else if (arg1 is TimeValue && arg2 is DayTimeDurationValue)
-                return Add((TimeValue)arg1, -(DayTimeDurationValue)arg2);
-            else
-                throw new Runtime.OperatorMismatchException(Funcs.Sub, arg1, arg2);
-        }
+            public override bool Gt(object arg1, object arg2)
+            {
+                return ((IComparable)arg1).CompareTo(arg2) > 0;
+            }
 
-        object IRuntimeExtension.OperatorMul(object arg1, object arg2)
-        {
-            throw new Runtime.OperatorMismatchException(Funcs.Mul, arg1, arg2);
-        }
+            public override object Promote(object arg1)
+            {
+                TimeValue time = arg1 as TimeValue;
+                if (time == null)
+                    throw new InvalidCastException();
+                return time;
+            }
 
-        object IRuntimeExtension.OperatorDiv(object arg1, object arg2)
-        {
-            throw new Runtime.OperatorMismatchException(Funcs.Div, arg1, arg2);
-        }
+            public override object Neg(object arg1)
+            {
+                throw new OperatorMismatchException(Funcs.Neg, arg1, null);
+            }
 
-        #endregion
+            public override object Add(object arg1, object arg2)
+            {
+                if (arg1 is TimeValue && arg2 is DayTimeDurationValue)
+                    return TimeValue.Add((TimeValue)arg1, (DayTimeDurationValue)arg2);
+                else
+                    throw new OperatorMismatchException(Funcs.Add, arg1, arg2);
+            }
+
+            public override object Sub(object arg1, object arg2)
+            {
+                if (arg1 is TimeValue && arg2 is TimeValue)
+                    return TimeValue.Sub((TimeValue)arg1, (TimeValue)arg2);
+                else if (arg1 is TimeValue && arg2 is DayTimeDurationValue)
+                    return TimeValue.Add((TimeValue)arg1, -(DayTimeDurationValue)arg2);
+                else
+                    throw new OperatorMismatchException(Funcs.Sub, arg1, arg2);
+            }
+
+            public override object Mul(object arg1, object arg2)
+            {
+                throw new OperatorMismatchException(Funcs.Mul, arg1, arg2);
+            }
+
+            public override object Div(object arg1, object arg2)
+            {
+                throw new OperatorMismatchException(Funcs.Div, arg1, arg2);
+            }
+
+            public override Integer IDiv(object arg1, object arg2)
+            {
+                throw new OperatorMismatchException(Funcs.IDiv, arg1, arg2);
+            }
+
+            public override object Mod(object arg1, object arg2)
+            {
+                throw new OperatorMismatchException(Funcs.Div, arg1, arg2);
+            }
+        }
 
         #region IXmlConvertable Members
 

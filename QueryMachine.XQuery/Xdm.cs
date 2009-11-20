@@ -30,33 +30,21 @@ using System.IO;
 
 using System.Xml;
 using System.Xml.Schema;
+using DataEngine.XQuery.DocumentModel;
 
 namespace DataEngine.XQuery
-{
-    public enum XdmNodeType
-    {        
-        Document,        
-        ElementStart,
-        ElementEnd,        
-        Attribute, 
-        Namespace,
-        Text,        
-        Pi,  
-        Comment,
-        Whitespace,
-        Cdata
-    }
-    
+{   
     internal abstract class XdmNode
-    {        
-        public abstract XdmNodeType NodeType { get; }
+    {
+        internal int _parent;
 
-        public virtual bool Completed
+        protected XdmNode()
         {
-            get
-            {
-                return true;
-            }
+        }
+
+        protected XdmNode(int parent)
+        {
+            _parent = parent;
         }
 
         public virtual String Value
@@ -67,110 +55,40 @@ namespace DataEngine.XQuery
             }
         }
 
-        public abstract void Load(PageFile pagefile);
-
-        public abstract void Store(PageFile pagefile);
-
-        public override string ToString()
+        public virtual void Load(PageFile pagefile)
         {
-            StringBuilder sb = new StringBuilder();
-            switch (NodeType)
-            {
-                case XdmNodeType.Document:
-                    {
-                        XdmDocument node = (XdmDocument)this;
-                        sb.AppendFormat("Document standalone = {0}", node.standalone);
-                    }
-                    break;
+            _parent = pagefile.ReadInt32();
+        }
 
-                case XdmNodeType.ElementStart:
-                    {
-                        XdmElementStart node = (XdmElementStart)this;
-                        sb.AppendFormat("Element {0} [{1}]", node._nodeInfo.name, node._linkNext);
-                        XdmAttribute attr = node._attributes;
-                        while (attr != null)
-                        {
-                            sb.Append(" ");
-                            sb.AppendFormat("{0} = '{1}'", attr._nodeInfo.name, attr._value);
-                            attr = attr._next;
-                        }
-                    }
-                    break;
-
-                case XdmNodeType.Attribute:
-                    {
-                        XdmAttribute node = (XdmAttribute)this;
-                        sb.AppendFormat("{0} = '{1}'", node._nodeInfo.name, node._value);
-                    }
-                    break;
-
-                case XdmNodeType.ElementEnd:
-                    {
-                        XdmElementEnd node = (XdmElementEnd)this;
-                        sb.AppendFormat("ElementEnd {0}", node._linkHead);
-                    }
-                    break;
-
-                case XdmNodeType.Comment:
-                    {
-                        XdmComment node = (XdmComment)this;
-                        sb.AppendFormat("Comment '{0}'", node._text);
-                    }
-                    break;
-
-                case XdmNodeType.Pi:
-                    {
-                        XdmProcessingInstruction node = (XdmProcessingInstruction)this;
-                        sb.AppendFormat("Pi {0} {1}", node._name, node._value);
-                    }
-                    break;
-
-                case XdmNodeType.Text:
-                    sb.AppendFormat("Text '{0}'", Value);
-                    break;
-
-                case XdmNodeType.Whitespace:
-                    sb.Append("S");
-                    break;
-
-                case XdmNodeType.Cdata:
-                    sb.AppendFormat("Cdata '{0}'", Value);
-                    break;
-            }
-            return sb.ToString();
+        public virtual void Store(PageFile pagefile)
+        {
+            pagefile.WriteInt32(_parent);
         }
     }
 
     internal class XdmDocument : XdmNode
     {
-        internal bool standalone;
-
-        public override XdmNodeType NodeType
+        public XdmDocument()
         {
-            get { return XdmNodeType.Document; }
         }
 
         public override void Load(PageFile pagefile)
-        {
-            standalone = pagefile.ReadBoolean();
+        {            
         }
 
         public override void Store(PageFile pagefile)
-        {
-            pagefile.WriteBoolean(standalone);
+        {            
         }
     }
 
     internal class XdmAttribute : XdmNode
     {
-        internal XQueryNodeInfo _nodeInfo;
+        internal DmAttribute _dm;
         internal String _value;
-        internal IXmlSchemaInfo _schemaInfo;
         internal XdmAttribute _next;
 
-        public override XdmNodeType NodeType
+        public XdmAttribute()
         {
-            get { return XdmNodeType.Attribute; }
         }
 
         public override string Value
@@ -183,18 +101,14 @@ namespace DataEngine.XQuery
 
         public override void Load(PageFile pagefile)
         {
-            _nodeInfo = pagefile.ReadNodeInfo();
+            _dm = pagefile.ReadAttributeInfo();
             _value = pagefile.ReadString();
-            if (pagefile.HasSchemaInfo)
-                _schemaInfo = pagefile.ReadSchemaInfo();
         }
 
         public override void Store(PageFile pagefile)
         {
-            pagefile.WriteNodeInfo(_nodeInfo);
+            pagefile.WriteAttributeInfo(_dm);
             pagefile.WriteString(_value);
-            if (pagefile.HasSchemaInfo)
-                pagefile.WriteSchemaInfo(_schemaInfo);
         }
     }
 
@@ -204,9 +118,13 @@ namespace DataEngine.XQuery
         internal String _value;
         internal XdmNamespace _next;
 
-        public override XdmNodeType NodeType
+        public XdmNamespace()
         {
-            get { return XdmNodeType.Namespace; }
+        }
+
+        public XdmNamespace(int parent)
+            : base(parent)
+        {
         }
 
         public override string Value
@@ -219,41 +137,36 @@ namespace DataEngine.XQuery
 
         public override void Load(PageFile pagefile)
         {
+            base.Load(pagefile);
             _name = pagefile.ReadString();
             _value = pagefile.ReadString();
         }
 
         public override void Store(PageFile pagefile)
         {
+            base.Store(pagefile);
             pagefile.WriteString(_name);
             pagefile.WriteString(_value);
         }
     }
 
-    internal class XdmElementStart : XdmNode
+    internal class XdmElement : XdmNode
     {
-        internal int _linkNext;
-        internal XQueryNodeInfo _nodeInfo;
         internal XdmNamespace _ns;
-        internal XdmAttribute _attributes;         
+        internal XdmAttribute _attributes;
 
-        public override XdmNodeType NodeType
+        public XdmElement()
         {
-            get { return XdmNodeType.ElementStart; }
         }
 
-        public override bool Completed
+        public XdmElement(int parent)
+            : base(parent)
         {
-            get
-            {
-                return _linkNext != 0;
-            }
         }
 
         public override void Load(PageFile pagefile)
         {
-            _linkNext = pagefile.ReadInt32();
-            _nodeInfo = pagefile.ReadNodeInfo();
+            base.Load(pagefile);
             XdmNamespace ns = null;
             while (true)
             {
@@ -288,8 +201,7 @@ namespace DataEngine.XQuery
 
         public override void Store(PageFile pagefile)
         {
-            pagefile.WriteInt32(_linkNext);
-            pagefile.WriteNodeInfo(_nodeInfo);
+            base.Store(pagefile);
             XdmNamespace ns = _ns;
             while (ns != null)
             {
@@ -309,39 +221,18 @@ namespace DataEngine.XQuery
         }
     }
 
-    internal class XdmElementEnd : XdmNode
-    {
-        internal int _linkHead;
-        internal IXmlSchemaInfo _schemaInfo;
-
-        public override XdmNodeType NodeType
-        {
-            get { return XdmNodeType.ElementEnd; }
-        }
-
-        public override void Load(PageFile pagefile)
-        {
-            _linkHead = pagefile.ReadInt32();
-            if (pagefile.HasSchemaInfo)
-                _schemaInfo = pagefile.ReadSchemaInfo();
-        }
-
-        public override void Store(PageFile pagefile)
-        {
-            pagefile.WriteInt32(_linkHead);
-            if (pagefile.HasSchemaInfo)
-                pagefile.WriteSchemaInfo(_schemaInfo);
-        }
-    }
-
     internal class XdmProcessingInstruction : XdmNode
     {
-        internal String _name;
         internal String _value;
 
-        public override XdmNodeType NodeType
+        public XdmProcessingInstruction()
         {
-            get { return XdmNodeType.Pi; }
+        }
+
+        public XdmProcessingInstruction(int parent, string value)
+            : base(parent)
+        {
+            _value = value;
         }
 
         public override string Value
@@ -354,13 +245,13 @@ namespace DataEngine.XQuery
 
         public override void Load(PageFile pagefile)
         {
-            _name = pagefile.ReadString();
+            base.Load(pagefile);
             _value = pagefile.ReadString();
         }
 
         public override void Store(PageFile pagefile)
         {
-            pagefile.WriteString(_name);
+            base.Store(pagefile);
             pagefile.WriteString(_value);
         }
     }
@@ -369,9 +260,14 @@ namespace DataEngine.XQuery
     {
         internal String _text;
 
-        public override XdmNodeType NodeType
+        public XdmComment()
         {
-            get { return XdmNodeType.Comment; }
+        }
+
+        public XdmComment(int parent, string text)
+            : base(parent)
+        {
+            _text = text;
         }
 
         public override string Value
@@ -384,11 +280,13 @@ namespace DataEngine.XQuery
 
         public override void Load(PageFile pagefile)
         {
+            base.Load(pagefile);
             _text = pagefile.ReadString();
         }
 
         public override void Store(PageFile pagefile)
         {
+            base.Store(pagefile);
             pagefile.WriteString(_text);
         }
     }
@@ -397,6 +295,16 @@ namespace DataEngine.XQuery
     {
         internal String _text;
 
+        public XdmWhitespace()
+        {
+        }
+
+        public XdmWhitespace(int parent, string text)
+            : base(parent)
+        {
+            _text = text;
+        }
+
         public override string Value
         {
             get
@@ -405,18 +313,15 @@ namespace DataEngine.XQuery
             }
         }
 
-        public override XdmNodeType NodeType
-        {
-            get { return XdmNodeType.Whitespace; }
-        }
-
         public override void Load(PageFile pagefile)
         {
+            base.Load(pagefile);
             _text = pagefile.ReadString();
         }
 
         public override void Store(PageFile pagefile)
         {
+            base.Store(pagefile);
             pagefile.WriteString(_text);
         }
     }
@@ -425,33 +330,15 @@ namespace DataEngine.XQuery
     {
         internal String _text;
 
-        public override string Value
+        public XdmText()
         {
-            get
-            {
-                return _text;
-            }
         }
 
-        public override XdmNodeType NodeType
+        public XdmText(int parent, string text)
+            : base(parent)
         {
-            get { return XdmNodeType.Text; }
+            _text = text;
         }
-
-        public override void Load(PageFile pagefile)
-        {
-            _text = pagefile.ReadString();
-        }
-
-        public override void Store(PageFile pagefile)
-        {
-            pagefile.WriteString(_text);
-        }
-    }
-
-    internal class XdmCdata : XdmNode
-    {
-        internal String _text;
 
         public override string Value
         {
@@ -461,18 +348,15 @@ namespace DataEngine.XQuery
             }
         }
 
-        public override XdmNodeType NodeType
-        {
-            get { return XdmNodeType.Cdata; }
-        }
-
         public override void Load(PageFile pagefile)
         {
+            base.Load(pagefile);
             _text = pagefile.ReadString();
         }
 
         public override void Store(PageFile pagefile)
         {
+            base.Store(pagefile);
             pagefile.WriteString(_text);
         }
     }

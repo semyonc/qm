@@ -262,7 +262,7 @@
     <value>The result of the last step in a path expression contains both nodes and atomic values {0}</value>
   </data>
   <data name="FORG0006" xml:space="preserve">
-    <value>Function 'boolean' in namespace 'http://www.w3.org/2005/xpath-functions' was called with invalid argument type {0}</value>
+    <value>Function '{0}' was called with invalid argument type {1}</value>
   </data>
   <data name="BinaryOperatorNotDefined" xml:space="preserve">
     <value>Operator {0}  is not defined for arguments of type {1} and {2}</value>
@@ -371,5 +371,26 @@
   </data>
   <data name="InvalidRegularExpr" xml:space="preserve">
     <value>The regular expression '{0}' is invalid</value>
+  </data>
+  <data name="FODC0001" xml:space="preserve">
+    <value>No context document</value>
+  </data>
+  <data name="XQTY0030" xml:space="preserve">
+    <value>The argument of a validate expression does not evaluate to exactly one document or element node</value>
+  </data>
+  <data name="FOTY0012" xml:space="preserve">
+    <value>Argument node {0} does not have a typed value</value>
+  </data>
+  <data name="XQST0058" xml:space="preserve">
+    <value>Multiple schema imports specify the same target namespace {0}</value>
+  </data>
+  <data name="XPTY0004_CAST" xml:space="preserve">
+    <value>Only string literals can be cast to type {0}</value>
+  </data>
+  <data name="FORX0003" xml:space="preserve">
+    <value>Regular expression {0} matches zero-length string</value>
+  </data>
+  <data name="FORX0004" xml:space="preserve">
+    <value>Invalid replacement string {0}</value>
   </data>
 </root>

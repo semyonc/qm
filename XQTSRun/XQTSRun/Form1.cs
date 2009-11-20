@@ -45,6 +45,7 @@ namespace XQTSRun
         internal Dictionary<string, string> _sources;
         internal Dictionary<string, string> _module;
         internal Dictionary<string, string[]> _collection;
+        internal Dictionary<string, string[]> _schema;
         internal OutputWriter _out;
         internal string _lastFindString = "";
         
@@ -140,7 +141,17 @@ namespace XQTSRun
             _sources = new Dictionary<string, string>();
             _module = new Dictionary<string, string>();
             _collection = new Dictionary<string, string[]>();
+            _schema = new Dictionary<string, string[]>();
 
+            foreach (XmlElement node in _catalog.SelectNodes("/ts:test-suite/ts:sources/ts:schema", _nsmgr))
+            {
+                string id = node.GetAttribute("ID");
+                string targetNs = node.GetAttribute("uri");
+                string schemaFileName = Path.Combine(_basePath, node.GetAttribute("FileName").Replace('/', '\\'));
+                if (!File.Exists(schemaFileName))
+                    _out.WriteLine("Schema file {0} is not exists", schemaFileName);
+                _schema.Add(id, new string[] { targetNs, schemaFileName });
+            }
             foreach (XmlElement node in _catalog.SelectNodes("/ts:test-suite/ts:sources/ts:source", _nsmgr))
             {
                 string id = node.GetAttribute("ID");
@@ -245,8 +256,43 @@ namespace XQTSRun
                 dataGridView1.Columns[6].ReadOnly = true;
                 testToolStripMenuItem.Visible = 
                     _testTab.Rows.Count > 0;
-                toolStripStatusLabel1.Text =
-                    String.Format("{0} test case(s) loaded.", _testTab.Rows.Count);
+                if (node == null)
+                {
+                    int sel = 0;
+                    HashSet<XmlNode> hs = new HashSet<XmlNode>();
+                    foreach (XmlNode child in
+                        _catalog.SelectNodes(".//ts:test-group[@name='MinimalConformance']//ts:test-case", _nsmgr))
+                        hs.Add(child);
+                    foreach (XmlNode child in
+                        _catalog.SelectNodes(".//ts:test-group[@name='FullAxis']//ts:test-case", _nsmgr))
+                        hs.Add(child);
+                    foreach (XmlNode child in
+                        _catalog.SelectNodes(".//ts:test-group[@name='Appendices']//ts:test-case", _nsmgr))
+                        hs.Add(child);
+                    foreach (XmlNode child in
+                        _catalog.SelectNodes(".//ts:test-group[@name='UseCase']//ts:test-case", _nsmgr))
+                        hs.Add(child);
+                    foreach (XmlNode child in
+                        _catalog.SelectNodes(".//ts:test-group[@name='Catalog']//ts:test-case", _nsmgr))
+                        hs.Add(child);
+                    foreach (XmlNode child in
+                        _catalog.SelectNodes(".//ts:test-group[@name='SchemaImport']//ts:test-case", _nsmgr))
+                        hs.Add(child);
+                    sel = 0;
+                    foreach (DataRow row in _testTab.Rows)
+                    {
+                        if (hs.Contains((XmlNode)row[5]))
+                        {
+                            row[0] = true;
+                            sel++;
+                        }
+                    }
+                    toolStripStatusLabel1.Text =
+                        String.Format("{0} test case(s) loaded, {1} supported selected.", _testTab.Rows.Count, sel);
+                }
+                else
+                    toolStripStatusLabel1.Text =
+                        String.Format("{0} test case(s) loaded.", _testTab.Rows.Count);
             }
             finally
             {
@@ -458,7 +504,7 @@ namespace XQTSRun
             resFile.AddFeature("Minimal Conformance", true);
             resFile.AddFeature("Schema Import", false);
             resFile.AddFeature("Schema Validation", false);
-            resFile.AddFeature("Full Axis", false);
+            resFile.AddFeature("Full Axis", true);
             resFile.AddFeature("Serialization", false);
             resFile.AddFeature("Trivial XML Embedding", false);
             resFile.Worktime = new Stopwatch();
@@ -536,7 +582,16 @@ namespace XQTSRun
                         string id = curr.InnerText;
                         command.DefineModuleNamespace(ns, _module[id]);
                     }
-                    else if (curr.LocalName == "input-file")
+                }
+                foreach (string[] schema in _schema.Values)
+                    command.DefineSchemaNamespace(schema[0], schema[1]);
+                command.Compile();
+                foreach (XmlNode child in node.ChildNodes)
+                {
+                    XmlElement curr = child as XmlElement;
+                    if (curr == null || curr.NamespaceURI != XQTSNamespace)
+                        continue;
+                    if (curr.LocalName == "input-file")
                     {
                         string var = curr.GetAttribute("variable");
                         string id = curr.InnerText;
@@ -563,7 +618,10 @@ namespace XQTSRun
                     {
                         string var = curr.GetAttribute("variable");
                         string value = curr.InnerText;
-                        command.Parameters.Add(new XQueryParameter(var, _sources[value]));
+                        string expandedUri;
+                        if (!_sources.TryGetValue(value, out expandedUri))
+                            expandedUri = value;
+                        command.Parameters.Add(new XQueryParameter(var, expandedUri));
                     }
                     else if (curr.LocalName == "input-query")
                     {
@@ -591,7 +649,20 @@ namespace XQTSRun
         {
             try
             {
-                using (XQueryCommand command = CreateCommand(tw, testCase))
+                XQueryCommand command;
+                try
+                {
+                    command = CreateCommand(tw, testCase);
+                }
+                catch (XQueryException)
+                {
+                    if (testCase.GetAttribute("scenario") == "parse-error" ||
+                        testCase.GetAttribute("scenario") == "runtime-error" ||
+                        testCase.SelectSingleNode("ts:expected-error", _nsmgr) != null)
+                        return true;
+                    throw;
+                }
+                using (command)
                 {
                     XQueryNodeIterator iter;
                     try
@@ -682,7 +753,7 @@ namespace XQTSRun
         {
             IXPathNavigable doc = context.OpenDocument(sourceFile);
             XQueryNodeIterator src = new NodeIterator(new XPathItem[] { doc.CreateNavigator() });
-            TreeComparer comparer = new TreeComparer();
+            TreeComparer comparer = new TreeComparer(context.Engine);
             comparer.IgnoreWhitespace = true;
             return comparer.DeepEqual(src, new NodeIterator(DocumentIterator(context, iter)));
         }
@@ -709,7 +780,7 @@ namespace XQTSRun
             builder.WriteEndElement();
             XQueryNodeIterator iter1 = new NodeIterator(new XPathItem[] { doc1.CreateNavigator() });
             XQueryNodeIterator iter2 = new NodeIterator(new XPathItem[] { doc2.CreateNavigator() });
-            TreeComparer comparer = new TreeComparer();
+            TreeComparer comparer = new TreeComparer(context.Engine);
             comparer.IgnoreWhitespace = true;
             bool res = comparer.DeepEqual(iter1, iter2);
             return res;

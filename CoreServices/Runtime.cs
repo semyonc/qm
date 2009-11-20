@@ -31,394 +31,40 @@ using System.Globalization;
 namespace DataEngine.CoreServices
 {
     public class Runtime
-    {
-        public class OperatorMismatchException : Exception
+    {        
+        public static object DynamicNeg([Implict] Executive engine, object arg)
         {
-            public OperatorMismatchException(object id, object arg1, object arg2)
-            {
-                ID = id;
-                Arg1 = arg1;
-                Arg2 = arg2;
-            }
-
-            public OperatorMismatchException(object id, object arg)
-                : this(id, arg, null)
-            {
-            }
-
-            public object ID { get; private set; }
-
-            public object Arg1 { get; private set; }
-
-            public object Arg2 { get; private set; }
+            return engine.DynamicOperators.Neg(arg);
         }
 
-        public static object DynamicNeg(object arg)
+        public static object DynamicAdd([Implict] Executive engine, object arg1, object arg2)
         {
-            if (arg == null)
-                return null;
-            switch (TypeConverter.GetNumericCode(arg.GetType()))
-            {
-                case NumericCode.Byte:
-                    return -(SByte)arg;
-
-                case NumericCode.Short:
-                    return -(Int16)arg;
-
-                case NumericCode.unsignedByte:
-                case NumericCode.unsignedShort:
-                case NumericCode.Int:
-                    return -Convert.ToInt32(arg);
-
-                case NumericCode.Long:
-                case NumericCode.unsignedInt:
-                    return -Convert.ToInt64(arg);
-
-                case NumericCode.unsignedLong:
-                    return -(Integer)Convert.ToDecimal(arg);
-
-                case NumericCode.Integer:
-                    return -Integer.ToInteger(arg);
-
-                case NumericCode.Float:
-                    return -(Single)arg;
-
-                case NumericCode.Double:
-                    return -(Double)arg;
-
-                case NumericCode.Decimal:
-                    return 0 -(Decimal)arg;
-
-                default:
-                    throw new OperatorMismatchException(Funcs.Neg, arg);
-            }
+            return engine.DynamicOperators.Add(arg1, arg2);
         }
 
-        public static object DynamicAdd(object arg1, object arg2)
+        public static object DynamicSub([Implict] Executive engine, object arg1, object arg2)
         {
-            if (arg1 == null || arg2 == null)
-                return null;
-            else
-            {
-                if (arg1 is IConvertible && arg2 is IConvertible)
-                {
-                    switch (TypeConverter.GetNumericCode(arg1, arg2))
-                    {
-
-                        case NumericCode.Byte:
-                            return Convert.ToSByte(arg1) + Convert.ToSByte(arg2);
-
-                        case NumericCode.unsignedByte:
-                            return Convert.ToByte(arg1) + Convert.ToByte(arg2);
-
-                        case NumericCode.Short:
-                            return Convert.ToInt16(arg1) + Convert.ToInt16(arg2);
-
-                        case NumericCode.unsignedShort:
-                            return Convert.ToUInt16(arg1) + Convert.ToUInt16(arg2);
-
-                        case NumericCode.Int:
-                            return Convert.ToInt32(arg1) + Convert.ToInt32(arg2);
-
-                        case NumericCode.unsignedInt:
-                            return Convert.ToUInt32(arg1) + Convert.ToUInt32(arg2);
-
-                        case NumericCode.Long:
-                            return Convert.ToInt64(arg1) + Convert.ToInt64(arg2);
-
-                        case NumericCode.unsignedLong:
-                            return Convert.ToUInt64(arg1) + Convert.ToUInt64(arg2);
-
-                        case NumericCode.Integer:
-                            return (Integer)Convert.ToDecimal(arg1) + (Integer)Convert.ToDecimal(arg2);
-
-                        case NumericCode.Decimal:
-                            return Convert.ToDecimal(arg1) + Convert.ToDecimal(arg2);
-
-                        case NumericCode.Float:
-                            return Convert.ToSingle(arg1) + Convert.ToSingle(arg2);
-
-                        case NumericCode.Double:
-                            return Convert.ToDouble(arg1) + Convert.ToDouble(arg2);
-                    }
-                }
-            }
-            IRuntimeExtension ext = arg1 as IRuntimeExtension;
-            if (ext != null)
-                return ext.OperatorAdd(arg1, arg2);
-            ext = arg2 as IRuntimeExtension;
-            if (ext != null)
-                return ext.OperatorAdd(arg1, arg2);
-            else
-                throw new OperatorMismatchException(Funcs.Add, arg1, arg2);
+            return engine.DynamicOperators.Sub(arg1, arg2);
         }
 
-        public static object DynamicSub(object arg1, object arg2)
+        public static object DynamicMul([Implict] Executive engine, object arg1, object arg2)
         {
-            if (arg1 == null || arg2 == null)
-                return null;
-            else
-            {
-                if (arg1 is IConvertible && arg2 is IConvertible)
-                {
-                    switch (TypeConverter.GetNumericCode(arg1, arg2))
-                    {
-
-                        case NumericCode.Byte:
-                            return Convert.ToSByte(arg1) - Convert.ToSByte(arg2);
-
-                        case NumericCode.unsignedByte:
-                            return Convert.ToByte(arg1) - Convert.ToByte(arg2);
-
-                        case NumericCode.Short:
-                            return Convert.ToInt16(arg1) - Convert.ToInt16(arg2);
-
-                        case NumericCode.unsignedShort:
-                            return Convert.ToUInt16(arg1) - Convert.ToUInt16(arg2);
-
-                        case NumericCode.Int:
-                            return Convert.ToInt32(arg1) - Convert.ToInt32(arg2);
-
-                        case NumericCode.unsignedInt:
-                            return Convert.ToUInt32(arg1) - Convert.ToUInt32(arg2);
-
-                        case NumericCode.Long:
-                            return Convert.ToInt64(arg1) - Convert.ToInt64(arg2);
-
-                        case NumericCode.unsignedLong:
-                            return Convert.ToUInt64(arg1) - Convert.ToUInt64(arg2);
-
-                        case NumericCode.Integer:
-                            return (Integer)Convert.ToDecimal(arg1) - (Integer)Convert.ToDecimal(arg2);
-
-                        case NumericCode.Decimal:
-                            return Convert.ToDecimal(arg1) - Convert.ToDecimal(arg2);
-
-                        case NumericCode.Float:
-                            return Convert.ToSingle(arg1) - Convert.ToSingle(arg2);
-
-                        case NumericCode.Double:
-                            return Convert.ToDouble(arg1) - Convert.ToDouble(arg2);
-                    }
-                }
-                IRuntimeExtension ext = arg1 as IRuntimeExtension;
-                if (ext != null)
-                    return ext.OperatorSub(arg1, arg2);
-                ext = arg2 as IRuntimeExtension;
-                if (ext != null)
-                    return ext.OperatorSub(arg1, arg2);
-                else
-                    throw new OperatorMismatchException(Funcs.Sub, arg1, arg2);
-            }
+            return engine.DynamicOperators.Mul(arg1, arg2);
         }
 
-        public static object DynamicMul(object arg1, object arg2)
+        public static object DynamicDiv([Implict] Executive engine, object arg1, object arg2)
         {
-            if (arg1 == null || arg2 == null)
-                return null;
-            else
-            {
-                if (arg1 is IConvertible && arg2 is IConvertible)
-                {
-                    switch (TypeConverter.GetNumericCode(arg1, arg2))
-                    {
-
-                        case NumericCode.Byte:
-                            return Convert.ToSByte(arg1) * Convert.ToSByte(arg2);
-
-                        case NumericCode.unsignedByte:
-                            return Convert.ToByte(arg1) * Convert.ToByte(arg2);
-
-                        case NumericCode.Short:
-                            return Convert.ToInt16(arg1) * Convert.ToInt16(arg2);
-
-                        case NumericCode.unsignedShort:
-                            return Convert.ToUInt16(arg1) * Convert.ToUInt16(arg2);
-
-                        case NumericCode.Int:
-                            return Convert.ToInt32(arg1) * Convert.ToInt32(arg2);
-
-                        case NumericCode.unsignedInt:
-                            return Convert.ToUInt32(arg1) * Convert.ToUInt32(arg2);
-
-                        case NumericCode.Long:
-                            return Convert.ToInt64(arg1) * Convert.ToInt64(arg2);
-
-                        case NumericCode.unsignedLong:
-                            return Convert.ToUInt64(arg1) * Convert.ToUInt64(arg2);
-
-                        case NumericCode.Integer:
-                            return (Integer)Convert.ToDecimal(arg1) * (Integer)Convert.ToDecimal(arg2);
-
-                        case NumericCode.Decimal:
-                            return Convert.ToDecimal(arg1) * Convert.ToDecimal(arg2);
-
-                        case NumericCode.Float:
-                            return Convert.ToSingle(arg1) * Convert.ToSingle(arg2);
-
-                        case NumericCode.Double:
-                            return Convert.ToDouble(arg1) * Convert.ToDouble(arg2);
-                    }
-                }
-                IRuntimeExtension ext = arg1 as IRuntimeExtension;
-                if (ext != null)
-                    return ext.OperatorMul(arg1, arg2);
-                ext = arg2 as IRuntimeExtension;
-                if (ext != null)
-                    return ext.OperatorMul(arg1, arg2);
-                else
-                    throw new OperatorMismatchException(Funcs.Mul, arg1, arg2);
-            }
+            return engine.DynamicOperators.Div(arg1, arg2);
         }
 
-        public static object DynamicDiv(object arg1, object arg2)
+        public static object DynamicMod([Implict] Executive engine, object arg1, object arg2)
         {
-            if (arg1 == null || arg2 == null)
-                return null;
-            else
-            {
-                if (arg1 is IConvertible && arg2 is IConvertible)
-                {
-                    switch (TypeConverter.GetNumericCode(arg1, arg2))
-                    {
-                        case NumericCode.Float:
-                            return Convert.ToSingle(arg1) / Convert.ToSingle(arg2);
-
-                        case NumericCode.Double:
-                            return Convert.ToDouble(arg1) / Convert.ToDouble(arg2);
-
-                        case NumericCode.Unknown:
-                            {
-                                IRuntimeExtension ext = arg1 as IRuntimeExtension;
-                                if (ext != null)
-                                    return ext.OperatorDiv(arg1, arg2);
-                                ext = arg2 as IRuntimeExtension;
-                                if (ext != null)
-                                    return ext.OperatorDiv(arg1, arg2);
-                                else
-                                    throw new OperatorMismatchException(Funcs.Div, arg1, arg2);
-                            }
-
-                        default:
-                            return Convert.ToDecimal(arg1) / Convert.ToDecimal(arg2);
-                    }
-                }
-                else
-                {
-                    IRuntimeExtension ext = arg1 as IRuntimeExtension;
-                    if (ext != null)
-                        return ext.OperatorDiv(arg1, arg2);
-                    ext = arg2 as IRuntimeExtension;
-                    if (ext != null)
-                        return ext.OperatorDiv(arg1, arg2);
-                    else
-                        throw new OperatorMismatchException(Funcs.Div, arg1, arg2);
-                }
-            }
+            return engine.DynamicOperators.Mod(arg1, arg2);
         }
 
-        public static object DynamicMod(object arg1, object arg2)
+        public static Integer DynamicIDiv([Implict] Executive engine, object arg1, object arg2)
         {
-            if (arg1 == null || arg2 == null)
-                return null;
-            else
-                if (arg1 is IConvertible && arg2 is IConvertible)
-                {
-                    switch (TypeConverter.GetNumericCode(arg1, arg2))
-                    {
-
-                        case NumericCode.Byte:
-                            return Convert.ToSByte(arg1) % Convert.ToSByte(arg2);
-
-                        case NumericCode.unsignedByte:
-                            return Convert.ToByte(arg1) % Convert.ToByte(arg2);
-
-                        case NumericCode.Short:
-                            return Convert.ToInt16(arg1) % Convert.ToInt16(arg2);
-
-                        case NumericCode.unsignedShort:
-                            return Convert.ToUInt16(arg1) % Convert.ToUInt16(arg2);
-
-                        case NumericCode.Int:
-                            return Convert.ToInt32(arg1) % Convert.ToInt32(arg2);
-
-                        case NumericCode.unsignedInt:
-                            return Convert.ToUInt32(arg1) % Convert.ToUInt32(arg2);
-
-                        case NumericCode.Long:
-                            return Convert.ToInt64(arg1) % Convert.ToInt64(arg2);
-
-                        case NumericCode.unsignedLong:
-                            return Convert.ToUInt64(arg1) % Convert.ToUInt64(arg2);
-
-                        case NumericCode.Integer:
-                            return (Integer)Convert.ToDecimal(arg1) % (Integer)Convert.ToDecimal(arg2);
-
-                        case NumericCode.Decimal:
-                            return Convert.ToDecimal(arg1) % Convert.ToDecimal(arg2);
-
-                        case NumericCode.Float:
-                            return Convert.ToSingle(arg1) % Convert.ToSingle(arg2);
-
-                        case NumericCode.Double:
-                            return Convert.ToDouble(arg1) % Convert.ToDouble(arg2);
-
-                        default:
-                            throw new OperatorMismatchException(Funcs.Mod, arg1, arg2);
-                    }
-                }
-                else
-                    throw new OperatorMismatchException(Funcs.Mod, arg1, arg2);            
-        }
-
-        public static Integer DynamicIDiv(object arg1, object arg2)
-        {
-            if (arg1 == null || arg2 == null)
-                throw new InvalidOperationException();
-            else
-                if (arg1 is IConvertible && arg2 is IConvertible)
-                {
-                    switch (TypeConverter.GetNumericCode(arg1, arg2))
-                    {
-                        case NumericCode.Byte:
-                            return (Integer)Convert.ToDecimal(Convert.ToSByte(arg1) / Convert.ToSByte(arg2));
-
-                        case NumericCode.unsignedByte:
-                            return (Integer)Convert.ToDecimal(Convert.ToByte(arg1) / Convert.ToByte(arg2));
-
-                        case NumericCode.Short:
-                            return (Integer)Convert.ToDecimal(Convert.ToInt16(arg1) / Convert.ToInt16(arg2));
-
-                        case NumericCode.unsignedShort:
-                            return (Integer)Convert.ToDecimal(Convert.ToUInt16(arg1) / Convert.ToUInt16(arg2));
-
-                        case NumericCode.Int:
-                            return (Integer)Convert.ToDecimal(Convert.ToInt32(arg1) / Convert.ToInt32(arg2));
-
-                        case NumericCode.unsignedInt:
-                            return (Integer)Convert.ToDecimal(Convert.ToUInt32(arg1) / Convert.ToUInt32(arg2));
-
-                        case NumericCode.Long:
-                            return (Integer)Convert.ToDecimal(Convert.ToInt64(arg1) / Convert.ToInt64(arg2));
-
-                        case NumericCode.unsignedLong:
-                            return (Integer)Convert.ToDecimal(Convert.ToUInt64(arg1) / Convert.ToUInt64(arg2));
-
-                        case NumericCode.Decimal:
-                            return (Integer)Convert.ToDecimal(Convert.ToDecimal(arg1) / Convert.ToDecimal(arg2));
-
-                        case NumericCode.Float:
-                            return (Integer)Convert.ToDecimal(Math.Truncate(Convert.ToSingle(arg1) / Convert.ToSingle(arg2)));
-
-                        case NumericCode.Double:
-                            return (Integer)Convert.ToDecimal(Math.Truncate(Convert.ToDouble(arg1) / Convert.ToDouble(arg2)));
-
-                        default:
-                            throw new OperatorMismatchException(Funcs.IDiv, arg1, arg2);
-                    }
-                }
-                else
-                    throw new OperatorMismatchException(Funcs.IDiv, arg1, arg2);            
+            return engine.DynamicOperators.IDiv(arg1, arg2);
         }
 
         public static object DynamicEq([Implict] Executive engine, object arg1, object arg2)

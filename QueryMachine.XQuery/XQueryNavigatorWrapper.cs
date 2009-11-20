@@ -26,11 +26,12 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-
 using System.Xml;
 using System.Xml.XPath;
 using System.Xml.Schema;
+
 using DataEngine.CoreServices;
+using DataEngine.XQuery.Util;
 
 namespace DataEngine.XQuery
 {
@@ -56,7 +57,7 @@ namespace DataEngine.XQuery
             }
         }
 
-        private XPathNavigator m_inner;
+        internal XPathNavigator m_inner;
         private object m_typedValue;
         private object m_underlyingObjectDecorate;
 
@@ -387,13 +388,91 @@ namespace DataEngine.XQuery
             return m_inner.ValueAs(returnType, nsResolver);
         }
 
+        private object GetNavigatorTypedValue(XPathNavigator nav)
+        {
+            IXmlSchemaInfo schemaInfo = nav.SchemaInfo;
+            if (schemaInfo == null || schemaInfo.SchemaType == null)
+            {
+                switch (nav.NodeType)
+                {
+                    case XPathNodeType.Comment:
+                    case XPathNodeType.ProcessingInstruction:
+                    case XPathNodeType.Namespace:
+                        return nav.Value;
+                    default:
+                        return new UntypedAtomic(nav.Value);
+                }
+            }
+            switch (schemaInfo.SchemaType.TypeCode)
+            {
+                case XmlTypeCode.UntypedAtomic:
+                    return new UntypedAtomic(nav.Value);
+                case XmlTypeCode.Integer:
+                case XmlTypeCode.PositiveInteger:
+                case XmlTypeCode.NegativeInteger:
+                case XmlTypeCode.NonPositiveInteger:
+                    return (Integer)(decimal)base.TypedValue;
+                case XmlTypeCode.Date:
+                    return DateValue.Parse(nav.Value);
+                case XmlTypeCode.DateTime:
+                    return DateTimeValue.Parse(nav.Value);
+                case XmlTypeCode.Time:
+                    return TimeValue.Parse(nav.Value);
+                case XmlTypeCode.Duration:
+                    return DurationValue.Parse(nav.Value);
+                case XmlTypeCode.DayTimeDuration:
+                    return new DayTimeDurationValue((TimeSpan)nav.TypedValue);
+                case XmlTypeCode.YearMonthDuration:
+                    return new YearMonthDurationValue((TimeSpan)nav.TypedValue);
+                case XmlTypeCode.GDay:
+                    return GDayValue.Parse(nav.Value);
+                case XmlTypeCode.GMonth:
+                    return GMonthValue.Parse(nav.Value);
+                case XmlTypeCode.GMonthDay:
+                    return GMonthDayValue.Parse(nav.Value);
+                case XmlTypeCode.GYear:
+                    return GYearValue.Parse(nav.Value);
+                case XmlTypeCode.GYearMonth:
+                    return GYearMonthValue.Parse(nav.Value);
+                case XmlTypeCode.QName:
+                    {
+                        XmlNamespaceManager nsmgr = new XmlNamespaceManager(nav.NameTable);
+                        XQueryFuncs.ScanLocalNamespaces(nsmgr, nav.Clone(), true);
+                        if (schemaInfo.SchemaType.TypeCode == XmlTypeCode.Notation)
+                            return NotationValue.Parse(nav.Value, nsmgr);
+                        else
+                            return QNameValue.Parse(nav.Value, nsmgr);
+                    }
+                case XmlTypeCode.AnyUri:
+                    return new AnyUriValue(nav.Value);
+                case XmlTypeCode.HexBinary:
+                    return new HexBinaryValue((byte[])nav.TypedValue);
+                case XmlTypeCode.Base64Binary:
+                    return new Base64BinaryValue((byte[])nav.TypedValue);
+                case XmlTypeCode.Idref:
+                    if (schemaInfo.SchemaType == XQuerySequenceType.XmlSchema.IDREFS)
+                        return new IDREFSValue((string[])nav.TypedValue);
+                    goto default;
+                case XmlTypeCode.NmToken:
+                    if (schemaInfo.SchemaType == XQuerySequenceType.XmlSchema.NMTOKENS)
+                        return new NMTOKENSValue((string[])nav.TypedValue);
+                    goto default;
+                case XmlTypeCode.Entity:
+                    if (schemaInfo.SchemaType == XQuerySequenceType.XmlSchema.ENTITIES)
+                        return new ENTITIESValue((string[])nav.TypedValue);
+                    goto default;
+                default:
+                    return null;
+            }
+        }
+
         public override object TypedValue
         {
             get
             {
                 if (m_typedValue == null)
                 {
-                    m_typedValue = XPathFactory.GetNavigatorTypedValue(m_inner);
+                    m_typedValue = GetNavigatorTypedValue(m_inner);
                     if (m_typedValue == null)
                         m_typedValue = m_inner.TypedValue;
                 }

@@ -26,66 +26,77 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-
 using System.Xml;
-using System.Xml.XPath;
 using System.Xml.Schema;
+using System.Globalization;
 
-using DataEngine.CoreServices;
-
-namespace DataEngine.XQuery
+namespace DataEngine.XQuery.Util
 {
-    internal class XQueryCondition : XQueryExprBase
-    {        
-        private SymbolLink m_compiledExpr;
-        private object m_expr;
-        private XQueryExprBase m_bodyExpr;
-
-        public XQueryCondition(XQueryContext context, object expr, XQueryExprBase bodyExpr)
-            : base(context)
+    public class NotationValue : IXmlConvertable
+    {
+        public NotationValue(QNameValue name)
         {
-            m_expr = expr;
-            m_bodyExpr = bodyExpr;
+            Prefix = name.Prefix;
+            LocalName = name.LocalName;
+            NamespaceUri = name.NamespaceUri;
         }
 
-        public override void Bind(Executive.Parameter[] parameters)
+        public String Prefix { get; private set; }
+        public String LocalName { get; private set; }
+        public String NamespaceUri { get; private set; }
+
+        public override bool Equals(object obj)
         {
-            m_compiledExpr = new SymbolLink();
-            QueryContext.Engine.Compile(parameters, m_expr, m_compiledExpr);
-            m_bodyExpr.Bind(parameters);
+            NotationValue other = obj as NotationValue;
+            if (other != null)
+            {
+                if (LocalName == other.LocalName &&
+                    NamespaceUri == other.NamespaceUri)
+                    return true;
+            }
+            return false;
         }
 
-        public override IEnumerable<SymbolLink> EnumDynamicFuncs()
+        public override int GetHashCode()
         {
-            if (m_compiledExpr == null)
-                throw new InvalidOperationException();
-            List<SymbolLink> res = new List<SymbolLink>();
-            res.Add(m_compiledExpr);
-            res.AddRange(m_bodyExpr.EnumDynamicFuncs());
-            return res;
+            return LocalName.GetHashCode() ^ NamespaceUri.GetHashCode() << 8; 
         }
 
-        public override XQueryNodeIterator Execute(IContextProvider provider, object[] args)
-        {
-            if (Core.BooleanValue(QueryContext.Engine.Apply(null, null, m_expr, args, m_compiledExpr)))
-                return m_bodyExpr.Execute(provider, args);
-            else
-                return EmptyIterator.Shared;
-        }
-
-#if DEBUG
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append("[");
-            sb.Append(base.ToString());
-            sb.Append(": ");
-            sb.Append(m_bodyExpr.ToString());
-            sb.Append(" where ");
-            sb.Append(Lisp.Format(m_expr));
-            sb.Append("]");
+            if (Prefix != "")
+            {
+                sb.Append(Prefix);
+                sb.Append(':');
+            }
+            sb.Append(LocalName);
             return sb.ToString();
         }
-#endif
+
+        #region IXmlConvertable Members
+
+        object IXmlConvertable.ValueAs(XQuerySequenceType type, XmlNamespaceManager nsmgr)
+        {
+            switch (type.TypeCode)
+            {
+                case XmlTypeCode.AnyAtomicType:
+                case XmlTypeCode.Notation:
+                    return this;
+                case XmlTypeCode.String:
+                    return ToString();
+                case XmlTypeCode.UntypedAtomic:
+                    return new UntypedAtomic(ToString());
+                default:
+                    throw new InvalidCastException();
+            }
+        }
+
+        #endregion
+
+        public static NotationValue Parse(string name, XmlNamespaceManager resolver)
+        {
+            return new NotationValue(QNameValue.Parse(name, resolver));
+        }
     }
 }

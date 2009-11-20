@@ -39,7 +39,8 @@ namespace DataEngine.XQuery
     internal class XQueryPathExpr: XQueryExprBase
     {
         private XQueryExprBase[] _stepExpr;        
-        private bool _isOrdered;        
+        private bool _isOrdered;
+        private bool _isOrderedSet;
 
         public XQueryExprBase LastStep
         {
@@ -57,6 +58,7 @@ namespace DataEngine.XQuery
             : base(context)
         {
             _stepExpr = stepExpr;
+            _isOrderedSet = IsOrderedSet();
             _isOrdered = isOrdered;
         }
 
@@ -74,18 +76,15 @@ namespace DataEngine.XQuery
             return res;
         }
 
-        public override XQueryNodeIterator Execute(IContextProvider provider, object[] args)
+        public override object Execute(IContextProvider provider, object[] args)
         {
-            XQueryNodeIterator rootIter = new BufferedNodeIterator(_stepExpr[0].Execute(provider, args));
-            return new ResultIterator(this, provider, IsOrderedSet(rootIter.Clone()), rootIter, args);
+            XQueryNodeIterator rootIter = 
+                XQueryNodeIterator.Create(_stepExpr[0].Execute(provider, args)).CreateBufferedIterator();
+            return new ResultIterator(this, provider, _isOrderedSet, rootIter, args);
         }
 
-        private bool IsOrderedSet(XQueryNodeIterator rootIter)
+        private bool IsOrderedSet()
         {
-            if (!rootIter.MoveNext())
-                return true;
-            if (rootIter.MoveNext())
-                return false;
             for (int k = 1; k < _stepExpr.Length; k++)
             {
                 XQueryStepExpr stepExpr;
@@ -127,7 +126,7 @@ namespace DataEngine.XQuery
                         ContextProvider provider = new ContextProvider(iter[index - 1]);
                         if (!provider.Context.IsNode)
                             throw new XQueryException(Properties.Resources.XPTY0019, provider.Context.Value);
-                        iter[index] = _stepExpr[index].Execute(provider, args);
+                        iter[index] = XQueryNodeIterator.Create(_stepExpr[index].Execute(provider, args));
                         if (iter[index].MoveNext())
                             return true;
                     }
@@ -209,10 +208,8 @@ namespace DataEngine.XQuery
             }
         }
 
-        private class ResultIterator : XQueryNodeIterator
+        private sealed class ResultIterator : XQueryNodeIterator
         {
-            private bool iterationStarted;
-            private int pos = -1;
             private XQueryPathExpr owner;
             
             public List<XPathItem> buffer;
@@ -240,41 +237,21 @@ namespace DataEngine.XQuery
                 return clone;
             }
 
-            public override XPathItem Current
+            public override void Init()
             {
-                get 
-                {
-                    if (!iterationStarted)
-                        throw new InvalidOperationException();
-                    return iter.Current;
-                }
+                iter = owner.Iterator(this);
             }
 
-            public override int CurrentPosition
+            public override XPathItem NextItem()
             {
-                get 
-                {
-                    if (!iterationStarted)
-                        throw new InvalidOperationException();
-                    return pos;
-                }
-            }
-
-            public override bool MoveNext()
-            {
-                if (!iterationStarted)
-                {
-                    iterationStarted = true;
-                    pos = -1;
-                    iter = owner.Iterator(this);
-                }
                 if (iter.MoveNext())
-                {
-                    pos++;
-                    return true;
-                }
-                else
-                    return false;
+                    return iter.Current;
+                return null;
+            }
+
+            public override XQueryNodeIterator CreateBufferedIterator()
+            {
+                return new BufferedNodeIterator(this);
             }
         }
 

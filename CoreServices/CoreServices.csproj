@@ -76,7 +76,6 @@
     <Compile Include="GlobalSymbols.cs" />
     <Compile Include="IBindableObject.cs" />
     <Compile Include="Integer.cs" />
-    <Compile Include="IRuntimeExtension.cs" />
     <Compile Include="LambdaExpr.cs" />
     <Compile Include="ILConverter.cs" />
     <Compile Include="Exceptions.cs" />
@@ -104,6 +103,7 @@
     <Compile Include="NullFunc.cs" />
     <Compile Include="ControlOrForm.cs" />
     <Compile Include="ControlQuoteForm.cs" />
+    <Compile Include="OperatorManager.cs" />
     <Compile Include="Resolver.cs" />
     <Compile Include="Runtime.cs" />
     <Compile Include="TypeConverter.cs" />

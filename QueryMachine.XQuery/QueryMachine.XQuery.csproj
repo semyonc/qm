@@ -45,15 +45,36 @@
   <ItemGroup>
     <Compile Include="BigInteger.cs" />
     <Compile Include="BufferedNodeIterator.cs" />
+    <Compile Include="DocumentModel\DmAttribute.cs" />
+    <Compile Include="DocumentModel\DmComment.cs" />
+    <Compile Include="DocumentModel\DmContainer.cs" />
+    <Compile Include="DocumentModel\DmElement.cs" />
+    <Compile Include="DocumentModel\DmNamespace.cs" />
+    <Compile Include="DocumentModel\DmNode.cs" />
+    <Compile Include="DocumentModel\DmNodeList.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DocumentModel\DmPI.cs" />
+    <Compile Include="DocumentModel\DmRoot.cs" />
+    <Compile Include="DocumentModel\DmText.cs" />
+    <Compile Include="DTD\DTD.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>DTD.y</DependentUpon>
+    </Compile>
+    <Compile Include="DTD\Tokenizer.cs" />
     <Compile Include="Parser\XQuery.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>XQuery.y</DependentUpon>
     </Compile>
+    <Compile Include="QNameValue.cs" />
+    <Compile Include="RangeIterator.cs" />
     <Compile Include="Util\AnyUriValue.cs" />
     <Compile Include="Util\ENTITIESValue.cs" />
     <Compile Include="Util\IDREFSValue.cs" />
     <Compile Include="Util\NMTOKENSValue.cs" />
+    <Compile Include="Util\NotationValue.cs" />
     <Compile Include="Util\StringTokenizer.cs" />
     <Compile Include="XQueryFuncs.cs" />
     <Compile Include="Util\Base64BinaryValue.cs" />
@@ -70,7 +91,6 @@
     <Compile Include="Util\GYearValue.cs" />
     <Compile Include="Util\HexBinaryValue.cs" />
     <Compile Include="Util\IXmlConvertable.cs" />
-    <Compile Include="Util\QNameValue.cs" />
     <Compile Include="Util\TimeValue.cs" />
     <Compile Include="Util\YearMonthDurationValue.cs" />
     <Compile Include="XPathNavigableWrapper.cs" />
@@ -93,7 +113,6 @@
     <Compile Include="Core.cs" />
     <Compile Include="XPathFactory.cs" />
     <Compile Include="Translator.cs" />
-    <Compile Include="XQueryCondition.cs" />
     <Compile Include="XQueryLET.cs" />
     <Compile Include="XmlReservedNs.cs" />
     <Compile Include="XQueryContext.cs" />
@@ -101,8 +120,7 @@
     <Compile Include="XQueryExprBase.cs" />
     <Compile Include="XQueryFilterExpr.cs" />
     <Compile Include="XQueryFLWOR.cs" />
-    <Compile Include="XQueryAtomicValue.cs" />
-    <Compile Include="XQueryNodeInfoTable.cs" />
+    <Compile Include="XQueryItem.cs" />
     <Compile Include="Notation.cs" />
     <Compile Include="PageFile.cs" />
     <Compile Include="Parser\TokenizerBase.cs" />
@@ -122,12 +140,15 @@
     <Compile Include="XQueryNodeIterator.cs" />
     <Compile Include="XmlQualifiedNameTest.cs" />
     <Compile Include="XQueryResolver.cs" />
-    <Compile Include="XQuerySchemaInfoTable.cs" />
     <Compile Include="XQuerySequenceType.cs" />
     <Compile Include="XQuerySorter.cs" />
     <Compile Include="XQueryWriter.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="DTD\DTD.y">
+      <Generator>JaySourceGenerator</Generator>
+      <LastGenOutput>DTD.cs</LastGenOutput>
+    </None>
     <None Include="Parser\XQuery.y">
       <Generator>JaySourceGenerator</Generator>
       <LastGenOutput>XQuery.cs</LastGenOutput>

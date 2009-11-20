@@ -33,6 +33,8 @@ using System.Xml;
 using System.Xml.Schema;
 using System.Xml.XPath;
 
+using DataEngine.CoreServices;
+
 namespace DataEngine.XQuery
 {
     public interface IContextProvider
@@ -42,10 +44,18 @@ namespace DataEngine.XQuery
         int LastPosition { get; }
     }
 
-    [DebuggerDisplay("Position={CurrentPosition}, Current={Current}")]
+    [DebuggerDisplay("{curr}")]
+    [DebuggerTypeProxy(typeof(XQueryNodeIteratorDebugView))]
     public abstract class XQueryNodeIterator: ICloneable, IEnumerable, IEnumerable<XPathItem>
     {
         internal int count = -1;
+        private XPathItem curr;
+        private int pos;
+        private bool iteratorStarted;
+
+        public XQueryNodeIterator()
+        {
+        }
 
         public abstract XQueryNodeIterator Clone();
 
@@ -64,17 +74,64 @@ namespace DataEngine.XQuery
             }
         }
 
-        public abstract XPathItem Current { get; }
-
-        public abstract int CurrentPosition { get; }
-
-        public abstract bool MoveNext();
-
-        public XQuerySequenceType ItemType { get; set; }
-
-        public XQueryNodeIterator()
+        public XPathItem Current 
         {
-            ItemType = XQuerySequenceType.Item;
+            get
+            {
+                if (!iteratorStarted)
+                    throw new InvalidOperationException();
+                return curr;
+            }
+        }
+
+        public int CurrentPosition 
+        {
+            get
+            {
+                if (!iteratorStarted)
+                    throw new InvalidOperationException();
+                return pos;
+            }
+        }
+
+        [DebuggerStepThrough]
+        public bool MoveNext()
+        {
+            if (!iteratorStarted)
+            {
+                Init();
+                pos = -1;
+                iteratorStarted = true;
+            }
+            XPathItem item = NextItem();
+            if (item != null)
+            {
+                pos++;
+                curr = item;
+                return true;
+            }
+            return false;
+        }
+
+        public abstract XQueryNodeIterator CreateBufferedIterator();
+
+        public virtual void Init()
+        {
+        }
+
+        public abstract XPathItem NextItem();
+
+        public static XQueryNodeIterator Create(object value)
+        {
+            if (value == Undefined.Value)
+                return EmptyIterator.Shared;
+            XQueryNodeIterator iter = value as XQueryNodeIterator;
+            if (iter != null)
+                return iter.Clone();
+            XPathItem item = value as XPathItem;
+            if (item == null)
+                item = new XQueryItem(value);
+            return new SingleIterator(item);
         }
         
 
@@ -167,6 +224,75 @@ namespace DataEngine.XQuery
             }
 
             #endregion
+        }
+
+        private class SingleIterator : XQueryNodeIterator
+        {
+            private XPathItem _item;            
+
+            public SingleIterator(XPathItem item)
+            {
+                _item = item;
+            }
+
+            public override XQueryNodeIterator Clone()
+            {
+                return new SingleIterator(_item);
+            }
+
+            public override XPathItem NextItem()
+            {
+                if (CurrentPosition == -1)
+                    return _item;
+                return null;
+            }
+
+            public override XQueryNodeIterator CreateBufferedIterator()
+            {
+                return Clone();
+            }
+        }
+                
+        internal class XQueryNodeIteratorDebugView
+        {
+            private XQueryNodeIterator iter;
+
+            public XQueryNodeIteratorDebugView(XQueryNodeIterator iter)
+            {
+                this.iter = iter;
+            }
+
+            [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+            public XPathItem[] Items
+            {
+                get
+                {
+                    List<XPathItem> res = new List<XPathItem>();
+                    foreach (XPathItem item in iter)
+                    {
+                        if (res.Count == 10)
+                            break;
+                        res.Add(item.Clone());
+                    }
+                    return res.ToArray();
+                }
+            }
+
+            public XPathItem Current
+            {
+                get
+                {
+                    return iter.curr;
+                }
+            }
+
+            public int CurrentPosition
+            {
+                get
+                {
+                    return iter.pos;
+                }
+            }
         }
     }
 }

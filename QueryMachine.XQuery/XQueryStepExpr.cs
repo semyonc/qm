@@ -162,7 +162,7 @@ namespace DataEngine.XQuery
             return new SymbolLink[0];
         }
 
-        public override XQueryNodeIterator Execute(IContextProvider provider, object[] args)
+        public override object Execute(IContextProvider provider, object[] args)
         {
             if (!provider.Context.IsNode)
                 throw new XQueryException(Properties.Resources.XPTY0019, provider.Context.Value);

@@ -32,7 +32,7 @@ using DataEngine.CoreServices;
 
 namespace DataEngine.XQuery.Util
 {
-    public class YearMonthDurationValue: DurationValue, IComparable, IRuntimeExtension
+    public class YearMonthDurationValue: DurationValue, IComparable
     {
         public YearMonthDurationValue(TimeSpan value)
             : base(value, TimeSpan.Zero)
@@ -100,51 +100,82 @@ namespace DataEngine.XQuery.Util
             return new YearMonthDurationValue(-d.HighPartValue);
         }
 
-        #region IRuntimeExtension Members
-
-        object IRuntimeExtension.OperatorAdd(object arg1, object arg2)
+        internal class Proxy : TypeProxy
         {
-            if (arg1 is YearMonthDurationValue)
+            public override bool Eq(object arg1, object arg2)
             {
-                if (arg2 is YearMonthDurationValue)
-                    return new YearMonthDurationValue(((YearMonthDurationValue)arg1).HighPartValue + ((YearMonthDurationValue)arg2).HighPartValue);
-                if (arg2 is DateTimeValue)
-                    return DateTimeValue.Add((DateTimeValue)arg2, (YearMonthDurationValue)arg1);
-                if (arg2 is DateValue)
-                    return DateValue.Add((DateValue)arg2, (YearMonthDurationValue)arg1);
+                return arg1.Equals(arg2);
             }
-            throw new Runtime.OperatorMismatchException(Funcs.Add, arg1, arg2);
+
+            public override bool Gt(object arg1, object arg2)
+            {
+                return ((IComparable)arg1).CompareTo(arg2) > 0;
+            }
+
+            public override object Promote(object arg1)
+            {
+                DurationValue duration = arg1 as DurationValue;
+                if (duration == null)
+                    throw new InvalidCastException();
+                return new YearMonthDurationValue(duration.HighPartValue);
+            }
+
+            public override object Neg(object arg1)
+            {
+                throw new OperatorMismatchException(Funcs.Neg, arg1, null);
+            }
+
+            public override object Add(object arg1, object arg2)
+            {
+                if (arg1 is YearMonthDurationValue)
+                {
+                    if (arg2 is YearMonthDurationValue)
+                        return new YearMonthDurationValue(((YearMonthDurationValue)arg1).HighPartValue + ((YearMonthDurationValue)arg2).HighPartValue);
+                    if (arg2 is DateTimeValue)
+                        return DateTimeValue.Add((DateTimeValue)arg2, (YearMonthDurationValue)arg1);
+                    if (arg2 is DateValue)
+                        return DateValue.Add((DateValue)arg2, (YearMonthDurationValue)arg1);
+                }
+                throw new OperatorMismatchException(Funcs.Add, arg1, arg2);
+            }
+
+            public override object Sub(object arg1, object arg2)
+            {
+                if (arg1 is YearMonthDurationValue && arg2 is YearMonthDurationValue)
+                    return new YearMonthDurationValue(((YearMonthDurationValue)arg1).HighPartValue - ((YearMonthDurationValue)arg2).HighPartValue);
+                else
+                    throw new OperatorMismatchException(Funcs.Sub, arg1, arg2);
+            }
+
+            public override object Mul(object arg1, object arg2)
+            {
+                if (arg1 is YearMonthDurationValue && TypeConverter.IsNumberType(arg2.GetType()))
+                    return YearMonthDurationValue.Multiply((YearMonthDurationValue)arg1, Convert.ToDouble(arg2));
+                else if (TypeConverter.IsNumberType(arg1.GetType()) && arg2 is YearMonthDurationValue)
+                    return YearMonthDurationValue.Multiply((YearMonthDurationValue)arg2, Convert.ToDouble(arg1));
+                else
+                    throw new OperatorMismatchException(Funcs.Mul, arg1, arg2);
+            }
+
+            public override object Div(object arg1, object arg2)
+            {
+                if (arg1 is YearMonthDurationValue && TypeConverter.IsNumberType(arg2.GetType()))
+                    return YearMonthDurationValue.Divide((YearMonthDurationValue)arg1, Convert.ToDouble(arg2));
+                else if (arg1 is YearMonthDurationValue && arg2 is YearMonthDurationValue)
+                    return YearMonthDurationValue.Divide((YearMonthDurationValue)arg1, (YearMonthDurationValue)arg2);
+                else
+                    throw new OperatorMismatchException(Funcs.Div, arg1, arg2);
+            }
+
+            public override Integer IDiv(object arg1, object arg2)
+            {
+                throw new OperatorMismatchException(Funcs.IDiv, arg1, arg2);
+            }
+
+            public override object Mod(object arg1, object arg2)
+            {
+                throw new OperatorMismatchException(Funcs.Div, arg1, arg2);
+            }
         }
-
-        object IRuntimeExtension.OperatorSub(object arg1, object arg2)
-        {
-            if (arg1 is YearMonthDurationValue && arg2 is YearMonthDurationValue)
-                return new YearMonthDurationValue(((YearMonthDurationValue)arg1).HighPartValue - ((YearMonthDurationValue)arg2).HighPartValue);
-            else
-                throw new Runtime.OperatorMismatchException(Funcs.Sub, arg1, arg2);
-        }
-
-        object IRuntimeExtension.OperatorMul(object arg1, object arg2)
-        {
-            if (arg1 is YearMonthDurationValue && TypeConverter.IsNumberType(arg2.GetType()))
-                return Multiply((YearMonthDurationValue)arg1, Convert.ToDouble(arg2));
-            else if (TypeConverter.IsNumberType(arg1.GetType()) && arg2 is YearMonthDurationValue)
-                return Multiply((YearMonthDurationValue)arg2, Convert.ToDouble(arg1));
-            else
-                throw new Runtime.OperatorMismatchException(Funcs.Mul, arg1, arg2);
-        }
-
-        object IRuntimeExtension.OperatorDiv(object arg1, object arg2)
-        {
-            if (arg1 is YearMonthDurationValue && TypeConverter.IsNumberType(arg2.GetType()))
-                return Divide((YearMonthDurationValue)arg1, Convert.ToDouble(arg2));
-            else if (arg1 is YearMonthDurationValue && arg2 is YearMonthDurationValue)
-                return Divide((YearMonthDurationValue)arg1, (YearMonthDurationValue)arg2);
-            else
-                throw new Runtime.OperatorMismatchException(Funcs.Div, arg1, arg2);
-        }
-
-
-        #endregion
     }
 }

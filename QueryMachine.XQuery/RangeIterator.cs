@@ -26,15 +26,62 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Globalization;
 
-namespace DataEngine.CoreServices
+using System.Xml;
+using System.Xml.XPath;
+using System.Xml.Schema;
+using DataEngine.CoreServices;
+
+namespace DataEngine.XQuery
 {
-    public interface IRuntimeExtension
+    class RangeIterator: XQueryNodeIterator
     {
-        object OperatorAdd(object arg1, object arg2);
-        object OperatorSub(object arg1, object arg2);
-        object OperatorMul(object arg1, object arg2);
-        object OperatorDiv(object arg1, object arg2);
+        private Integer _min;
+        private Integer _max;
+        private Integer _index;
+        private XQueryItem _item;
+
+        public RangeIterator(Integer min, Integer max)
+        {
+            _min = min;
+            _max = max;
+        }
+
+        public override XQueryNodeIterator Clone()
+        {
+            return new RangeIterator(_min, _max);
+        }
+
+        public override int Count
+        {
+            get
+            {
+                Integer c = _max - _min + 1;
+                return (int)Math.Max(0, (decimal)c);
+            }
+        }
+
+        public override void Init()
+        {
+            _index = _min;
+        }
+
+        public override XPathItem NextItem()
+        {
+            if (_index <= _max)
+            {
+                if (_item == null)
+                    _item = new XQueryItem();
+                _item.RawValue = _index;
+                _index++;
+                return _item;
+            }
+            return null;
+        }
+
+        public override XQueryNodeIterator CreateBufferedIterator()
+        {
+            return this;
+        }
     }
 }

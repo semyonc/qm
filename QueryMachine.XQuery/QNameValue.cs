@@ -30,7 +30,9 @@ using System.Globalization;
 using System.Xml;
 using System.Xml.Schema;
 
-namespace DataEngine.XQuery.Util
+using DataEngine.XQuery.Util;
+
+namespace DataEngine.XQuery
 {
     public class QNameValue: IXmlConvertable
     {

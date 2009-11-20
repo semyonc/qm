@@ -26,45 +26,52 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Collections;
+
+using System.Xml;
+using System.Xml.Schema;
 using System.Xml.XPath;
-using DataEngine.CoreServices;
 
-namespace DataEngine.XQuery
+
+namespace DataEngine.XQuery.DocumentModel
 {
-    internal class EmptySequnceException: Exception
+    internal class DmText : DmNode
     {
-    }
-
-    public abstract class XQueryExprBase: IBindableObject
-    {
-        private XQueryContext _queryContext;
-
-        public XQueryExprBase(XQueryContext queryContext)
+        public DmText()
         {
-            _queryContext = queryContext;
         }
 
-        public abstract void Bind(Executive.Parameter[] parameters);
-
-        public abstract IEnumerable<SymbolLink> EnumDynamicFuncs();
-
-        public abstract object Execute(IContextProvider provider, object[] args);
-
-        public XQueryContext QueryContext
+        public override XPathNodeType NodeType
         {
             get
             {
-                return _queryContext;
+                return XPathNodeType.Text;
             }
         }
 
-        public object ToLispFunction()
+        public override XdmNode CreateNode()
         {
-            XQueryExpr expr = this as XQueryExpr;
-            if (expr != null && expr.m_expr.Length == 1)
-                return expr.m_expr[0];
-            else
-                return Lisp.List(ID.DynExecuteExpr, this, ID.Context, Lisp.ARGV);
+            return new XdmText();
+        }
+    }
+
+    internal class DmWhitespace : DmNode
+    {
+        public DmWhitespace()
+        {
+        }
+
+        public override XPathNodeType NodeType
+        {
+            get
+            {
+                return XPathNodeType.Whitespace;
+            }
+        }
+
+        public override XdmNode CreateNode()
+        {
+            return new XdmWhitespace();
         }
     }
 }

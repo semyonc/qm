@@ -256,7 +256,7 @@ namespace DataEngine.XQuery
 
         public virtual void WriteCopyNamespace(Notation.Record rec)
         {
-            WriteText("declare copy-namespace ");
+            WriteText("declare copy-namespaces ");
             TokenWrapper wrapper = (TokenWrapper)rec.Arg0;
             switch (wrapper.Data)
             {
@@ -265,7 +265,7 @@ namespace DataEngine.XQuery
                     break;
 
                 case Token.NO_PRESERVE:
-                    WriteText("no_preserve");
+                    WriteText("no-preserve");
                     break;
             }
             WriteText(", ");
@@ -277,7 +277,7 @@ namespace DataEngine.XQuery
                     break;
 
                 case Token.NO_INHERIT:
-                    WriteText("no_inherit");
+                    WriteText("no-inherit");
                     break;
             }
         }

@@ -48,6 +48,7 @@ namespace DataEngine.XQuery
     {
         protected XQueryContext m_context;
         protected Dictionary<string,string> m_modules;
+        protected Dictionary<string,string> m_schemas;
         protected bool m_compiled;
         protected XQueryExprBase m_res;
         protected SymbolLink[] m_vars;
@@ -92,6 +93,14 @@ namespace DataEngine.XQuery
                 if (m_command.m_modules != null && m_command.m_modules.TryGetValue(targetNamespace, out uri))
                     return new Literal[] { new Literal(uri) };
                 return base.ResolveModuleImport(prefix, targetNamespace);
+            }
+
+            public override Literal[] ResolveSchemaImport(string prefix, string targetNamespace)
+            {
+                String uri;
+                if (m_command.m_schemas != null && m_command.m_schemas.TryGetValue(targetNamespace, out uri))
+                    return new Literal[] { new Literal(uri) };
+                return base.ResolveSchemaImport(prefix, targetNamespace);
             }
 
             public override void Close()
@@ -216,24 +225,25 @@ namespace DataEngine.XQuery
                 Compile();
             if (m_res == null)
                 throw new XQueryException("Can't run XQuery function module");
-            for (int k = 0; k < m_context.variables.Count; k++)
-            {
-                XQueryContext.VariableRecord rec = m_context.variables[k];
-                object value = m_context.Engine.Apply(null, null, rec.expr, null, m_vars[k]);
-                if (rec.varType != XQuerySequenceType.Item)
-                    value = Core.TreatAs(m_context.Engine, value, rec.varType);
-                if (value is XQueryNodeIterator)
-                    value = new BufferedNodeIterator((XQueryNodeIterator)value);
-                rec.link.Value = value;
-            }            
             foreach (XQueryParameter param in Parameters)
             {
                 if (param.ID == null)
                     param.ID = Translator.GetVarName(param.LocalName, param.NamespaceUri);
                 m_context.SetExternalVariable(param.ID, param.Value);
             }
+            for (int k = 0; k < m_context.variables.Count; k++)
+            {
+                XQueryContext.VariableRecord rec = m_context.variables[k];
+                object value = m_context.Engine.Apply(null, null, rec.expr, null, m_vars[k]);
+                if (rec.varType != XQuerySequenceType.Item)
+                    value = Core.TreatAs(m_context.Engine, value, rec.varType);
+                XQueryNodeIterator iter = value as XQueryNodeIterator;
+                if (iter != null)
+                    value = iter.CreateBufferedIterator();
+                rec.link.Value = value;
+            }            
             m_context.CheckExternalVariables();
-            XQueryNodeIterator res = m_res.Execute(this, null);
+            XQueryNodeIterator res = XQueryNodeIterator.Create(m_res.Execute(this, null));
             return res;
         }
 
@@ -242,6 +252,13 @@ namespace DataEngine.XQuery
             if (m_modules == null)
                 m_modules = new Dictionary<string, string>();
             m_modules.Add(targetNamespace, uri);
+        }
+
+        public void DefineSchemaNamespace(string targetNamespace, string uri)
+        {
+            if (m_schemas == null)
+                m_schemas = new Dictionary<string, string>();
+            m_schemas.Add(targetNamespace, uri);
         }
 
         public void AddSchema(string targetNamespace, XmlReader reader)
@@ -311,12 +328,22 @@ namespace DataEngine.XQuery
 
         public int CurrentPosition
         {
-            get { return 1; }
+            get 
+            {
+                if (ContextItem == null)
+                    throw new XQueryException(Properties.Resources.XPDY0002);
+                return 1; 
+            }
         }
 
         public int LastPosition
         {
-            get { return 1; }
+            get 
+            {
+                if (ContextItem == null)
+                    throw new XQueryException(Properties.Resources.XPDY0002);
+                return 1; 
+            }
         }
 
         #endregion

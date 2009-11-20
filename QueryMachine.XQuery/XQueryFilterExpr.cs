@@ -109,27 +109,38 @@ namespace DataEngine.XQuery
                 ContextProvider provider = new ContextProvider(iter);
                 while (iter.MoveNext())
                 {
-                    XQueryNodeIterator res = expr.Execute(provider, args);
-                    if (res.MoveNext())
+                    object res = expr.Execute(provider, args);
+                    if (res == Undefined.Value)
+                        continue;
+                    XQueryNodeIterator iter2 = res as XQueryNodeIterator;
+                    XPathItem item;
+                    if (iter2 != null)
                     {
-                        XPathItem v = res.Current;
-                        if (v is XPathNavigator)
-                            yield return iter.Current;
-                        else
+                        if (!iter2.MoveNext())
+                            continue;
+                        item = iter2.Current.Clone();
+                        if (!item.IsNode && iter2.MoveNext())
+                            throw new XQueryException(Properties.Resources.FORG0006, "fn:boolean()",
+                                new XQuerySequenceType(XmlTypeCode.AnyAtomicType, XmlTypeCardinality.OneOrMore));
+                    }
+                    else
+                    {
+                        item = res as XPathItem;
+                        if (item == null)
+                            item = new XQueryItem(res);
+                    }
+                    if (item.IsNode)
+                        yield return iter.Current;
+                    else
+                    {
+                        if (TypeConverter.IsNumberType(item.ValueType))
                         {
-                            if (res.MoveNext())
-                                throw new XQueryException(Properties.Resources.FORG0006,
-                                    new XQuerySequenceType(XmlTypeCode.AnyAtomicType, XmlTypeCardinality.OneOrMore));
-                            else
-                                if (TypeConverter.IsNumberType(v.ValueType))
-                                {
-                                    if (QueryContext.Engine.OperatorEq(iter.CurrentPosition + 1, v.TypedValue) != null)
-                                        yield return iter.Current;
-                                }
-                                else
-                                    if (Core.BooleanValue(v))
-                                        yield return iter.Current;
+                            if (QueryContext.Engine.OperatorEq(iter.CurrentPosition + 1, item.TypedValue) != null)
+                                yield return iter.Current;
                         }
+                        else
+                            if (Core.BooleanValue(item))
+                                yield return iter.Current;
                     }
                 }                
             }
@@ -151,11 +162,11 @@ namespace DataEngine.XQuery
             return res;
         }
 
-        public override XQueryNodeIterator Execute(IContextProvider provider, object[] args)
+        public override object Execute(IContextProvider provider, object[] args)
         {
             if (SourceExpr == null)
                 return EmptyIterator.Shared;
-            XQueryNodeIterator iter = SourceExpr.Execute(provider, args);
+            XQueryNodeIterator iter = XQueryNodeIterator.Create(SourceExpr.Execute(provider, args));
             for (int k = 0; k < m_filter.Length; k++)
                 iter = new NodeIterator(CreateEnumerator(args, (XQueryExpr)m_filter[k], iter));
             return iter;

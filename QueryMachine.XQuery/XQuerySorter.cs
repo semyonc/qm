@@ -87,9 +87,9 @@ namespace DataEngine.XQuery
             return m_bodyExpr.EnumDynamicFuncs();
         }
 
-        public override XQueryNodeIterator Execute(IContextProvider provider, object[] args)
+        public override object Execute(IContextProvider provider, object[] args)
         {
-            XQueryNodeIterator iter = m_bodyExpr.Execute(provider, args);
+            XQueryNodeIterator iter = XQueryNodeIterator.Create(m_bodyExpr.Execute(provider, args));
             List<XPathItem> buffer = new List<XPathItem>();
             foreach (XPathItem item in iter)
                 buffer.Add(item);

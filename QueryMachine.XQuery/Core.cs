@@ -250,78 +250,34 @@ namespace DataEngine.XQuery
             return builder as XQueryDocumentBuilder;
         }
 
-        public static XPathNavigator GetDocument([Implict] Executive executive, String name)
+        [XQuerySignature("doc", Return=XmlTypeCode.Node, Cardinality=XmlTypeCardinality.ZeroOrOne)]
+        public static object GetDocument([Implict] Executive executive, 
+            [XQueryParameter(XmlTypeCode.String, Cardinality=XmlTypeCardinality.ZeroOrOne)] object name)
         {
             XQueryContext context = (XQueryContext)executive.Owner;
-            string fileName = context.GetFileName(name);
-            if (fileName == null)
-                throw new XQueryException(Properties.Resources.FileNotFound, name);
-            IXPathNavigable doc = context.OpenDocument(context.GetFileName(name));
+            if (name == Undefined.Value)
+                return Undefined.Value;
+            string fileName;
+            try
+            {
+                fileName = context.GetFileName((string)name);
+                if (fileName == null)
+                    throw new XQueryException(Properties.Resources.FileNotFound, name);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new XQueryException(ex.Message, ex);
+            }
+            IXPathNavigable doc = context.OpenDocument(fileName);
             return doc.CreateNavigator();
         }
 
-        private class SingleIterator : XQueryNodeIterator
+        public static XQueryNodeIterator CreateSequence(object value)
         {
-            private XPathItem _item;
-            private bool _started;
-
-            public SingleIterator(XPathItem item)
-            {
-                _item = item;
-            }
-
-            public override XQueryNodeIterator Clone()
-            {
-                return new SingleIterator(_item);
-            }
-
-            public override XPathItem Current
-            {
-                get 
-                {
-                    if (!_started)
-                        throw new InvalidOperationException();
-                    return _item;
-                }
-            }
-
-            public override int CurrentPosition
-            {
-                get 
-                {
-                    if (!_started)
-                        throw new InvalidOperationException();
-                    return 1;
-                }
-            }
-
-            public override bool MoveNext()
-            {
-                if (!_started)
-                {
-                    _started = true;
-                    return true;
-                }
-                return false;
-            }
+            return XQueryNodeIterator.Create(value);
         }
 
-
-        public static XQueryNodeIterator CreateSequence([Implict] Executive executive, object value)
-        {
-            XQueryContext context = (XQueryContext)executive.Owner;
-            if (value == Undefined.Value)
-                return EmptyIterator.Shared;            
-            XQueryNodeIterator iter = value as XQueryNodeIterator;
-            if (iter != null)
-                return iter.Clone();
-            XPathItem item = value as XPathItem;
-            if (item == null)
-                item = context.CreateItem(value);
-            return new SingleIterator(item);
-        }
-
-        public static XQueryNodeIterator DynExecuteExpr(object obj, IContextProvider provider, object[] args)
+        public static object DynExecuteExpr(object obj, IContextProvider provider, object[] args)
         {
             XQueryExprBase expr = (XQueryExprBase)obj;
             return expr.Execute(provider, args);
@@ -659,7 +615,7 @@ namespace DataEngine.XQuery
             return builder;
         }
 
-        public static object FormatValue([Implict] Executive executive, object value)
+        public static object FormatValue(object value)
         {
             StringBuilder sb = new StringBuilder();
             if (value is XPathItem)
@@ -680,10 +636,7 @@ namespace DataEngine.XQuery
                     return Undefined.Value;
             }
             else
-            {
-                XQueryContext context = (XQueryContext)executive.Owner;
-                sb.Append(context.CreateItem(value).Value);
-            }
+                sb.Append(XQueryConvert.ToString(value));
             return sb.ToString();
         }
 
@@ -754,8 +707,7 @@ namespace DataEngine.XQuery
             else
                 if (node != Undefined.Value)
                 {
-                    XPathItem item = context.CreateItem(node);
-                    string value = item.Value;
+                    string value = XQueryConvert.ToString(node); // !!!
                     if (value != "")
                         builder.WriteString(value);
                 }
@@ -774,11 +726,11 @@ namespace DataEngine.XQuery
             {
                 if (!iter.MoveNext())
                     return false;
-                item = iter.Current;
+                item = iter.Current.Clone();
                 if (item.IsNode)
                     return true;
                 if (iter.MoveNext())
-                    throw new XQueryException(Properties.Resources.FORG0006,
+                    throw new XQueryException(Properties.Resources.FORG0006, "fn:boolean()",
                         new XQuerySequenceType(XmlTypeCode.AnyAtomicType, XmlTypeCardinality.OneOrMore));
             }
             else
@@ -815,7 +767,7 @@ namespace DataEngine.XQuery
                         return (decimal)(item.ValueAs(typeof(Decimal))) != 0;
 
                     default:
-                        throw new XQueryException(Properties.Resources.FORG0006,
+                        throw new XQueryException(Properties.Resources.FORG0006, "fn:boolean()",
                             new XQuerySequenceType(item.XmlType.TypeCode, XmlTypeCardinality.One));
                 }
 
@@ -843,10 +795,9 @@ namespace DataEngine.XQuery
                         {
                             if (value is AnyUriValue || value is UntypedAtomic)
                                 return value.ToString() != String.Empty;
-
                             if (TypeConverter.IsNumberType(value.GetType()))
                                 return Convert.ToDecimal(value) != 0;
-                            throw new XQueryException(Properties.Resources.FORG0006,
+                            throw new XQueryException(Properties.Resources.FORG0006, "fn:boolean()",
                                 new XQuerySequenceType(value.GetType(), XmlTypeCardinality.One));
                         }
                 }
@@ -923,7 +874,7 @@ namespace DataEngine.XQuery
             return true;            
         }
 
-        public static object CastTo([Implict] Executive engine, object value, XQuerySequenceType destType)
+        public static object CastTo([Implict] Executive engine, object value, XQuerySequenceType destType, Type exprType)
         {
             XQueryContext context = (XQueryContext)engine.Owner;
             if (destType == XQuerySequenceType.Item)
@@ -951,27 +902,36 @@ namespace DataEngine.XQuery
                             throw new XQueryException(Properties.Resources.XPTY0004, "empty-sequence()", destType);
                         return Undefined.Value;
                     }
+                    if (exprType != null && exprType != typeof(System.String))
+                    {
+                        if ((destType.TypeCode == XmlTypeCode.QName && iter.Current.XmlType.TypeCode != XmlTypeCode.QName) ||
+                            (destType.TypeCode == XmlTypeCode.Notation && iter.Current.XmlType.TypeCode != XmlTypeCode.Notation))
+                            throw new XQueryException(Properties.Resources.XPTY0004_CAST, destType);
+                    }
                     res = iter.Current.ChangeType(destType, context.nameTable, context.nsManager);
                     if (iter.MoveNext())
                         throw new XQueryException(Properties.Resources.MoreThanOneItem);
-                    if (res.IsNode)
+                    if (destType.IsNode)
                         return res;                    
                     return res.TypedValue;
                 }
                 XPathItem item = value as XPathItem;
                 if (item == null)
-                    item = context.CreateItem(value);                        
+                    item = new XQueryItem(value);
+                if (exprType != null && exprType != typeof(System.String))
+                {
+                    if ((destType.TypeCode == XmlTypeCode.QName && item.XmlType.TypeCode != XmlTypeCode.QName) ||
+                        (destType.TypeCode == XmlTypeCode.Notation && item.XmlType.TypeCode != XmlTypeCode.Notation))
+                        throw new XQueryException(Properties.Resources.XPTY0004_CAST, destType);
+                }
                 res = item.ChangeType(destType, context.nameTable, context.nsManager);
-                if (res.IsNode)
+                if (destType.IsNode)
                     return res;
                 return res.TypedValue;
             }
             else
-            {
-                XQueryNodeIterator iter = CreateSequence(engine, value);
-                return new NodeIterator(XPathFactory.ConvertIterator(iter, destType, 
+                return new NodeIterator(XPathFactory.ConvertIterator(XQueryNodeIterator.Create(value), destType, 
                     context.nameTable, context.nsManager));
-            }
         }
 
         public static object CastArg([Implict] Executive engine, object value, XQuerySequenceType destType)
@@ -1007,7 +967,7 @@ namespace DataEngine.XQuery
                         if (!destType.Match(iter.Current))
                             throw new XQueryException(Properties.Resources.XPTY0004,
                                 new XQuerySequenceType(iter.Current.XmlType, XmlTypeCardinality.OneOrMore, null), destType);
-                        res = iter.Current;
+                        res = iter.Current.Clone();
                     }
                     else
                         res = XQueryConvert.ValueAs(iter.Current.TypedValue, destType, context.nameTable, context.NamespaceManager);
@@ -1024,7 +984,7 @@ namespace DataEngine.XQuery
                         {
                             if (!destType.Match(item))
                                 throw new XQueryException(Properties.Resources.XPTY0004,
-                                    new XQuerySequenceType(iter.Current.XmlType, XmlTypeCardinality.OneOrMore, null), destType);
+                                    new XQuerySequenceType(item.XmlType, XmlTypeCardinality.OneOrMore, null), destType);
                             return item;
                         }
                         else
@@ -1035,11 +995,8 @@ namespace DataEngine.XQuery
                 }
             }
             else
-            {
-                XQueryNodeIterator iter = CreateSequence(engine, value);
-                return new NodeIterator(XPathFactory.ValueIterator(iter, destType,
+                return new NodeIterator(XPathFactory.ValueIterator(XQueryNodeIterator.Create(value), destType,
                     context.nameTable, context.nsManager));
-            }
         }
 
         public static object TreatAs([Implict] Executive engine, object value, XQuerySequenceType destType)
@@ -1054,7 +1011,7 @@ namespace DataEngine.XQuery
                 if (destType.TypeCode != XmlTypeCode.None && destType.Cardinality != XmlTypeCardinality.ZeroOrOne)
                     throw new XQueryException(Properties.Resources.XPTY0004, "empty-sequence()", destType);
                 return Undefined.Value;
-            }
+            }            
             if (destType.Cardinality == XmlTypeCardinality.One ||
                 destType.Cardinality == XmlTypeCardinality.ZeroOrOne)
             {
@@ -1070,12 +1027,15 @@ namespace DataEngine.XQuery
                             throw new XQueryException(Properties.Resources.XPTY0004, "empty-sequence()", destType);
                         return Undefined.Value;
                     }
+                    if (destType.TypeCode == XmlTypeCode.None)
+                        throw new XQueryException(Properties.Resources.XPTY0004, 
+                            new XQuerySequenceType(iter.Current.XmlType, XmlTypeCardinality.OneOrMore, null), "empty-sequence()");
                     if (destType.IsNode)
                     {
                         if (!destType.Match(iter.Current))
                             throw new XQueryException(Properties.Resources.XPTY0004,
                                 new XQuerySequenceType(iter.Current.XmlType, XmlTypeCardinality.OneOrMore, null), destType);
-                        res = iter.Current;
+                        res = iter.Current.Clone();
                     }
                     else
                         res = XQueryConvert.TreatValueAs(iter.Current.TypedValue, destType);
@@ -1092,21 +1052,17 @@ namespace DataEngine.XQuery
                         {
                             if (!destType.Match(item))
                                 throw new XQueryException(Properties.Resources.XPTY0004,
-                                    new XQuerySequenceType(iter.Current.XmlType, XmlTypeCardinality.OneOrMore, null), destType);
+                                    new XQuerySequenceType(item.XmlType, XmlTypeCardinality.OneOrMore, null), destType);
                             return item;
                         }
                         else
                             return XQueryConvert.TreatValueAs(item.TypedValue, destType);
                     }
-                    return XQueryConvert.TreatValueAs(value, destType);
+                    return XQueryConvert.TreatValueAs(value, destType); 
                 }
             }
             else
-            {
-                XQueryNodeIterator iter = CreateSequence(engine, value);
-                return new NodeIterator(XPathFactory.TreatIterator(iter, destType,
-                    context.nameTable, context.nsManager));
-            }
+                return new NodeIterator(XPathFactory.TreatIterator(XQueryNodeIterator.Create(value), destType));
         }
 
         public static object CastToItem([Implict] Executive executive, 
@@ -1169,16 +1125,16 @@ namespace DataEngine.XQuery
                     return true;
                 XPathItem item = value as XPathItem;
                 if (item == null)
-                    item = context.CreateItem(value);
+                    item = new XQueryItem(value);
                 return destType.Match(item);
             }
         }
 
-        public static bool Castable([Implict] Executive engine, object value, XQuerySequenceType destType)
+        public static bool Castable([Implict] Executive engine, object value, XQuerySequenceType destType, Type exprType)
         {
             try
             {
-                CastTo(engine, value, destType);
+                CastTo(engine, value, destType, exprType);
                 return true;
             }
             catch(XQueryException)
@@ -1242,8 +1198,8 @@ namespace DataEngine.XQuery
         public static bool GeneralEQ([Implict] Executive executive, object a, object b)
         {
             XQueryContext context = (XQueryContext)executive.Owner;
-            XQueryNodeIterator iter1 = CreateSequence(executive, a);
-            XQueryNodeIterator iter2 = CreateSequence(executive, b);
+            XQueryNodeIterator iter1 = XQueryNodeIterator.Create(a);
+            XQueryNodeIterator iter2 = XQueryNodeIterator.Create(b);
             while (iter1.MoveNext())
             {
                 XQueryNodeIterator iter = iter2.Clone();
@@ -1262,8 +1218,8 @@ namespace DataEngine.XQuery
         public static bool GeneralGT([Implict] Executive executive, object a, object b)
         {
             XQueryContext context = (XQueryContext)executive.Owner;
-            XQueryNodeIterator iter1 = CreateSequence(executive, a);
-            XQueryNodeIterator iter2 = CreateSequence(executive, b);
+            XQueryNodeIterator iter1 = XQueryNodeIterator.Create(a);
+            XQueryNodeIterator iter2 = XQueryNodeIterator.Create(b);
             while (iter1.MoveNext())
             {
                 XQueryNodeIterator iter = iter2.Clone();
@@ -1282,8 +1238,8 @@ namespace DataEngine.XQuery
         public static bool GeneralNE([Implict] Executive executive, object a, object b)
         {
             XQueryContext context = (XQueryContext)executive.Owner;
-            XQueryNodeIterator iter1 = CreateSequence(executive, a);
-            XQueryNodeIterator iter2 = CreateSequence(executive, b);
+            XQueryNodeIterator iter1 = XQueryNodeIterator.Create(a);
+            XQueryNodeIterator iter2 = XQueryNodeIterator.Create(b);
             while (iter1.MoveNext())
             {
                 XQueryNodeIterator iter = iter2.Clone();
@@ -1302,8 +1258,8 @@ namespace DataEngine.XQuery
         public static bool GeneralGE([Implict] Executive executive, object a, object b)
         {
             XQueryContext context = (XQueryContext)executive.Owner;
-            XQueryNodeIterator iter1 = CreateSequence(executive, a);
-            XQueryNodeIterator iter2 = CreateSequence(executive, b);
+            XQueryNodeIterator iter1 = XQueryNodeIterator.Create(a);
+            XQueryNodeIterator iter2 = XQueryNodeIterator.Create(b);
             while (iter1.MoveNext())
             {
                 XQueryNodeIterator iter = iter2.Clone();
@@ -1322,8 +1278,8 @@ namespace DataEngine.XQuery
         public static bool GeneralLT([Implict] Executive executive, object a, object b)
         {
             XQueryContext context = (XQueryContext)executive.Owner;
-            XQueryNodeIterator iter1 = CreateSequence(executive, a);
-            XQueryNodeIterator iter2 = CreateSequence(executive, b);
+            XQueryNodeIterator iter1 = XQueryNodeIterator.Create(a);
+            XQueryNodeIterator iter2 = XQueryNodeIterator.Create(b);
             while (iter1.MoveNext())
             {
                 XQueryNodeIterator iter = iter2.Clone();
@@ -1342,8 +1298,8 @@ namespace DataEngine.XQuery
         public static bool GeneralLE([Implict] Executive executive, object a, object b)
         {
             XQueryContext context = (XQueryContext)executive.Owner;
-            XQueryNodeIterator iter1 = CreateSequence(executive, a);
-            XQueryNodeIterator iter2 = CreateSequence(executive, b);
+            XQueryNodeIterator iter1 = XQueryNodeIterator.Create(a);
+            XQueryNodeIterator iter2 = XQueryNodeIterator.Create(b);
             while (iter1.MoveNext())
             {
                 XQueryNodeIterator iter = iter2.Clone();
@@ -1359,9 +1315,8 @@ namespace DataEngine.XQuery
             return false;
         }
 
-        public static XQueryNodeIterator GetRange([Implict] Executive executive, object arg1, object arg2)
+        public static XQueryNodeIterator GetRange(object arg1, object arg2)
         {
-            XQueryContext context = (XQueryContext)executive.Owner;
             object lo = Atomize(arg1);
             if (lo == Undefined.Value)
                 return EmptyIterator.Shared;
@@ -1390,13 +1345,13 @@ namespace DataEngine.XQuery
             if (!Integer.IsDerivedSubtype(high))
                 throw new XQueryException(Properties.Resources.XPTY0004,
                     new XQuerySequenceType(high.GetType(), XmlTypeCardinality.One), "xs:integer in second argument op:range");
-            return new NodeIterator(XPathFactory.RangeIterator(context, Convert.ToInt32(lo), Convert.ToInt32(high)));
+            return new RangeIterator(Convert.ToInt32(lo), Convert.ToInt32(high));
         }
 
         public static XQueryNodeIterator Union([Implict] Executive executive, bool isOrdered, object a, object b)
         {
-            XQueryNodeIterator iter1 = Core.CreateSequence(executive, a);
-            XQueryNodeIterator iter2 = Core.CreateSequence(executive, b);
+            XQueryNodeIterator iter1 = XQueryNodeIterator.Create(a);
+            XQueryNodeIterator iter2 = XQueryNodeIterator.Create(b);
             XQueryContext context = (XQueryContext)executive.Owner;
             if (isOrdered)
                 return new NodeIterator(XPathFactory.UnionIterator1(iter1, iter2));
@@ -1406,8 +1361,8 @@ namespace DataEngine.XQuery
 
         public static XQueryNodeIterator Except([Implict] Executive executive, bool isOrdered, object a, object b)
         {
-            XQueryNodeIterator iter1 = Core.CreateSequence(executive, a);
-            XQueryNodeIterator iter2 = Core.CreateSequence(executive, b);
+            XQueryNodeIterator iter1 = XQueryNodeIterator.Create(a);
+            XQueryNodeIterator iter2 = XQueryNodeIterator.Create(b);
             XQueryContext context = (XQueryContext)executive.Owner;
             if (isOrdered)
                 return new NodeIterator(XPathFactory.IntersectExceptIterator1(true, iter1, iter2));
@@ -1417,8 +1372,8 @@ namespace DataEngine.XQuery
 
         public static XQueryNodeIterator Intersect([Implict] Executive executive, bool isOrdered, object a, object b)
         {
-            XQueryNodeIterator iter1 = Core.CreateSequence(executive, a);
-            XQueryNodeIterator iter2 = Core.CreateSequence(executive, b);
+            XQueryNodeIterator iter1 = XQueryNodeIterator.Create(a);
+            XQueryNodeIterator iter2 = XQueryNodeIterator.Create(b);
             XQueryContext context = (XQueryContext)executive.Owner;
             if (isOrdered)
                 return new NodeIterator(XPathFactory.IntersectExceptIterator1(false, iter1, iter2));
@@ -1549,15 +1504,16 @@ namespace DataEngine.XQuery
                 return res;
             }
             XPathItem item = value as XPathItem;
-            if (item == null)
-                item = context.CreateItem(value);
-            return item.Value;
+            if (item != null)
+                return item.Value;
+            return XQueryConvert.ToString(value);
         }
 
-        public static XQueryNodeIterator Validate([Implict] Executive executive, XQueryNodeIterator iter, bool lax)
+        public static XQueryNodeIterator Validate([Implict] Executive executive, object val, bool lax)
         {
             XQueryContext context = (XQueryContext)executive.Owner;
-            return new NodeIterator(XPathFactory.ValidateIterator(iter, context.schemaSet, lax));
+            return new NodeIterator(XPathFactory.ValidateIterator(
+                XQueryNodeIterator.Create(val), context.schemaSet, lax));
         }
     }
 }

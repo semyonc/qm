@@ -34,20 +34,19 @@ using System.Diagnostics;
 
 namespace DataEngine.XQuery
 {
-    public class BufferedNodeIterator: XQueryNodeIterator
+    public sealed class BufferedNodeIterator: XQueryNodeIterator
     {
         private XQueryNodeIterator iter;
         private List<XPathItem> buffer;
-        private bool iterationStarted;
-        private int pos = -1;
 
+        [DebuggerStepThrough]
         private BufferedNodeIterator()
         {
         }
 
         public BufferedNodeIterator(XQueryNodeIterator src)
         {
-            iter = src;
+            iter = src.Clone();
             buffer = new List<XPathItem>();
         }
 
@@ -59,52 +58,27 @@ namespace DataEngine.XQuery
             clone.buffer = buffer;
             return clone;
         }
-
-        public override XPathItem Current
-        {
-            get 
-            {
-                if (!iterationStarted)
-                    throw new InvalidOperationException();
-                return buffer[pos];
-            }
-        }
-
-        public override int CurrentPosition
-        {
-            get 
-            {
-                if (!iterationStarted)
-                    throw new InvalidOperationException();
-                return pos;
-            }
-        }
-
-        [DebuggerStepThrough]
-        public override bool MoveNext()
+        
+        public override XPathItem NextItem()
         {
             lock (iter)
             {
-                if (!iterationStarted)
-                {
-                    pos = -1;
-                    iterationStarted = true;
-                }
-                if (pos + 1 < buffer.Count)
-                {
-                    pos++;
-                    return true;
-                }
+                int index = CurrentPosition + 1;
+                if (index < buffer.Count)
+                    return buffer[index];
                 else
                     if (iter.MoveNext())
                     {
-                        pos++;
                         buffer.Add(iter.Current.Clone());
-                        return true;
+                        return iter.Current;
                     }
-                    else
-                        return false;
+                return null;
             }
+        }
+        
+        public override XQueryNodeIterator CreateBufferedIterator()
+        {
+            return Clone();
         }
     }
 }

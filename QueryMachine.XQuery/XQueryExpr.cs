@@ -66,57 +66,6 @@ namespace DataEngine.XQuery
             Annotation = annotation;
         }
 
-        private IEnumerable<XPathItem> CreateEnumerator(object[] args)
-        {
-            object[] annotation;
-            if (Annotation != null)
-            {
-                annotation = new object[Annotation.Length];                
-                for (int k = 0; k < Annotation.Length; k++)
-                {
-                    object res = QueryContext.Engine.Apply(null, null,
-                        Annotation[k], args, m_compiledAnnotation[k]);
-                    if (res != Undefined.Value)
-                        if (res == null)
-                            annotation[k] = false;
-                        else
-                            annotation[k] = Core.Atomize(res);
-                }                
-            }
-            else
-                annotation = null;
-            for (int k = 0; k < m_expr.Length; k++)
-            {
-                object res = QueryContext.Engine.Apply(null, null,
-                    m_expr[k], args, m_compiledBody[k]);
-                if (res != Undefined.Value)
-                {
-                    XQueryNodeIterator iter = res as XQueryNodeIterator;
-                    if (iter != null)
-                    {
-                        iter = iter.Clone();
-                        while (iter.MoveNext())
-                        {
-                            if (annotation != null)
-                                yield return new XQueryWrappedValue(iter.Current, annotation);
-                            else
-                                yield return iter.Current;
-                        }
-                    }
-                    else
-                    {
-                        XPathItem item = res as XPathItem;
-                        if (item == null)
-                            item = QueryContext.CreateItem(res);
-                        if (annotation != null)
-                            yield return new XQueryWrappedValue(item, annotation);
-                        else
-                            yield return item;
-                    }
-                }
-            }
-        }
-
         public override void Bind(Executive.Parameter[] parameters)
         {
             m_context = new SymbolLink(typeof(IContextProvider));
@@ -143,11 +92,103 @@ namespace DataEngine.XQuery
             return m_compiledBody;
         }
 
-        public override XQueryNodeIterator Execute(IContextProvider provider, object[] args)
+        public override object Execute(IContextProvider provider, object[] args)
         {
             m_context.Value = provider;
-            return new NodeIterator(CreateEnumerator(args));
+            if (Annotation != null)
+            {
+                object[] annotation = new object[Annotation.Length];
+                for (int k = 0; k < Annotation.Length; k++)
+                {
+                    object res = QueryContext.Engine.Apply(null, null,
+                        Annotation[k], args, m_compiledAnnotation[k]);
+                    if (res != Undefined.Value)
+                        if (res == null)
+                            annotation[k] = false;
+                        else
+                            annotation[k] = Core.Atomize(res);
+                }
+                return new XQueryExprIterator(this, args, annotation);
+            }
+            if (m_expr.Length == 1)
+                return QueryContext.Engine.Apply(null, null, m_expr[0], args, m_compiledBody[0]);
+            return new XQueryExprIterator(this, args, null);
         }
+
+        internal class XQueryExprIterator : XQueryNodeIterator
+        {
+            private XQueryExpr owner;
+            private object[] args;
+            private XQueryNodeIterator childIter;
+            private object[] annotation;
+            private int index;
+
+            private XQueryItem currItem = new XQueryItem();
+
+            public XQueryExprIterator(XQueryExpr owner, object[] args, object[] annotation)
+            {
+                this.owner = owner;
+                this.args = args;
+                this.annotation = annotation;
+            }
+
+            public override XQueryNodeIterator Clone()
+            {
+                return new XQueryExprIterator(owner, args, annotation);
+            }
+
+            public override XQueryNodeIterator CreateBufferedIterator()
+            {
+                return new BufferedNodeIterator(this);
+            }
+
+            public override void Init()
+            {
+                index = 0;
+            }
+
+            public override XPathItem NextItem()
+            {
+                while (true)
+                {
+                    if (childIter != null)
+                    {
+                        if (childIter.MoveNext())
+                        {
+                            if (annotation != null)
+                                return new XQueryWrappedValue(childIter.Current, annotation);
+                            else
+                                return childIter.Current;
+                        }
+                        else
+                            childIter = null;
+                    }
+                    if (index == owner.m_expr.Length)
+                        return null;
+                    object res = owner.QueryContext.Engine.Apply(null, null,
+                        owner.m_expr[index], args, owner.m_compiledBody[index]);
+                    index++;
+                    if (res != Undefined.Value)
+                    {
+                        childIter = res as XQueryNodeIterator;
+                        if (childIter == null)
+                        {
+                            XPathItem item = res as XPathItem;
+                            if (item == null)
+                            {
+                                item = currItem;
+                                currItem.RawValue = res;
+                            }
+                            if (annotation != null)
+                                return new XQueryWrappedValue(item, annotation);
+                            else
+                                return item;
+                        }
+                    }
+                }
+            }
+        }
+
 
 #if DEBUG
         public override string ToString()
