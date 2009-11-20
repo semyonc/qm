@@ -31,6 +31,7 @@ using System.IO;
 using System.Xml;
 using System.Xml.Schema;
 using System.Diagnostics;
+using DataEngine.XQuery.DocumentModel;
 
 namespace DataEngine.XQuery
 {
@@ -40,6 +41,10 @@ namespace DataEngine.XQuery
         private Stream fileStream;
         private BinaryWriter binWriter;
         private BinaryReader binReader;
+        private int pagesize;
+        private int min_workset;
+        private int max_workset;
+        private int workset_delta; 
         private int count;
         private int lastcount;
         private int blockcount;
@@ -54,9 +59,7 @@ namespace DataEngine.XQuery
         private Page[] lastblock;
         private List<Page[]> pagelist;
         private List<Page> cached;
-        private XQueryNodeInfoTable nodeInfoTable;
-        private XQuerySchemaInfoTable schemaInfoTable;
-        private Dictionary<int, XdmNode> crosslink;
+        private List<DmNode> heads;
 
         #region IDisposable Members
 
@@ -77,21 +80,29 @@ namespace DataEngine.XQuery
         }
 
         #endregion
-
-        public const int XQueryBlockSize = 100;
-        public const int XQueryPageSize = 500;
-        public const int XQueryMinWorkset = 3;
-        public const int XQueryMaxWorkset = 15;
-        public const int XQueryWorksetDelta = 5;
-
-        public PageFile(XQueryNodeInfoTable nodeInfoTable, XQuerySchemaInfoTable schemaInfoTable)
+                                                   
+        public const int XQueryBlockSize = 100;    
+        
+        public PageFile(bool large)
         {
+            if (large)
+            {
+                pagesize = 500;
+                min_workset = 3;
+                max_workset = 15;
+                workset_delta = 5;
+            }
+            else
+            {
+                pagesize = 16;
+                min_workset = 100;
+                max_workset = 300;
+                workset_delta = 150;
+            }
             pagelist = new List<Page[]>();
             cached = new List<Page>();
-            this.nodeInfoTable = nodeInfoTable;
-            this.schemaInfoTable = schemaInfoTable;
-            workset = XQueryMinWorkset;
-            crosslink = new Dictionary<int, XdmNode>();
+            heads = new List<DmNode>();
+            workset = min_workset;
         }
 
         ~PageFile()
@@ -131,24 +142,19 @@ namespace DataEngine.XQuery
             binWriter.Write(value);
         }
 
-        public XQueryNodeInfo ReadNodeInfo()
+        public DmAttribute ReadAttributeInfo()
         {
-            return nodeInfoTable.Get(binReader.ReadInt32());
+            return (DmAttribute)heads[binReader.ReadInt32()];
         }
 
-        public void WriteNodeInfo(XQueryNodeInfo nodeInfo)
+        public void WriteAttributeInfo(DmAttribute dm)
         {
-            binWriter.Write(nodeInfo.handle);
-        }
-
-        public IXmlSchemaInfo ReadSchemaInfo()
-        {
-            return schemaInfoTable.Get(binReader.ReadInt32());
-        }
-
-        public void WriteSchemaInfo(IXmlSchemaInfo schemaInfo)
-        {
-            binWriter.Write(schemaInfoTable.GetHandle(schemaInfo));
+            if (dm._index == -1)
+            {
+                dm._index = heads.Count;
+                heads.Add(dm);
+            }
+            binWriter.Write(dm._index);
         }
 
         private void CreateFile()
@@ -169,17 +175,46 @@ namespace DataEngine.XQuery
             }
         }
    
-        public XdmNode GetNode(int index)
+        public void Get(int index, bool load, out DmNode head, out XdmNode node)
+        {
+            if (index < 0 || index >= count)
+                throw new ArgumentException("index");            
+            int pagenum = index / pagesize;
+            Page[] block = pagelist[pagenum / XQueryBlockSize];
+            Page page = block[pagenum % XQueryBlockSize];
+            int k = index % pagesize;
+            if (load)
+                hit_count++;
+            int hindex = page.hindex[k];
+            if (hindex == -1)
+                head = null;
+            else
+                head = heads[hindex];
+            if (page.nodes == null)
+            {
+                if (load)
+                {
+                    ReadPage(page);
+                    node = page.nodes[k];
+                }
+                else
+                    node = null;
+            }
+            else
+                node = page.nodes[k];            
+        }
+
+        public DmNode Head(int index)
         {
             if (index < 0 || index >= count)
                 throw new ArgumentException("index");
-            int pagenum = index / XQueryPageSize;
-            Page[] block = pagelist[pagenum / 100];
-            Page page = block[pagenum % 100];
-            hit_count++;
-            if (page.nodes == null)
-                ReadPage(page);
-            return page.nodes[index % XQueryPageSize];            
+            int pagenum = index / pagesize;
+            Page[] block = pagelist[pagenum / XQueryBlockSize];
+            Page page = block[pagenum % XQueryBlockSize];
+            int hindex = page.hindex[index % pagesize];
+            if (hindex == -1)
+                return null;
+            return heads[hindex];
         }
 
         public int Count
@@ -190,83 +225,41 @@ namespace DataEngine.XQuery
             }
         }
 
-        public XdmNode this[int index]
+        public int this[int index]
         {
             get
             {
-                return GetNode(index);
+                if (index < 0 || index >= count)
+                    throw new ArgumentException("index");
+                int pagenum = index / pagesize;
+                Page[] block = pagelist[pagenum / XQueryBlockSize];
+                Page page = block[pagenum % XQueryBlockSize];
+                return page.next[index % pagesize];
             }
-        }
-
-        public XQueryNodeInfoTable NodeInfoTable
-        {
-            get
+            set
             {
-                return nodeInfoTable;
+                if (index < 0 || index >= count)
+                    throw new ArgumentException("index");
+                int pagenum = index / pagesize;
+                Page[] block = pagelist[pagenum / XQueryBlockSize];
+                Page page = block[pagenum % XQueryBlockSize];
+                page.next[index % pagesize] = value;
             }
         }
-
-        public XQuerySchemaInfoTable SchemaInfoTable
-        {
-            get
-            {
-                return schemaInfoTable;
-            }
-        }
-
+        
         private void ReadPage(Page page)
         {
-            page.nodes = new XdmNode[XQueryPageSize];
+            page.nodes = new XdmNode[pagesize];
             fileStream.Seek(page.offset, SeekOrigin.Begin);
-            int num = page.num * XQueryPageSize;
             for (int k = 0; k < page.nodes.Length; k++)
             {
-                XdmNode node;
-                if (page.crosslink && crosslink.TryGetValue(num++, out node))
-                    page.nodes[k] = node;
-                else
+                int hindex = page.hindex[k];
+                if (hindex != -1)
                 {
-                    XdmNodeType nodeType = (XdmNodeType)binReader.ReadByte();
-                    switch (nodeType)
-                    {
-                        case XdmNodeType.ElementStart:
-                            node = new XdmElementStart();
-                            break;
-
-                        case XdmNodeType.ElementEnd:
-                            node = new XdmElementEnd();
-                            break;
-
-                        case XdmNodeType.Text:
-                            node = new XdmText();
-                            break;
-
-                        case XdmNodeType.Document:
-                            node = new XdmDocument();
-                            break;
-
-                        case XdmNodeType.Pi:
-                            node = new XdmProcessingInstruction();
-                            break;
-
-                        case XdmNodeType.Comment:
-                            node = new XdmComment();
-                            break;
-
-                        case XdmNodeType.Whitespace:
-                            node = new XdmWhitespace();
-                            break;
-
-                        case XdmNodeType.Cdata:
-                            node = new XdmCdata();
-                            break;
-
-                        default:
-                            throw new InvalidOperationException();
-                    }
+                    XdmNode node = heads[hindex].CreateNode();
                     node.Load(this);
                     page.nodes[k] = node;
-                }                
+                }
             }
             page.pin = ++pincount;
             cached.Add(page);
@@ -282,30 +275,22 @@ namespace DataEngine.XQuery
                     CreateFile();
                 fileStream.Seek(0, SeekOrigin.End);
                 page.offset = fileStream.Position;
-                int num = page.num * XQueryPageSize;
+                int num = page.num * pagesize;
                 for (int k = 0; k < page.nodes.Length; k++)
                 {
                     XdmNode node = page.nodes[k];
-                    if (node != lastnode && node.Completed)
-                    {
-                        binWriter.Write((byte)node.NodeType);
+                    if (node != null)
                         node.Store(this);
-                    }
-                    else
-                    {
-                        crosslink.Add(num + k, node);
-                        page.crosslink = true;
-                    }
                 }
                 page.stored = true;
             }            
             page.nodes = null;
             cached.Remove(page);            
-        }
+        }        
 
         private void OptimizeCache()
         {
-            if (cached.Count > workset + XQueryWorksetDelta)
+            if (cached.Count > workset + workset_delta)
             {
                 if (miss_count > 0 && hit_count > 0)
                 {
@@ -313,10 +298,10 @@ namespace DataEngine.XQuery
                     if (ratio > 0)
                     {
                         workset = Math.Ceiling((workset * ratio1) / ratio);
-                        if (workset < XQueryMinWorkset)
-                            workset = XQueryMinWorkset;
-                        else if (workset > XQueryMaxWorkset)
-                            workset = XQueryMaxWorkset;
+                        if (workset < min_workset)
+                            workset = min_workset;
+                        else if (workset > max_workset)
+                            workset = max_workset;
                     }
                     ratio = ratio1;
                 }
@@ -342,17 +327,17 @@ namespace DataEngine.XQuery
             }
         }
 
-        public void AddNode(XdmNode node)
+        public void AddNode(DmNode head, XdmNode node)
         {
             if (lastpage == null ||
-                lastcount == XQueryPageSize)
+                lastcount == pagesize)
             {
                 if (lastpage != null)
                 {
                     cached.Add(lastpage);
                     OptimizeCache();
                 }
-                lastpage = new Page();
+                lastpage = new Page(pagesize);
                 lastpage.pin = ++pincount;
                 lastpage.num = pagecount++;
                 if (lastblock == null ||
@@ -365,9 +350,22 @@ namespace DataEngine.XQuery
                 lastblock[blockcount++] = lastpage;
                 lastcount = 0;                                
             }
-            lastpage.nodes[lastcount++] = node;
-            lastnode = node;
             count++;
+            if (head == null)
+                lastpage.hindex[lastcount] = -1;
+            else
+            {
+                if (head._index == -1)
+                {
+                    head._index = heads.Count;
+                    heads.Add(head);
+                }
+                lastpage.hindex[lastcount] = head._index;
+            }
+            lastpage.nodes[lastcount] = node;
+            lastpage.next[lastcount] = count;
+            lastnode = node;
+            lastcount++;
         }
 
         internal XdmNode LastNode
@@ -384,12 +382,17 @@ namespace DataEngine.XQuery
             internal long offset;
             internal int pin;
             internal bool stored;
-            internal bool crosslink;
             internal XdmNode[] nodes;
+            internal int[] next;
+            internal int[] hindex;
 
-            public Page()
+            public Page(int pagesize)
             {
-                nodes = new XdmNode[XQueryPageSize];
+                hindex = new int[pagesize];
+                for (int k = 0; k < pagesize; k++)
+                    hindex[k] = -1;
+                nodes = new XdmNode[pagesize];
+                next = new int[pagesize];
                 stored = false;
             }
         }

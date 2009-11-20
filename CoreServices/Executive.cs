@@ -52,19 +52,18 @@ namespace DataEngine.CoreServices
             public bool VariableParam;
         }
 
-        public delegate object UnaryOperatorDelegate(object arg1);
-        public delegate object BinaryOperatorDelegate(object arg1, object arg2);
-
         private Dictionary<object, SymbolLink> m_value;
         private Dictionary<object, ControlFormBase> m_control;
         private Dictionary<object, FuncDef> m_func;
         private List<ValueConverter> m_converter;
         private Dictionary<object, MacroFuncDef> m_macro;
         private Stack<Resolver> m_resolvers = new Stack<Resolver>();
+        private OperatorManager m_oper;
 
         public Executive(object owner)
         {
             m_owner = owner;
+            m_oper = InitDynamicOperators();
             
             m_control = GlobalSymbols.Shared.CreateControls();
             m_func = GlobalSymbols.Shared.CreateFuncs();
@@ -76,6 +75,49 @@ namespace DataEngine.CoreServices
             Set(Lisp.T, Generation.RuntimeOps.True);
             Set(Lisp.NIL, null);
             Set(Lisp.UNKNOWN, Undefined.Value);
+        }
+
+        protected virtual OperatorManager InitDynamicOperators()
+        {
+            OperatorManager res = new OperatorManager();
+            res.DefineProxy(typeof(SByte), new Type[] { 
+                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
+                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64) }, new IntegerProxy());
+            res.DefineProxy(typeof(Byte), new Type[] { 
+                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
+                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64) }, new IntegerProxy());
+            res.DefineProxy(typeof(Int16), new Type[] { 
+                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
+                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64) }, new IntegerProxy());
+            res.DefineProxy(typeof(UInt16), new Type[] { 
+                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
+                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64) }, new IntegerProxy());
+            res.DefineProxy(typeof(Int32), new Type[] { 
+                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
+                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64) }, new IntegerProxy());
+            res.DefineProxy(typeof(UInt32), new Type[] { 
+                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
+                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64) }, new IntegerProxy());
+            res.DefineProxy(typeof(Int64), new Type[] { 
+                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
+                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64) }, new IntegerProxy());
+            res.DefineProxy(typeof(UInt64), new Type[] { 
+                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
+                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64) }, new IntegerProxy());
+            res.DefineProxy(typeof(Integer), new Type[] { 
+                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
+                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64) }, new IntegerProxy());
+            res.DefineProxy(typeof(Decimal), new Type[] { 
+                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
+                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64), typeof(Integer) }, new DecimalProxy());
+            res.DefineProxy(typeof(Single), new Type[] { 
+                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
+                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64), typeof(Integer), typeof(Decimal) }, new SingleProxy());
+            res.DefineProxy(typeof(Double), new Type[] { 
+                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
+                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64), typeof(Integer), typeof(Decimal), typeof(Single) }, new DoubleProxy());
+            res.DefineProxy(typeof(String), typeof(String), new StringProxy());
+            return res;
         }
 
         public SymbolLink Set(string Name, object value)
@@ -765,18 +807,13 @@ namespace DataEngine.CoreServices
         {
             if (arg1 == arg2)
                 return true;
-            else if (arg1 == null || arg2 == null)
-                return null;
-            else if (arg1.Equals(arg2))
-                return true;
-            else if (arg1 is IComparable && arg2 is IComparable)
+            else 
             {
-                NumericCode code = TypeConverter.GetNumericCode(arg1, arg2);
-                if (code == NumericCode.Unknown)
-                    throw new InvalidCastException();
-                object val1 = TypeConverter.ChangeType(arg1, code);
-                object val2 = TypeConverter.ChangeType(arg2, code);
-                if (((IComparable)val1).CompareTo(val2) == 0)
+                if (arg1 == null)
+                    arg1 = Generation.RuntimeOps.False;
+                if (arg2 == null)
+                    arg2 = Generation.RuntimeOps.False;
+                if (DynamicOperators.Eq(arg1, arg2))
                     return true;
             }
             return null;
@@ -784,35 +821,21 @@ namespace DataEngine.CoreServices
 
         public virtual object OperatorGt(object arg1, object arg2)
         {
-            if (arg1 == null || arg2 == null)
-                return null;
-            else
-                if (arg1 is IComparable && arg2 is IComparable)
-                {
-                    if (arg1.GetType() == arg2.GetType())
-                    {
-                        if (((IComparable)arg1).CompareTo(arg2) > 0)
-                            return true;
-                    }
-                    else
-                    {
-                        NumericCode code = TypeConverter.GetNumericCode(arg1, arg2);
-                        if (code == NumericCode.Unknown)
-                            throw new InvalidCastException();
-                        object val1 = TypeConverter.ChangeType(arg1, code);
-                        object val2 = TypeConverter.ChangeType(arg2, code);
-                        if (((IComparable)val1).CompareTo(val2) > 0)
-                            return true;
-                    }
-                }
-                else
-                    throw new InvalidOperationException();
-            return null;
+            if (arg1 == null)
+                arg1 = Generation.RuntimeOps.False;
+            if (arg2 == null)
+                arg2 = Generation.RuntimeOps.False;
+            return DynamicOperators.Gt(arg1, arg2);
         }
 
         public object Owner
         {
             get { return m_owner; }
+        }
+
+        public OperatorManager DynamicOperators
+        {
+            get { return m_oper; }
         }
     }
 }

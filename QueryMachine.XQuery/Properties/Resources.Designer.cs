@@ -214,6 +214,15 @@ namespace DataEngine.XQuery.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to No context document.
+        /// </summary>
+        internal static string FODC0001 {
+            get {
+                return ResourceManager.GetString("FODC0001", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Invalid argument &apos;{0}&apos; to fn:collection.
         /// </summary>
         internal static string FODC0004 {
@@ -304,7 +313,7 @@ namespace DataEngine.XQuery.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Function &apos;boolean&apos; in namespace &apos;http://www.w3.org/2005/xpath-functions&apos; was called with invalid argument type {0}.
+        ///   Looks up a localized string similar to Function &apos;{0}&apos; was called with invalid argument type {1}.
         /// </summary>
         internal static string FORG0006 {
             get {
@@ -327,6 +336,33 @@ namespace DataEngine.XQuery.Properties {
         internal static string FORG0009 {
             get {
                 return ResourceManager.GetString("FORG0009", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Regular expression {0} matches zero-length string.
+        /// </summary>
+        internal static string FORX0003 {
+            get {
+                return ResourceManager.GetString("FORX0003", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Invalid replacement string {0}.
+        /// </summary>
+        internal static string FORX0004 {
+            get {
+                return ResourceManager.GetString("FORX0004", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Argument node {0} does not have a typed value.
+        /// </summary>
+        internal static string FOTY0012 {
+            get {
+                return ResourceManager.GetString("FOTY0012", resourceCulture);
             }
         }
         
@@ -529,6 +565,15 @@ namespace DataEngine.XQuery.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Only string literals can be cast to type {0}.
+        /// </summary>
+        internal static string XPTY0004_CAST {
+            get {
+                return ResourceManager.GetString("XPTY0004_CAST", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to The result of the last step in a path expression contains both nodes and atomic values {0}.
         /// </summary>
         internal static string XPTY0018 {
@@ -709,6 +754,15 @@ namespace DataEngine.XQuery.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Multiple schema imports specify the same target namespace {0}.
+        /// </summary>
+        internal static string XQST0058 {
+            get {
+                return ResourceManager.GetString("XQST0058", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Implementation is unable to process a schema or module import by finding a schema or module with the specified target namespace {0}..
         /// </summary>
         internal static string XQST0059 {
@@ -822,6 +876,15 @@ namespace DataEngine.XQuery.Properties {
         internal static string XQTY0024 {
             get {
                 return ResourceManager.GetString("XQTY0024", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The argument of a validate expression does not evaluate to exactly one document or element node.
+        /// </summary>
+        internal static string XQTY0030 {
+            get {
+                return ResourceManager.GetString("XQTY0030", resourceCulture);
             }
         }
     }

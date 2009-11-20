@@ -415,6 +415,8 @@ namespace DataEngine.XQuery
                                     throw new XQueryException(Properties.Resources.XPTY0004,
                                         new XQuerySequenceType(xmlType, XmlTypeCardinality.One, null), type);
                                 return QNameValue.Parse(value.ToString(), nsmgr);
+                            case XmlTypeCode.Notation:
+                                return NotationValue.Parse(value.ToString(), nsmgr);
                             case XmlTypeCode.AnyUri:
                                 return new AnyUriValue(value.ToString());
 
@@ -577,6 +579,9 @@ namespace DataEngine.XQuery
                 return value;
             if (value == null)
                 value = CoreServices.Generation.RuntimeOps.False;
+            if (type.TypeCode == XmlTypeCode.None)
+                throw new XQueryException(Properties.Resources.XPTY0004,
+                   new XQuerySequenceType(value.GetType(), XmlTypeCardinality.One), "empty-sequence()");
             if (value.GetType() != type.ItemType)
             {
                 UntypedAtomic untypedAtomic = value as UntypedAtomic;
@@ -639,6 +644,8 @@ namespace DataEngine.XQuery
                             return (int)(sbyte)value;
                         if (value is System.Byte)
                             return (int)(byte)value;
+                        if (value is Integer)
+                            return (int)(Integer)value;
                         break;
 
                     case XmlTypeCode.Long:
@@ -648,6 +655,8 @@ namespace DataEngine.XQuery
                             return (long)(short)value;
                         if (value is System.SByte)
                             return (long)(sbyte)value;
+                        if (value is Integer)
+                            return (long)(Integer)value;
                         break;
                 }
                 if (type.TypeCode == XmlTypeCode.AnyUri && value is String)
@@ -669,31 +678,45 @@ namespace DataEngine.XQuery
                 return value;
             if (value == null)
                 value = CoreServices.Generation.RuntimeOps.False;
-            if (value.GetType() != type.ItemType)
+            if (type.TypeCode == XmlTypeCode.None)
+                throw new XQueryException(Properties.Resources.XPTY0004,
+                   new XQuerySequenceType(value.GetType(), XmlTypeCardinality.One), "empty-sequence()");
+            if (value.GetType() != type.ItemType && 
+                type.ItemType != typeof(System.Object))
             {
                 if (type.ItemType == typeof(Integer))
                 {
                     if (value is System.Int32)
                         return (Integer)(int)value;
+                    else if (value is System.UInt32)
+                        return (Integer)(uint)value;
                     else if (value is System.Int64)
                         return (Integer)(long)value;
+                    else if (value is System.UInt64)
+                        return (Integer)(ulong)value;
                     else if (value is System.Int16)
                         return (Integer)(short)value;
+                    else if (value is System.UInt16)
+                        return (Integer)(ushort)value;
                     else if (value is System.SByte)
-                        return (Integer)(sbyte)value;
+                        return (Integer)(sbyte)value;                    
                 }
                 else if (type.ItemType == typeof(Decimal))
                 {
-                    if (value is System.Int32)
-                        return (Decimal)(int)value;
-                    else if (value is Integer)
+                    if (value is Integer)
                         return (Decimal)(Integer)value;
-                    if (value is System.Int32)
+                    else if (value is System.Int32)
                         return (Decimal)(int)value;
+                    if (value is System.UInt32)
+                        return (Decimal)(uint)value;
                     else if (value is System.Int64)
                         return (Decimal)(long)value;
+                    else if (value is System.UInt64)
+                        return (Decimal)(ulong)value;
                     else if (value is System.Int16)
                         return (Decimal)(short)value;
+                    else if (value is System.UInt16)
+                        return (Decimal)(ushort)value;
                     else if (value is System.SByte)
                         return (Decimal)(sbyte)value;
                 }

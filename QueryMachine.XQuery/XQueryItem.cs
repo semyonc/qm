@@ -34,28 +34,32 @@ using System.Globalization;
 
 using DataEngine.CoreServices;
 using DataEngine.XQuery.Util;
+using System.Diagnostics;
 
 namespace DataEngine.XQuery
 {
-    public class XQueryAtomicValue: XPathItem, IConvertible
+    [DebuggerDisplay("Atom|{Value},{ValueType}")]
+    public class XQueryItem: XPathItem, IConvertible
     {       
         private object _value;
         private XmlSchemaType _xmlType;
-        private IXmlNamespaceResolver _nsResolver;
 
-        public XQueryAtomicValue(object value, IXmlNamespaceResolver nsResolver)
+        public XQueryItem()
         {
-            _value = value;
-            _nsResolver = nsResolver;
+            _value = Undefined.Value;
         }
 
-        public XQueryAtomicValue(object value, XmlSchemaType xmlType, XmlNamespaceManager nsResolver)
+        public XQueryItem(object value)
         {
-            _value = value;
+            RawValue = value;
+        }
+
+        public XQueryItem(object value, XmlSchemaType xmlType)
+        {
+            RawValue = value;
+            if (xmlType == null)
+                xmlType = XQuerySequenceType.XmlSchema.UntypedAtomic;
             _xmlType = xmlType;
-            if (_xmlType == null)
-                _xmlType = XQuerySequenceType.XmlSchema.UntypedAtomic;
-            _nsResolver = nsResolver;
         }
 
         private void InferXmlType()
@@ -126,8 +130,42 @@ namespace DataEngine.XQuery
                 _xmlType = XQuerySequenceType.XmlSchema.IDREFS;
             else if (_value is ENTITIESValue)
                 _xmlType = XQuerySequenceType.XmlSchema.ENTITIES;
+            else if (_value is NotationValue)
+                _xmlType = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Notation);
             else
                 throw new ArgumentException("value");
+        }
+
+        public virtual XPathItem Clone()
+        {
+            XQueryItem clone = new XQueryItem();
+            clone._value = _value;
+            clone._xmlType = _xmlType;
+            return clone;
+        }
+
+        public override string ToString()
+        {
+            if (_value != null)
+                return Value;
+            return String.Empty;
+        }
+
+        public object RawValue
+        {
+            set
+            {
+                if (value == null)
+                    _value = CoreServices.Generation.RuntimeOps.False;
+                else if (value is XQueryDocumentBuilder)
+                {
+                    XQueryDocumentBuilder builder = (XQueryDocumentBuilder)value;
+                    _value = builder.m_document.CreateNavigator();
+                }
+                else
+                    _value = value;
+                _xmlType = null;
+            }
         }
         
         public override bool IsNode

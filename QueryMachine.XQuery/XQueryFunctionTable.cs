@@ -57,6 +57,8 @@ namespace DataEngine.XQuery
         public XmlTypeCardinality Cardinality { get; set; }
 
         public bool VariableParams { get; set; }
+
+        public bool ValidationReaderDemanded { get; set; }
     }
 
     public class XQueryParameterAttribute : Attribute
@@ -79,6 +81,7 @@ namespace DataEngine.XQuery
         public XQuerySequenceType[] parameters;
         public XQuerySequenceType returnType;
         public bool variableParams;
+        public bool validationReader;
     }
 
     public class XQueryFunctionTable
@@ -98,21 +101,6 @@ namespace DataEngine.XQuery
 
         public XQueryFunctionTable()
         {
-        }
-
-        private XQueryFunctionTable(Type baseClass)
-        {
-            MethodInfo[] methods = baseClass.GetMethods(BindingFlags.Static | BindingFlags.Public);
-            foreach (MethodInfo method in methods)
-            {
-                object[] attrs = method.GetCustomAttributes(typeof(XQuerySignatureAttribute), false);
-                if (attrs.Length > 0)
-                {
-                    XQuerySignatureAttribute sig = (XQuerySignatureAttribute)attrs[0];
-                    object id = Lisp.Defatom(sig.NamespaceUri, new string[] { sig.Name }, true);
-                    Register(id, method);
-                }
-            }
         }
 
         public void Register(object id, MethodInfo method)
@@ -137,7 +125,7 @@ namespace DataEngine.XQuery
                     continue;
                 }
                 bool customized = false;
-                bool variableParam = false;
+                bool variableParam = false;                
                 object[] pi_attrs = pi.GetCustomAttributes(false);
                 foreach (object pi_atr in pi_attrs)
                 {
@@ -156,7 +144,7 @@ namespace DataEngine.XQuery
                         if (xattr != null)
                         {
                             type_list.Add(new XQuerySequenceType(xattr.TypeCode, xattr.Cardinality, variableParam ?
-                                pi.ParameterType.GetElementType() : pi.ParameterType));
+                                pi.ParameterType.GetElementType() : pi.ParameterType));                            
                             customized = true;
                             break;
                         }
@@ -180,7 +168,10 @@ namespace DataEngine.XQuery
                     rec.returnType = new XQuerySequenceType(method.ReturnType, XmlTypeCardinality.One);
             }
             if (sig != null)
+            {
                 rec.variableParams = sig.VariableParams;
+                rec.validationReader = sig.ValidationReaderDemanded;
+            }
             rec.parameters = type_list.ToArray();
             FunctionSocket sock = new FunctionSocket(rec);
             FunctionSocket next;
@@ -309,7 +300,10 @@ namespace DataEngine.XQuery
         static XQueryFunctionTable()
         {
             if (shared == null)
-                shared = new XQueryFunctionTable(typeof(XQueryFuncs));
+            {
+                shared = new XQueryFunctionTable();
+                Register(typeof(XQueryFuncs));
+            }
         }
 
         public static void Register(object id, Type type, string methodName)
@@ -324,6 +318,21 @@ namespace DataEngine.XQuery
                 }
             if (!bfound)
                 throw new ArgumentException("Static method not found in class", methodName);
+        }
+
+        public static void Register(Type baseClass)
+        {
+            MethodInfo[] methods = baseClass.GetMethods(BindingFlags.Static | BindingFlags.Public);
+            foreach (MethodInfo method in methods)
+            {
+                object[] attrs = method.GetCustomAttributes(typeof(XQuerySignatureAttribute), false);
+                if (attrs.Length > 0)
+                {
+                    XQuerySignatureAttribute sig = (XQuerySignatureAttribute)attrs[0];
+                    object id = Lisp.Defatom(sig.NamespaceUri, new string[] { sig.Name }, true);
+                    shared.Register(id, method);
+                }
+            }
         }
 
         public static XQueryFunctionTable CreateInstance()

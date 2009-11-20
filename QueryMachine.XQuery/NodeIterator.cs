@@ -34,63 +34,37 @@ using System.Diagnostics;
 
 namespace DataEngine.XQuery
 {
-    public class NodeIterator: XQueryNodeIterator
+    public sealed class NodeIterator: XQueryNodeIterator
     {
         private IEnumerable<XPathItem> master;
         private IEnumerator<XPathItem> iterator;        
-        private bool iterationStarted;
-        private int pos = -1;
         
         public NodeIterator(IEnumerable<XPathItem> enumerable)
         {
-            master = enumerable;
-            iterator = master.GetEnumerator();
-            iterationStarted = false;
+            master = enumerable;            
         }        
 
         [DebuggerStepThrough]
         public override XQueryNodeIterator Clone()
         {
-            NodeIterator iter = new NodeIterator(master);
-            iter.ItemType = ItemType;
-            return iter;
+            return new NodeIterator(master);
         }
 
-        public override XPathItem Current
+        public override XQueryNodeIterator CreateBufferedIterator()
         {
-            get 
-            {
-                if (!iterationStarted)
-                    throw new InvalidOperationException();
-                return iterator.Current;
-            }
-        }
-        
-        public override int CurrentPosition
-        {
-            get 
-            {
-                if (!iterationStarted)
-                    throw new InvalidOperationException();
-                return pos; 
-            }
+            return new BufferedNodeIterator(this);
         }
 
-        [DebuggerStepThrough]
-        public override bool MoveNext()
+        public override void Init()
         {
-            if (!iterationStarted)
-            {
-                pos = -1;
-                iterationStarted = true;
-            }
+            iterator = master.GetEnumerator();
+        }
+
+        public override XPathItem NextItem()
+        {
             if (iterator.MoveNext())
-            {
-                pos++;
-                return true;
-            }
-            else
-                return false;
+                return iterator.Current;
+            return null;
         }
     }
 }

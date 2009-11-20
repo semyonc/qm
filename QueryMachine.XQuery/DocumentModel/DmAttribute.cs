@@ -26,45 +26,83 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Collections;
+
+using System.Xml;
+using System.Xml.Schema;
 using System.Xml.XPath;
-using DataEngine.CoreServices;
 
-namespace DataEngine.XQuery
+
+namespace DataEngine.XQuery.DocumentModel
 {
-    internal class EmptySequnceException: Exception
+    internal class DmAttribute : DmNode
     {
-    }
+        private DmQName _name;
+        private IXmlSchemaInfo _schemaInfo;
 
-    public abstract class XQueryExprBase: IBindableObject
-    {
-        private XQueryContext _queryContext;
-
-        public XQueryExprBase(XQueryContext queryContext)
+        public DmAttribute(DmQName name)
         {
-            _queryContext = queryContext;
+            _name = name;
         }
 
-        public abstract void Bind(Executive.Parameter[] parameters);
 
-        public abstract IEnumerable<SymbolLink> EnumDynamicFuncs();
-
-        public abstract object Execute(IContextProvider provider, object[] args);
-
-        public XQueryContext QueryContext
+        public override XPathNodeType NodeType
         {
-            get
+            get 
             {
-                return _queryContext;
+                return XPathNodeType.Attribute;
             }
         }
 
-        public object ToLispFunction()
+        public override XdmNode CreateNode()
         {
-            XQueryExpr expr = this as XQueryExpr;
-            if (expr != null && expr.m_expr.Length == 1)
-                return expr.m_expr[0];
-            else
-                return Lisp.List(ID.DynExecuteExpr, this, ID.Context, Lisp.ARGV);
+            throw new InvalidOperationException();
         }
+
+        public DmQName QName
+        {
+            get
+            {
+                return _name;
+            }
+        }
+
+        public override string Prefix
+        {
+            get
+            {
+                return _name.prefix;
+            }
+        }
+
+        public override string LocalName
+        {
+            get
+            {
+                return _name.localName;
+            }
+        }
+
+        public override string NamespaceURI
+        {
+            get
+            {
+                return _name.ns;
+            }
+        }
+
+        public override IXmlSchemaInfo SchemaInfo
+        {
+            get
+            {
+                return _schemaInfo;
+            }
+            set
+            {
+                _schemaInfo = new DmSchemaInfo(value);
+            }
+        }
+
+        public bool IsId { get; set; }
     }
 }

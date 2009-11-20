@@ -31,15 +31,19 @@ using System.Xml;
 using System.Xml.Schema;
 using System.Xml.XPath;
 using System.Globalization;
+using DataEngine.XQuery.DocumentModel;
 
 namespace DataEngine.XQuery
 {    
     public class XQueryDocumentBuilder: XmlWriter
     {
-        private PageFile m_pageFile;
-        private Stack<ElementContext> m_stack = new Stack<ElementContext>();
         private string xmlns;
+        
+        private PageFile m_pageFile;
+        private Stack<ElementContext> m_stack;
+
         private WriteState _state;
+        private DmContainer _parent;
         private bool _normalize;
         private bool _stripNamespace;
         
@@ -47,6 +51,7 @@ namespace DataEngine.XQuery
 
         private XdmAttribute attr;        
         private XdmNamespace ns;
+        private XdmNamespace ns2;
         private HashSet<object> hs;
         private bool nsflag;
 
@@ -58,8 +63,16 @@ namespace DataEngine.XQuery
         
         public XQueryDocumentBuilder(XQueryDocument doc)
         {
+            m_stack = new Stack<ElementContext>();
             m_document = doc;
-            m_pageFile = doc.pagefile;
+            if (doc.pagefile == null)
+            {
+                m_pageFile = new PageFile(false);
+                m_pageFile.HasSchemaInfo = true;
+                doc.pagefile = m_pageFile;
+            }
+            else
+                m_pageFile = doc.pagefile;
             NameTable = doc.nameTable;
             xmlns = NameTable.Get(XmlReservedNs.NsXmlNs);
             _state = WriteState.Start;
@@ -70,6 +83,8 @@ namespace DataEngine.XQuery
                 NamespaceManager = new XmlNamespaceManager(NameTable);
             }
             SchemaInfo = null;
+            DocumentRoot = new DmRoot();
+            _parent = DocumentRoot;
         }
 
         public override void Close()
@@ -97,9 +112,7 @@ namespace DataEngine.XQuery
 
         public override void WriteCData(string text)
         {
-            XdmCdata node = new XdmCdata();
-            node._text = text;
-            m_pageFile.AddNode(node);
+            WriteString(text);
         }
 
         public override void WriteCharEntity(char ch)
@@ -117,9 +130,11 @@ namespace DataEngine.XQuery
         public override void WriteComment(string text)
         {
             CompleteElement();
-            XdmComment node = new XdmComment();
-            node._text = text;
-            m_pageFile.AddNode(node);
+            int pos = -1;
+            if (m_stack.Count > 0)
+                pos = m_stack.Peek().pos;
+            DmComment comment = (DmComment)_parent.CreateChildComment();
+            m_pageFile.AddNode(comment, new XdmComment(pos, text));
         }
 
         public override void WriteDocType(string name, string pubid, string sysid, string subset)
@@ -145,10 +160,11 @@ namespace DataEngine.XQuery
         public override void WriteProcessingInstruction(string name, string text)
         {
             CompleteElement();
-            XdmProcessingInstruction node = new XdmProcessingInstruction();
-            node._name = name;
-            node._value = text;
-            m_pageFile.AddNode(node);
+            int pos = -1;
+            if (m_stack.Count > 0)
+                pos = m_stack.Peek().pos;
+            DmPI pi = (DmPI)_parent.CreateChildPI(name, NameTable);
+            m_pageFile.AddNode(pi, new XdmProcessingInstruction(pos, text));
         }
 
         public override void WriteRaw(string data)
@@ -176,27 +192,14 @@ namespace DataEngine.XQuery
                 throw new XQueryException(Properties.Resources.XQTY0024, new XmlQualifiedName(localName, namespaceUri));
             _state = WriteState.Attribute;
             _sb = new StringBuilder();
-            XdmElementStart element = context.element;
+            DmNode node = context.node;
+            XdmElement element = context.element;
             if (namespaceUri == xmlns)
             {
-                if (ns == null)
-                    element._ns = ns = new XdmNamespace();
-                else
-                {
-                    XdmNamespace tmp = new XdmNamespace();
-                    ns._next = tmp;
-                    ns = tmp;
-                }
-                ns._name = String.IsNullOrEmpty(prefix) ? 
+                ns2 = new XdmNamespace();
+                ns2._name = String.IsNullOrEmpty(prefix) ? 
                     String.Empty : localName;
                 nsflag = true;
-                if (hs != null)
-                {
-                    if (hs.Contains(ns._name))
-                        throw new XQueryException(Properties.Resources.XQDY0025,
-                            new XmlQualifiedName(element._nodeInfo.localName, element._nodeInfo.namespaceUri), ns._name);
-                    hs.Add(ns._name);
-                }
                 if (NamespaceManager != null)
                 {
                     if (!context.scopeFlag)
@@ -223,8 +226,7 @@ namespace DataEngine.XQuery
                     {
                         prefix = NamespaceManager.LookupPrefix(namespaceUri);
                         if (prefix == null)
-                        {
-                            // Generate new prefix
+                        {   // Generate new prefix
                             int k = 1;
                             do
                             {
@@ -235,47 +237,73 @@ namespace DataEngine.XQuery
                         }
                     }
                 }
-                attr._nodeInfo = 
-                    m_pageFile.NodeInfoTable.Add(prefix, localName, namespaceUri);
+                DmQName name = new DmQName(prefix, localName, namespaceUri, NameTable);
+                attr._dm = (DmAttribute)context.node.CreateAttribute(name);
                 nsflag = false;
                 if (hs != null)
                 {
-                    if (hs.Contains(attr._nodeInfo.handle))
+                    if (hs.Contains(name))
                         throw new XQueryException(Properties.Resources.XQDY0025,
-                            new XmlQualifiedName(element._nodeInfo.localName, element._nodeInfo.namespaceUri), 
-                            new XmlQualifiedName(attr._nodeInfo.localName, attr._nodeInfo.namespaceUri));
-                    hs.Add(attr._nodeInfo.handle);
+                            new XmlQualifiedName(node.LocalName, node.NamespaceURI), 
+                            new XmlQualifiedName(localName, namespaceUri));
+                    hs.Add(name);
                 }
             }
         }
 
         public override void WriteEndAttribute()
         {
+            _state = WriteState.Element;
             string value = _sb.ToString();
             if (nsflag)
             {      
-                ns._value = value;
+                ns2._value = value;
                 ElementContext context = m_stack.Peek();
+                if (context.node.Prefix == ns2._name && context.node.NamespaceURI != ns2._value)
+                {
+                    context.node = (DmElement)_parent.CreateChild(new DmQName(context.node.Prefix, 
+                        context.node.LocalName, ns2._value, NameTable));
+                    for (XdmAttribute attr = context.element._attributes; attr != null; attr = attr._next)
+                    {
+                        DmAttribute src = attr._dm;
+                        attr._dm = (DmAttribute)context.node.CreateAttribute(src.QName);
+                        attr._dm.SchemaInfo = src.SchemaInfo;
+                        attr._dm.IsId = src.IsId;
+                    }
+                }
                 if (context.scopeFlag)
-                    NamespaceManager.AddNamespace(ns._name, ns._value);
-                if ((context.element._nodeInfo.prefix == ns._name) &&
-                    (context.element._nodeInfo.namespaceUri != ns._value))
-                    context.element._nodeInfo = m_pageFile.NodeInfoTable.Add(
-                        context.element._nodeInfo.prefix, context.element._nodeInfo.localName, ns._value);
+                {
+                    if (NamespaceInheritanceMode != NamespaceInheritanceMode.Inherit && 
+                        NamespaceManager.LookupNamespace(ns2._name) == ns2._value)
+                        return;
+                    NamespaceManager.AddNamespace(ns2._name, ns2._value);
+                }
+                if (hs != null)
+                {
+                    if (hs.Contains(ns2._name))
+                        throw new XQueryException(Properties.Resources.XQDY0025,
+                            new XmlQualifiedName(context.node.LocalName, context.node.NamespaceURI), ns2._name);
+                    hs.Add(ns2._name);
+                }
+                if (ns == null)
+                    context.element._ns = ns2;
+                else
+                    ns._next = ns2;
+                ns = ns2;
             }
             else
             {
                 if (_normalize)
                 {
-                    if ((attr._nodeInfo.localName == "id" && attr._nodeInfo.namespaceUri == XmlReservedNs.NsXml) ||
+                    if ((attr._dm.LocalName == "id" && attr._dm.NamespaceURI == XmlReservedNs.NsXml) ||
                         (SchemaInfo != null && SchemaInfo.SchemaType.TypeCode == XmlTypeCode.Id))
                         value = XQueryFuncs.NormalizeSpace(value);
                 }
                 attr._value = value;
                 if (SchemaInfo != null && SchemaInfo.SchemaAttribute != null)
-                    attr._schemaInfo = m_pageFile.SchemaInfoTable.Add(SchemaInfo);
-            }
-            _state = WriteState.Element;
+                    attr._dm.SchemaInfo = SchemaInfo;
+
+            }            
         }
 
         internal void CompleteElement()
@@ -285,27 +313,29 @@ namespace DataEngine.XQuery
                 ElementContext context = m_stack.Peek();
                 if (!context.completed)
                 {
+                    m_pageFile.AddNode(_parent = context.node, context.element);
+                    m_pageFile[context.pos] = 0;
                     if (NamespaceManager != null)
                     {
                         IDictionary<string, string> dict = NamespaceManager.GetNamespacesInScope(XmlNamespaceScope.Local);
-                        string prefix = context.element._nodeInfo.prefix;
+                        string prefix = context.node.Prefix;
                         if (prefix != "" && !dict.ContainsKey(prefix))
                         {
                             WriteStartAttribute("xmlns", prefix, xmlns);
-                            WriteString(context.element._nodeInfo.namespaceUri);
+                            WriteString(context.node.NamespaceURI);
                             WriteEndAttribute();
                         }
                         XdmAttribute curr = context.element._attributes;
                         while (curr != null)
                         {
-                            prefix = curr._nodeInfo.prefix;
+                            prefix = curr._dm.Prefix;
                             if (prefix != "")
                             {
                                 dict = NamespaceManager.GetNamespacesInScope(XmlNamespaceScope.Local);
                                 if (!dict.ContainsKey(prefix))
                                 {
                                     WriteStartAttribute("xmlns", prefix, xmlns);
-                                    WriteString(curr._nodeInfo.namespaceUri);
+                                    WriteString(curr._dm.NamespaceURI);
                                     WriteEndAttribute();
                                 }
                             }
@@ -316,7 +346,7 @@ namespace DataEngine.XQuery
                             List<XdmNamespace> nodes = new List<XdmNamespace>();
                             for (XdmNamespace ns1 = context.element._ns; ns1 != null; ns1 = ns1._next)
                             {
-                                if (ns1._value == context.element._nodeInfo.namespaceUri ||
+                                if (ns1._value == context.node.NamespaceURI ||
                                     (NamespaceInheritanceMode == NamespaceInheritanceMode.Inherit &&
                                         context.inheritedScope.ContainsKey(ns1._name)))
                                     nodes.Add(ns1);
@@ -324,7 +354,7 @@ namespace DataEngine.XQuery
                                 {
                                     for (XdmAttribute atr = context.element._attributes; atr != null; atr = atr._next)
                                     {
-                                        if (atr._nodeInfo.namespaceUri == ns1._value)
+                                        if (atr._dm.NamespaceURI == ns1._value)
                                         {
                                             nodes.Add(ns1);
                                             break;
@@ -367,16 +397,14 @@ namespace DataEngine.XQuery
 
         public override void WriteStartDocument(bool standalone)
         {
-            XdmDocument node = new XdmDocument();
-            node.standalone = standalone;
-            m_pageFile.AddNode(node);
+            DocumentRoot.Standalone = standalone;
+            m_pageFile.AddNode(DocumentRoot, new XdmDocument());
+            m_pageFile[0] = 0;
         }
 
         public override void WriteStartDocument()
         {
-            XdmDocument node = new XdmDocument();
-            node.standalone = false;
-            m_pageFile.AddNode(node);
+            WriteStartDocument(false);
         }
 
         public bool IsEmptyElement { get; set; }
@@ -385,22 +413,23 @@ namespace DataEngine.XQuery
         public override void WriteStartElement(string prefix, string localName, string ns)
         {
             CompleteElement();
+            int pos = -1;
+            if (m_stack.Count > 0)
+                pos = m_stack.Peek().pos;
             ElementContext context = new ElementContext();
-            XdmElementStart element = new XdmElementStart();
             if (prefix == null)
                 prefix = String.Empty;
             if (localName == null)
                 throw new ArgumentException();
             if (ns == null)
                 ns = String.Empty;
-            element._nodeInfo = m_pageFile.NodeInfoTable.Add(prefix, localName, ns);
-            context.element = element;
+            context.node = (DmElement)_parent.CreateChild(new DmQName(prefix, localName, ns, NameTable));
             context.pos = m_pageFile.Count;
+            context.element = new XdmElement(pos);
             m_stack.Push(context);
             context.isEmptyElement = IsEmptyElement;
             if (NamespaceManager != null && NamespaceInheritanceMode == NamespaceInheritanceMode.Inherit)
-                context.inheritedScope = NamespaceManager.GetNamespacesInScope(XmlNamespaceScope.Local);
-            m_pageFile.AddNode(element);
+                context.inheritedScope = NamespaceManager.GetNamespacesInScope(XmlNamespaceScope.Local);            
         }
 
         public override void WriteEndElement()
@@ -409,18 +438,29 @@ namespace DataEngine.XQuery
             ElementContext context = m_stack.Pop();
             if (context.scopeFlag)
                 NamespaceManager.PopScope();
-            context.element._linkNext = m_pageFile.Count + 1;
-            XdmElementEnd node = new XdmElementEnd();
-            node._linkHead = context.pos;
+            m_pageFile[context.pos] = m_pageFile.Count + 1;
             if (SchemaInfo != null && SchemaInfo.SchemaElement != null)
-                node._schemaInfo = m_pageFile.SchemaInfoTable.Add(SchemaInfo);
+                context.node.SchemaInfo = SchemaInfo;
             LastElementEnd = context.pos;
-            m_pageFile.AddNode(node);
+            _parent = (DmContainer)context.node.ParentNode;
+            m_pageFile.AddNode(null, null);
+            m_pageFile[m_pageFile.Count - 1] = LastElementEnd;
         }        
 
         public override WriteState WriteState
         {
             get { return _state; }
+        }
+
+        internal int Position
+        {
+            get
+            {
+                if (m_stack.Count == 0)
+                    throw new InvalidOperationException();
+                ElementContext context = m_stack.Peek();
+                return context.pos;
+            }
         }
 
         public override void WriteString(string text)
@@ -432,14 +472,16 @@ namespace DataEngine.XQuery
             else
             {
                 CompleteElement();
-                XdmText node = m_pageFile.LastNode as XdmText;
-                if (node != null)
-                    node._text = node._text + text;
+                XdmText data = m_pageFile.LastNode as XdmText;
+                if (data != null)
+                    data._text = data._text + text;
                 else
                 {
-                    node = new XdmText();
-                    node._text = text;
-                    m_pageFile.AddNode(node);
+                    int pos = -1;
+                    if (m_stack.Count > 0)
+                        pos = m_stack.Peek().pos;
+                    DmText node = (DmText)_parent.CreateChildText();
+                    m_pageFile.AddNode(node, new XdmText(pos, text));
                 }
             }
         }
@@ -456,14 +498,16 @@ namespace DataEngine.XQuery
             else
             {
                 CompleteElement();
-                XdmWhitespace node = m_pageFile.LastNode as XdmWhitespace;
-                if (node != null)
-                    node._text = node._text + ws;
+                XdmWhitespace data = m_pageFile.LastNode as XdmWhitespace;
+                if (data != null)
+                    data._text = data._text + ws;
                 else
                 {
-                    node = new XdmWhitespace();
-                    node._text = ws;
-                    m_pageFile.AddNode(node);
+                    int pos = -1;
+                    if (m_stack.Count > 0)
+                        pos = m_stack.Peek().pos;
+                    DmWhitespace node = (DmWhitespace)_parent.CreateChildWhitespace();
+                    m_pageFile.AddNode(node, new XdmWhitespace(pos, ws));
                 }
             }
         }
@@ -482,11 +526,14 @@ namespace DataEngine.XQuery
             }
         }
 
+        internal DmRoot DocumentRoot { get; private set; }
+
         public XmlNameTable NameTable { get; private set; }
 
         internal protected class ElementContext
         {
-            internal XdmElementStart element;
+            internal DmElement node;
+            internal XdmElement element;
             internal int pos;
             internal bool isEmptyElement;
             internal bool completed;

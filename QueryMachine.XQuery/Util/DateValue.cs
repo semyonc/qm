@@ -34,7 +34,7 @@ using DataEngine.CoreServices;
 
 namespace DataEngine.XQuery.Util
 {
-    public class DateValue: DateTimeValueBase, IRuntimeExtension, IXmlConvertable
+    public class DateValue: DateTimeValueBase, IXmlConvertable
     {
         public DateValue(bool sign, DateTimeOffset value)
             : base(sign, value)
@@ -186,43 +186,75 @@ namespace DataEngine.XQuery.Util
                 throw new XQueryException(Properties.Resources.FODT0001);
             }
         }
+
+        internal class Proxy : TypeProxy
+        {
+            public override bool Eq(object arg1, object arg2)
+            {
+                return arg1.Equals(arg2);
+            }
+
+            public override bool Gt(object arg1, object arg2)
+            {
+                return ((IComparable)arg1).CompareTo(arg2) > 0;
+            }
+
+            public override object Promote(object arg1)
+            {
+                DateValue date = arg1 as DateValue;
+                if (date == null)
+                    throw new InvalidCastException();
+                return date;
+            }
+
+            public override object Neg(object arg1)
+            {
+                throw new OperatorMismatchException(Funcs.Neg, arg1, null);
+            }
+
+            public override object Add(object arg1, object arg2)
+            {
+                if (arg1 is DateValue && (arg2 is YearMonthDurationValue))
+                    return DateValue.Add((DateValue)arg1, (YearMonthDurationValue)arg2);
+                else if (arg1 is DateValue && arg2 is DayTimeDurationValue)
+                    return DateValue.Add((DateValue)arg1, (DayTimeDurationValue)arg2);
+                else
+                    throw new OperatorMismatchException(Funcs.Add, arg1, arg2);
+            }
+
+            public override object Sub(object arg1, object arg2)
+            {
+                if (arg1 is DateValue && arg2 is DateValue)
+                    return DateValue.Sub((DateValue)arg1, (DateValue)arg2);
+                else if (arg1 is DateValue && arg2 is YearMonthDurationValue)
+                    return DateValue.Add((DateValue)arg1, -(YearMonthDurationValue)arg2);
+                else if (arg1 is DateValue && arg2 is DayTimeDurationValue)
+                    return DateValue.Add((DateValue)arg1, -(DayTimeDurationValue)arg2);
+                else
+                    throw new OperatorMismatchException(Funcs.Sub, arg1, arg2);
+            }
+
+            public override object Mul(object arg1, object arg2)
+            {
+                throw new OperatorMismatchException(Funcs.Mul, arg1, arg2);
+            }
+
+            public override object Div(object arg1, object arg2)
+            {
+                throw new OperatorMismatchException(Funcs.Div, arg1, arg2);
+            }
+
+            public override Integer IDiv(object arg1, object arg2)
+            {
+                throw new OperatorMismatchException(Funcs.IDiv, arg1, arg2);
+            }
+
+            public override object Mod(object arg1, object arg2)
+            {
+                throw new OperatorMismatchException(Funcs.Div, arg1, arg2);
+            }
+        }
         
-        #region IRuntimeExtension Members
-
-        public object OperatorAdd(object arg1, object arg2)
-        {
-            if (arg1 is DateValue && (arg2 is YearMonthDurationValue))
-                return Add((DateValue)arg1, (YearMonthDurationValue)arg2);
-            else if (arg1 is DateValue && arg2 is DayTimeDurationValue)
-                return Add((DateValue)arg1, (DayTimeDurationValue)arg2);
-            else
-                throw new Runtime.OperatorMismatchException(Funcs.Add, arg1, arg2);
-        }
-
-        public object OperatorSub(object arg1, object arg2)
-        {
-            if (arg1 is DateValue && arg2 is DateValue)
-                return Sub((DateValue)arg1, (DateValue)arg2);
-            else if (arg1 is DateValue && arg2 is YearMonthDurationValue)
-                return Add((DateValue)arg1, -(YearMonthDurationValue)arg2);
-            else if (arg1 is DateValue && arg2 is DayTimeDurationValue)
-                return Add((DateValue)arg1, -(DayTimeDurationValue)arg2);
-            else
-                throw new Runtime.OperatorMismatchException(Funcs.Sub, arg1, arg2);
-        }
-
-        public object OperatorMul(object arg1, object arg2)
-        {
-            throw new Runtime.OperatorMismatchException(Funcs.Mul, arg1, arg2);
-        }
-
-        public object OperatorDiv(object arg1, object arg2)
-        {
-            throw new Runtime.OperatorMismatchException(Funcs.Div, arg1, arg2);
-        }
-
-        #endregion
-
         #region IXmlConvertable Members
 
         object IXmlConvertable.ValueAs(XQuerySequenceType type, XmlNamespaceManager nsmgr)

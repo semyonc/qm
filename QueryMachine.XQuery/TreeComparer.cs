@@ -23,22 +23,29 @@
 //        (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 //        SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using System;
+using System.Globalization;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
 using System.Xml.XPath;
+
 using DataEngine.CoreServices;
+using DataEngine.XQuery.Util;
 
 namespace DataEngine.XQuery
 {
     public class TreeComparer
     {
-        public TreeComparer()
+        private Executive _engine;
+
+        public TreeComparer(Executive engine)
         {
+            _engine = engine;
         }
 
-        public TreeComparer(string collation)
+        public TreeComparer(Executive engine, CultureInfo culture)
         {
+            _engine = engine;
         }
 
         public bool IgnoreWhitespace { get; set; }
@@ -50,6 +57,31 @@ namespace DataEngine.XQuery
                     XQueryFuncs.NormalizeSpace(b);
             else
                 return a == b;
+        }
+
+        private bool ItemEqual(XPathItem item1, XPathItem item2)
+        {
+            object res;
+            object x = item1.TypedValue;
+            if (x is UntypedAtomic || x is AnyUriValue)
+                x = x.ToString();
+            object y = item2.TypedValue;
+            if (y is UntypedAtomic || y is AnyUriValue)
+                y = x.ToString();
+            if (x is Single && Single.IsNaN((float)x) ||
+                x is Double && Double.IsNaN((double)x))
+                x = Double.NaN;
+            if (y is Single && Single.IsNaN((float)y) ||
+                y is Double && Double.IsNaN((double)y))
+                y = Double.NaN;
+            if (x.Equals(y))
+                return true;
+            if (_engine.DynamicOperators.Eq(x, y, out res))
+            {
+                if (res != null)
+                    return true;
+            }
+            return false;
         }
 
         private bool IsWhitespaceNode(XPathNavigator nav)
@@ -198,11 +230,12 @@ namespace DataEngine.XQuery
                         {
                             if (iter1.Current.IsNode && iter2.Current.IsNode)
                             {
-                                return NodeEqual((XPathNavigator)iter1.Current,
-                                    (XPathNavigator)iter2.Current);
+                                if (!NodeEqual((XPathNavigator)iter1.Current, (XPathNavigator)iter2.Current))
+                                    return false;
                             }
                             else
-                                return iter1.Current.TypedValue.Equals(iter2.Current.TypedValue);
+                                if (!ItemEqual(iter1.Current, iter2.Current))
+                                    return false;
                         }
                     }
             }

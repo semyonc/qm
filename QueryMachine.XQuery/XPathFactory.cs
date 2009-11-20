@@ -24,6 +24,7 @@
 //        SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using System.Globalization;
@@ -46,93 +47,181 @@ namespace DataEngine.XQuery
             if (nav != null)
                 return nav.Clone();
             else
-                return item;
+                return ((XQueryItem)item).Clone();
         }
 
-        public static XQueryNodeIterator QueryNodes(this XPathNavigator node, string xquery, IXmlNamespaceResolver nsmgr)
+        public static XQueryNodeIterator Query(this XPathNavigator node, string xquery, IXmlNamespaceResolver nsmgr)
         {
-            XPathContext context = new XPathContext();
-            XQueryCommand command = new XQueryCommand(new XPathContext());
+            XPathContext context = new XPathContext(node.NameTable);
+            XQueryCommand command = new XQueryCommand(context);
             if (nsmgr != null)
                 context.CopyNamespaces(nsmgr);
             command.ContextItem = node;
             command.CommandText = xquery;
             return command.Execute();
+        }        
+
+        public static XQueryNodeIterator Query(this XPathNavigator node, string xquery)
+        {
+            return Query(node, xquery, null);
         }
 
-        public static XQueryNodeIterator QueryNodes(this XPathNavigator node, string xquery)
+        private class NodeList : XmlNodeList
+        {
+            private List<XmlNode> _list;
+            private XQueryNodeIterator _iter;
+            private bool _done;
+
+            public NodeList(XQueryNodeIterator iter)
+            {
+                _list = new List<XmlNode>();
+                _iter = iter;
+            }
+
+            public override int Count
+            {
+                get 
+                {
+                    return _iter.Count;
+                }
+            }
+
+            private static XmlNode GetNode(XPathItem item)
+            {
+                XQueryNavigatorWrapper nav = item as XQueryNavigatorWrapper;
+                if (nav != null)
+                {
+                    IHasXmlNode node = nav.m_inner as IHasXmlNode;
+                    if (node != null)
+                        return node.GetNode();
+                }
+                return null;
+            }
+
+            public override IEnumerator GetEnumerator()
+            {
+                return new Enumerator(this);
+            }
+
+            public override XmlNode Item(int index)
+            {
+                if (_list.Count <= index && !_done)
+                {
+                    int count = _list.Count;
+                    while (!_done && (count <= index))
+                    {
+                        if (_iter.MoveNext())
+                        {
+                            XmlNode node = GetNode(_iter.Current);
+                            if (node != null)
+                            {
+                                _list.Add(node);
+                                count++;
+                            }
+                        }
+                        else
+                            _done = true;                            
+                    }
+                }
+                if (index >= 0 && _list.Count > index)
+                    return _list[index];
+                return null;
+            }
+
+            private class Enumerator : IEnumerator, IEnumerator<XmlNode>
+            {
+                private NodeList _owner;
+                private XmlNode _curr;
+                private int _pos = -1;
+
+                public Enumerator(NodeList owner)
+                {
+                    _owner = owner;
+                }
+
+                #region IEnumerator Members
+
+                object IEnumerator.Current
+                {
+                    get 
+                    {
+                        if (_pos == -1)
+                            throw new InvalidOperationException();
+                        return _curr;
+                    }
+                }
+
+                bool IEnumerator.MoveNext()
+                {
+                    XmlNode node = _owner[_pos + 1];
+                    if (node != null)
+                    {
+                        _curr = node;
+                        _pos++;
+                        return true;
+                    }
+                    return false;
+                }
+
+                void IEnumerator.Reset()
+                {
+                    _pos = -1;
+                }
+
+                #endregion
+
+                #region IEnumerator<XmlNode> Members
+
+                XmlNode IEnumerator<XmlNode>.Current
+                {
+                    get 
+                    {
+                        if (_pos == -1)
+                            throw new InvalidOperationException();
+                        return _curr;
+                    }
+                }
+
+                #endregion
+
+                #region IDisposable Members
+
+                void IDisposable.Dispose()
+                {
+                    return;
+                }
+
+                #endregion
+            }
+
+        }
+
+        public static XmlNodeList QueryNodes(this XmlNode node, string xquery)
         {
             return QueryNodes(node, xquery, null);
         }
 
-        internal static object GetNavigatorTypedValue(XPathNavigator nav)
+        public static XmlNodeList QueryNodes(this XmlNode node, string xquery, XmlNamespaceManager nsmgr)
         {
-            IXmlSchemaInfo schemaInfo = nav.SchemaInfo;
-            if (schemaInfo == null || schemaInfo.SchemaType == null)
-            {
-                switch (nav.NodeType)
-                {
-                    case XPathNodeType.Comment:
-                    case XPathNodeType.ProcessingInstruction:
-                    case XPathNodeType.Namespace:
-                        return nav.Value;                    
-                    default:
-                        return new UntypedAtomic(nav.Value);
-                }
-            }
-            switch (schemaInfo.SchemaType.TypeCode)
-            {
-                case XmlTypeCode.UntypedAtomic:
-                    return new UntypedAtomic(nav.Value);
-                case XmlTypeCode.Date:
-                    return DateValue.Parse(nav.Value);
-                case XmlTypeCode.DateTime:
-                    return DateTimeValue.Parse(nav.Value);
-                case XmlTypeCode.Time:
-                    return TimeValue.Parse(nav.Value);
-                case XmlTypeCode.Duration:
-                    return DurationValue.Parse(nav.Value);
-                case XmlTypeCode.DayTimeDuration:
-                    return new DayTimeDurationValue((TimeSpan)nav.TypedValue);
-                case XmlTypeCode.YearMonthDuration:
-                    return new YearMonthDurationValue((TimeSpan)nav.TypedValue);
-                case XmlTypeCode.GDay:
-                    return GDayValue.Parse(nav.Value);
-                case XmlTypeCode.GMonth:
-                    return GMonthValue.Parse(nav.Value);
-                case XmlTypeCode.GMonthDay:
-                    return GMonthDayValue.Parse(nav.Value);
-                case XmlTypeCode.GYear:
-                    return GYearValue.Parse(nav.Value);
-                case XmlTypeCode.GYearMonth:
-                    return GYearMonthValue.Parse(nav.Value);
-                case XmlTypeCode.QName:
-                    {                        
-                        XmlNamespaceManager nsmgr = new XmlNamespaceManager(nav.NameTable);
-                        XQueryFuncs.ScanLocalNamespaces(nsmgr, nav.Clone());
-                        return QNameValue.Parse(nav.Value, nsmgr);
-                    }
-                case XmlTypeCode.AnyUri:
-                    return new AnyUriValue(nav.Value);
-                case XmlTypeCode.HexBinary:
-                    return new HexBinaryValue((byte[])nav.TypedValue);
-                case XmlTypeCode.Base64Binary:
-                    return new Base64BinaryValue((byte[])nav.TypedValue);  
-                case XmlTypeCode.Idref:
-                    if (schemaInfo.SchemaType == XQuerySequenceType.XmlSchema.IDREFS)
-                        return new IDREFSValue((string[])nav.TypedValue);
-                    goto default;
-                case XmlTypeCode.NmToken:
-                    if (schemaInfo.SchemaType == XQuerySequenceType.XmlSchema.NMTOKENS)
-                        return new NMTOKENSValue((string[])nav.TypedValue);
-                    goto default;
-                case XmlTypeCode.Entity:
-                    if (schemaInfo.SchemaType == XQuerySequenceType.XmlSchema.ENTITIES)
-                        return new ENTITIESValue((string[])nav.TypedValue);
-                    goto default;                    
-                default:
-                    return null;
-            }
+            XPathNavigator nav = node.CreateNavigator();
+            XPathContext context = new XPathContext(nav.NameTable);
+            XQueryCommand command = new XQueryCommand(context);
+            if (nsmgr != null)
+                context.CopyNamespaces(nsmgr);
+            command.ContextItem = nav;
+            command.CommandText = xquery;
+            return new NodeList(command.Execute());
+        }
+
+        public static XmlNode QuerySingleNode(this XmlNode node, string xquery)
+        {
+            return QuerySingleNode(node, xquery, null);
+        }
+
+        public static XmlNode QuerySingleNode(this XmlNode node, string xquery, XmlNamespaceManager nsmgr)
+        {
+            XmlNodeList nodes = QueryNodes(node, xquery, nsmgr);
+            return nodes[0];
         }
       
         internal static Type GetNavigatorValueType(XPathNavigator nav, Type valueType)
@@ -144,6 +233,11 @@ namespace DataEngine.XQuery
             {
                 case XmlTypeCode.UntypedAtomic:
                     return typeof(UntypedAtomic);
+                case XmlTypeCode.Integer:
+                case XmlTypeCode.PositiveInteger:
+                case XmlTypeCode.NegativeInteger:
+                case XmlTypeCode.NonPositiveInteger:
+                    return typeof(Integer);
                 case XmlTypeCode.Date:
                     return typeof(DateValue);
                 case XmlTypeCode.DateTime:
@@ -168,6 +262,8 @@ namespace DataEngine.XQuery
                     return typeof(GYearMonthValue);
                 case XmlTypeCode.QName:
                     return typeof(QNameValue);
+                case XmlTypeCode.Notation:
+                    return typeof(NotationValue);
                 case XmlTypeCode.AnyUri:
                     return typeof(AnyUriValue);
                 case XmlTypeCode.HexBinary:
@@ -199,15 +295,15 @@ namespace DataEngine.XQuery
                 if (!destType.Match(item))
                     throw new XQueryException(Properties.Resources.XPTY0004,
                         new XQuerySequenceType(item.XmlType.TypeCode), destType);
-                return item;
+                return item.Clone();
             }
             else
             {
                 if (destType.SchemaType == item.XmlType)
-                    return item;
+                    return item.Clone();
                 else if (destType.TypeCode == XmlTypeCode.Item &&
                     (destType.Cardinality == XmlTypeCardinality.One || destType.Cardinality == XmlTypeCardinality.ZeroOrOne))
-                    return item;
+                    return item.Clone();
                 else
                 {
                     XmlSchemaSimpleType simpleType = destType.SchemaType as XmlSchemaSimpleType;
@@ -215,8 +311,8 @@ namespace DataEngine.XQuery
                         throw new InvalidOperationException();
                     if (simpleType == XQuerySequenceType.XmlSchema.AnySimpleType)
                         throw new XQueryException(Properties.Resources.XPST0051, "xs:anySimpleType");
-                    return new XQueryAtomicValue(XQueryConvert.ChangeType(item.XmlType, item.TypedValue,
-                        destType, nameTable, nsmgr), destType.SchemaType, nsmgr);
+                    return new XQueryItem(XQueryConvert.ChangeType(item.XmlType, item.TypedValue,
+                        destType, nameTable, nsmgr), destType.SchemaType);
                 }
             }
         }
@@ -233,12 +329,6 @@ namespace DataEngine.XQuery
                     yield return curr;
                 }
             }
-        }
-
-        internal static IEnumerable<XPathItem> RangeIterator(XQueryContext context, int lo, int high)
-        {
-            for (int index = lo; index <= high; index++)
-                yield return context.CreateItem(index);
         }
 
         internal static IEnumerable<XPathItem> AttributeIterator(XQueryNodeIterator iter)
@@ -368,11 +458,11 @@ namespace DataEngine.XQuery
                 {
                     if (!destType.Match(item))
                         throw new XQueryException(Properties.Resources.XPTY0004,
-                            new XQuerySequenceType(iter.Current.XmlType, XmlTypeCardinality.OneOrMore, null), destType);
+                            new XQuerySequenceType(item.XmlType, XmlTypeCardinality.OneOrMore, null), destType);
                     yield return item;
                 }
                 else
-                    yield return new XQueryAtomicValue(XQueryConvert.ValueAs(item.TypedValue, destType, nameTable, nsmgr), nsmgr);
+                    yield return new XQueryItem(XQueryConvert.ValueAs(item.TypedValue, destType, nameTable, nsmgr));
                 num++;
             }
             if (num == 0)
@@ -383,8 +473,7 @@ namespace DataEngine.XQuery
             }
         }
 
-        internal static IEnumerable<XPathItem> TreatIterator(XQueryNodeIterator iter, XQuerySequenceType destType,
-            XmlNameTable nameTable, XmlNamespaceManager nsmgr)
+        internal static IEnumerable<XPathItem> TreatIterator(XQueryNodeIterator iter, XQuerySequenceType destType)
         {
             int num = 0;
             foreach (XPathItem item in iter)
@@ -399,11 +488,11 @@ namespace DataEngine.XQuery
                 {
                     if (!destType.Match(item))
                         throw new XQueryException(Properties.Resources.XPTY0004,
-                            new XQuerySequenceType(iter.Current.XmlType, XmlTypeCardinality.OneOrMore, null), destType);
+                            new XQuerySequenceType(item.XmlType, XmlTypeCardinality.OneOrMore, null), destType);
                     yield return item;
                 }
                 else
-                    yield return new XQueryAtomicValue(XQueryConvert.TreatValueAs(item.TypedValue, destType), nsmgr);
+                    yield return new XQueryItem(XQueryConvert.TreatValueAs(item.TypedValue, destType));
                 num++;
             }
             if (num == 0)
@@ -414,58 +503,9 @@ namespace DataEngine.XQuery
             }
         }
 
-        internal static IEnumerable<XPathItem> RemoveIterator(XQueryNodeIterator iter, int index)
-        {
-            int pos = 1;
-            foreach (XPathItem item in iter)
-            {
-                if (index != pos)
-                    yield return item;
-                pos++;
-            }
-        }
-
-        internal static IEnumerable<XPathItem> InsertIterator(XQueryNodeIterator iter, int index, XQueryNodeIterator iter2)
-        {
-            int pos = 1;
-            foreach (XPathItem item in iter)
-            {                
-                if (index == pos)
-                    foreach (XPathItem item2 in iter2)
-                        yield return item2;
-                yield return item;
-                pos++;
-            }
-        }
-
-        internal static IEnumerable<XPathItem> SubsequenceIterator(XQueryNodeIterator iter, int startingLoc)
-        {
-            int pos = 1;
-            foreach (XPathItem item in iter)
-            {
-                if (startingLoc <= pos)
-                    yield return item;
-                pos++;
-            }
-        }
-
-        internal static IEnumerable<XPathItem> SubsequenceIterator(XQueryNodeIterator iter, int startingLoc, int length)
-        {
-            int pos = 1;
-            foreach (XPathItem item in iter)
-            {
-                if (startingLoc <= pos)
-                {
-                    if (length-- <= 0)
-                        break;
-                    yield return item;
-                }
-                pos++;
-            }
-        }
-
         internal static IEnumerable<XPathItem> ValidateIterator(XQueryNodeIterator iter, XmlSchemaSet schemaSet, bool lax)
         {
+            int n = 0;
             foreach (XPathItem item in iter)
             {
                 if (!item.IsNode)
@@ -485,13 +525,16 @@ namespace DataEngine.XQuery
                     throw new XQueryException(ex.Message, ex);
                 }
                 yield return nav;
+                n++;
             }
+            if (n == 0)
+              throw new XQueryException(Properties.Resources.XQTY0030);
         }
 
-        internal static IEnumerable<XPathItem> CodepointIterator(XQueryContext context, string text)
+        internal static IEnumerable<XPathItem> CodepointIterator(string text)
         {
             for (int k = 0; k < text.Length; k++)
-                yield return context.CreateItem(Convert.ToInt32(text[k]));
+                yield return new XQueryItem(Convert.ToInt32(text[k]));
         }
 
 

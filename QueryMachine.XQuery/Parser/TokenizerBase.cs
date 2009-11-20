@@ -153,13 +153,7 @@ namespace DataEngine.XQuery.Parser
             switch (tok)
             {
                 case Token.IntegerLiteral:
-                    {
-                        int value;
-                        if (Int32.TryParse(s, out value))                            
-                            ConsumeToken(tok, new IntegerValue(value));
-                        else
-                            ConsumeToken(tok, new IntegerValue((Integer)Decimal.Parse(s, NumberFormatInfo.InvariantInfo)));
-                    }
+                    ConsumeToken(tok, new IntegerValue((Integer)Decimal.Parse(s, NumberFormatInfo.InvariantInfo)));
                     break;
 
                 case Token.DecimalLiteral:

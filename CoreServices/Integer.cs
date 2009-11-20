@@ -280,11 +280,9 @@ namespace DataEngine.CoreServices
             {
                 case NumericCode.Unknown:
                 case NumericCode.Float:
-                case NumericCode.Double:               
-                    return false;
-
+                case NumericCode.Double: 
                 case NumericCode.Decimal:
-                    return Decimal.Truncate((decimal)value) == (decimal)value;
+                    return false;
 
                 default:
                     return true;

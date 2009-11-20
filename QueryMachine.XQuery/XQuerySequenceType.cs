@@ -467,6 +467,26 @@ namespace DataEngine.XQuery
                     }
                     break;
 
+                case XmlTypeCode.Integer:
+                    switch (item.XmlType.TypeCode)
+                    {
+                        case XmlTypeCode.Byte:
+                        case XmlTypeCode.Short:
+                        case XmlTypeCode.Int:
+                        case XmlTypeCode.Long:
+                        case XmlTypeCode.Integer:
+                        case XmlTypeCode.UnsignedByte:
+                        case XmlTypeCode.UnsignedShort:
+                        case XmlTypeCode.UnsignedInt:
+                        case XmlTypeCode.UnsignedLong:
+                            return true;
+
+                        case XmlTypeCode.Decimal:
+                            decimal value = (decimal)item.ValueAs(typeof(System.Decimal));
+                            return value == Math.Truncate(value);
+                    }
+                    break;
+
                 case XmlTypeCode.Entity:
                     return (item.XmlType.TypeCode == XmlTypeCode.String) ||
                            (item.XmlType.TypeCode == XmlTypeCode.Entity);

@@ -29,55 +29,45 @@ using System.IO;
 using System.Text;
 using System.Xml;
 using System.Xml.XPath;
+using System.Xml.Schema;
+
+using DataEngine.CoreServices;
+using DataEngine.XQuery.DTD;
+using DataEngine.XQuery.DocumentModel;
 
 namespace DataEngine.XQuery
 {
     public class XQueryDocument: IXPathNavigable
     {
         internal XmlNameTable nameTable;
-        internal XQueryNodeInfoTable nodeInfoTable;
-        internal XQuerySchemaInfoTable schemaInfoTable;
         internal PageFile pagefile;        
         internal XmlReader input;
-        internal bool documentStarted;        
+        internal DmRoot documentRoot;
 
         internal XQueryDocumentBuilder builder = null;
         internal string baseUri = String.Empty;       
         internal object internalLockObject = new object();
+        
+        internal Dictionary<string, string> elemIdTable = null;
+        internal Dictionary<string, int> IdTable = null;
+        internal Dictionary<string, string[]> elemIdRefTable = null;
 
         internal int sequenceNumber;
         internal bool preserveSpace;
         internal static int s_docNumberSequence = 0;
 
+        public static long LargeFileLength = 154533888;
+
         public XQueryDocument()
         {
             sequenceNumber = s_docNumberSequence++;
             nameTable = new NameTable();
-            nodeInfoTable = new XQueryNodeInfoTable(nameTable);
-            schemaInfoTable = new XQuerySchemaInfoTable();
-            pagefile = new PageFile(nodeInfoTable, schemaInfoTable);
-            pagefile.HasSchemaInfo = true;
         }
 
-        public XQueryDocument(NameTable nameTable)
+        public XQueryDocument(XmlNameTable nameTable)
         {
             sequenceNumber = s_docNumberSequence++;
             this.nameTable = nameTable;
-            nodeInfoTable = new XQueryNodeInfoTable(nameTable);
-            schemaInfoTable = new XQuerySchemaInfoTable();
-            pagefile = new PageFile(nodeInfoTable, schemaInfoTable);
-            pagefile.HasSchemaInfo = true;
-        }
-
-        internal XQueryDocument(XmlNameTable nameTable, 
-            XQueryNodeInfoTable nodeInfoTable, XQuerySchemaInfoTable schemaInfoTable)
-        {
-            sequenceNumber = s_docNumberSequence++;
-            this.nameTable = nameTable;
-            this.nodeInfoTable = nodeInfoTable;
-            this.schemaInfoTable = schemaInfoTable;
-            pagefile = new PageFile(nodeInfoTable, schemaInfoTable);
-            pagefile.HasSchemaInfo = true;
         }
 
         public XQueryDocument(Stream stream)
@@ -86,6 +76,14 @@ namespace DataEngine.XQuery
             input = XmlReader.Create(stream);
             builder = new XQueryDocumentBuilder(this);
         }
+
+        public XQueryDocument(Stream stream, XmlReaderSettings settings)
+            : this()
+        {
+            input = XmlReader.Create(stream, settings);
+            builder = new XQueryDocumentBuilder(this);
+        }
+
 
         public XQueryDocument(TextReader textReader)
             : this()
@@ -133,16 +131,27 @@ namespace DataEngine.XQuery
 
         public void Open(Uri uri, XmlReaderSettings settings, XmlSpace space)
         {
+            bool large = false;
+            if (uri.Scheme == "file")
+            {
+                FileInfo fi = new FileInfo(uri.LocalPath);
+                if (fi.Exists && fi.Length > LargeFileLength)
+                    large = true;
+            }
+            pagefile = new PageFile(large);
             input = XmlReader.Create(uri.AbsoluteUri, settings);
             nameTable = input.NameTable;
             builder = new XQueryDocumentBuilder(this);
             builder.SchemaInfo = input.SchemaInfo;
+            pagefile.HasSchemaInfo = (input.SchemaInfo != null);
             baseUri = input.BaseURI;
             preserveSpace = (space == XmlSpace.Preserve);
         }
 
         XPathNavigator IXPathNavigable.CreateNavigator()
         {
+            if (pagefile == null)
+                throw new InvalidOperationException();
             return new XQueryNavigator(this);            
         }
 
@@ -170,25 +179,69 @@ namespace DataEngine.XQuery
         {
             if (input.Read())
             {
-                if (!documentStarted)
+                if (documentRoot == null)
                 {
                     builder.WriteStartDocument();
-                    documentStarted = true;
+                    documentRoot = builder.DocumentRoot;
                 }
                 switch (input.NodeType)
                 {
                     case XmlNodeType.XmlDeclaration:
+                        break;
+
                     case XmlNodeType.DocumentType:
+                        try
+                        {
+                            object documentType;
+                            string value = input.Value;
+                            if (value == "")
+                                documentType = DTDParser.ParseExternal(input.GetAttribute("PUBLIC"), 
+                                    input.GetAttribute("SYSTEM"), baseUri);
+                            else
+                                documentType = DTDParser.ParseInline(value, baseUri);
+                            CreateIdTable(documentType);
+                        }
+                        catch (XQueryException)
+                        {
+                        }
                         break;
 
                     case XmlNodeType.Element:
                         builder.IsEmptyElement = input.IsEmptyElement;
                         builder.WriteStartElement(input.Prefix, input.LocalName, input.NamespaceURI);
+                        string elemName = input.Name;
                         while (input.MoveToNextAttribute())
                         {
                             builder.WriteStartAttribute(input.Prefix, input.LocalName, input.NamespaceURI);
                             builder.WriteString(input.Value);
                             builder.WriteEndAttribute();
+                            if (elemIdTable != null)
+                            {
+                                string name;
+                                if (elemIdTable.TryGetValue(elemName, out name) &&
+                                    name == input.Name)
+                                {
+                                    if (IdTable == null)
+                                        IdTable = new Dictionary<string, int>();
+                                    if (!IdTable.ContainsKey(input.Value))
+                                        IdTable.Add(input.Value, builder.Position);
+                                }
+                            }
+                            if (pagefile.HasSchemaInfo)
+                            {
+                                IXmlSchemaInfo schemaInfo = input.SchemaInfo;
+                                if (schemaInfo != null && schemaInfo.SchemaType != null)
+                                {
+                                    XmlTypeCode typeCode = schemaInfo.SchemaType.TypeCode;
+                                    if (typeCode == XmlTypeCode.Id)
+                                    {
+                                        if (IdTable == null)
+                                            IdTable = new Dictionary<string, int>();
+                                        if (!IdTable.ContainsKey(input.Value))
+                                            IdTable.Add(input.Value, builder.Position);
+                                    }
+                                }
+                            }
                         }
                         builder.CompleteElement();
                         if (builder.IsEmptyElement)
@@ -251,6 +304,43 @@ namespace DataEngine.XQuery
             lock (internalLockObject)
                 while (input != null)
                     Read();
+        }
+
+        private void CreateIdTable(object documentType)
+        {
+            for (object curr = documentType; curr != null; curr = Lisp.Cdr(curr))
+            {
+                object decl = Lisp.Car(curr);
+                if (Lisp.IsFunctor(decl, DTDID.AttlistDecl))
+                {
+                    string name = Lisp.SArg1(decl);
+                    List<string> idref = null;
+                    for (object attr = Lisp.Arg2(decl); attr != null; attr = Lisp.Cdr(attr))
+                    {
+                        object attdecl = Lisp.Car(attr);
+                        string attname = Lisp.SArg1(attdecl);
+                        if (Lisp.Arg2(attdecl) == DTDID.ID)
+                        {
+                            if (elemIdTable == null)
+                                elemIdTable = new Dictionary<string, string>();
+                            elemIdTable[name] = attname;
+                        }
+                        else if (Lisp.Arg2(attdecl) == DTDID.IDREF ||
+                            Lisp.Arg2(attdecl) == DTDID.IDREFS)
+                        {
+                            if (idref == null)
+                                idref = new List<string>();
+                            idref.Add(attname);
+                        }
+                    }
+                    if (idref != null)
+                    {
+                        if (elemIdRefTable == null)
+                            elemIdRefTable = new Dictionary<string, string[]>();
+                        elemIdRefTable[name] = idref.ToArray();
+                    }
+                }
+            }
         }
     }
 }

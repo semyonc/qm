@@ -46,25 +46,14 @@ namespace DataEngine.XQuery
             return this;
         }
 
-        public override XPathItem Current
+        public override XPathItem NextItem()
         {
-            get 
-            {
-                throw new InvalidOperationException();
-            }
+            return null;
         }
 
-        public override int CurrentPosition
+        public override XQueryNodeIterator CreateBufferedIterator()
         {
-            get
-            {
-                throw new InvalidOperationException();
-            }
-        }
-
-        public override bool MoveNext()
-        {
-            return false;
+            return this;
         }
     }
 }

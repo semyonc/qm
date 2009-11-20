@@ -32,7 +32,7 @@ using DataEngine.CoreServices;
 
 namespace DataEngine.XQuery.Util
 {
-    public class DayTimeDurationValue: DurationValue, IComparable, IRuntimeExtension
+    public class DayTimeDurationValue: DurationValue, IComparable
     {
         public DayTimeDurationValue(TimeSpan value)
             : base(TimeSpan.Zero, value)
@@ -81,52 +81,84 @@ namespace DataEngine.XQuery.Util
             return new DayTimeDurationValue(-d.LowPartValue);
         }
 
-        #region IRuntimeExtension Members
-
-        object IRuntimeExtension.OperatorAdd(object arg1, object arg2)
+        internal class Proxy : TypeProxy
         {
-            if (arg1 is DayTimeDurationValue)
+            public override bool Eq(object arg1, object arg2)
             {
-                if (arg2 is DayTimeDurationValue)
-                    return new DayTimeDurationValue(((DayTimeDurationValue)arg1).LowPartValue + ((DayTimeDurationValue)arg2).LowPartValue);
-                if (arg2 is DateTimeValue)
-                    return DateTimeValue.Add((DateTimeValue)arg2, (DayTimeDurationValue)arg1);
-                if (arg2 is DateValue)
-                    return DateValue.Add((DateValue)arg2, (DayTimeDurationValue)arg1);
-                if (arg2 is TimeValue)
-                    return TimeValue.Add((TimeValue)arg2, (DayTimeDurationValue)arg1);
+                return arg1.Equals(arg2);
             }
-            throw new Runtime.OperatorMismatchException(Funcs.Add, arg1, arg2);
-        }
 
-        object IRuntimeExtension.OperatorSub(object arg1, object arg2)
-        {
-            if (arg1 is DayTimeDurationValue && arg2 is DayTimeDurationValue)
-                return new DayTimeDurationValue(((DayTimeDurationValue)arg1).LowPartValue - ((DayTimeDurationValue)arg2).LowPartValue);
-            else
-                throw new Runtime.OperatorMismatchException(Funcs.Sub, arg1, arg2);
-        }
+            public override bool Gt(object arg1, object arg2)
+            {
+                return ((IComparable)arg1).CompareTo(arg2) > 0;
+            }
 
-        object IRuntimeExtension.OperatorMul(object arg1, object arg2)
-        {
-            if (arg1 is DayTimeDurationValue && TypeConverter.IsNumberType(arg2.GetType()))
-                return Multiply((DayTimeDurationValue)arg1, Convert.ToDouble(arg2));
-            else if (TypeConverter.IsNumberType(arg1.GetType()) && arg2 is DayTimeDurationValue)
-                return Multiply((DayTimeDurationValue)arg2, Convert.ToDouble(arg1));
-            else
-                throw new Runtime.OperatorMismatchException(Funcs.Mul, arg1, arg2);
-        }
+            public override object Promote(object arg1)
+            {
+                DurationValue duration = arg1 as DurationValue;
+                if (duration == null)
+                    throw new InvalidCastException();
+                return new DayTimeDurationValue(duration.LowPartValue);
+            }
 
-        object IRuntimeExtension.OperatorDiv(object arg1, object arg2)
-        {
-            if (arg1 is DayTimeDurationValue && TypeConverter.IsNumberType(arg2.GetType()))
-                return Divide((DayTimeDurationValue)arg1, Convert.ToDouble(arg2));
-            else if (arg1 is DayTimeDurationValue && arg2 is DayTimeDurationValue)
-                return Divide((DayTimeDurationValue)arg1, (DayTimeDurationValue)arg2);
-            else
-                throw new Runtime.OperatorMismatchException(Funcs.Div, arg1, arg2);
-        }
+            public override object Neg(object arg1)
+            {
+                throw new OperatorMismatchException(Funcs.Neg, arg1, null);
+            }
 
-        #endregion
+            public override object Add(object arg1, object arg2)
+            {
+                if (arg1 is DayTimeDurationValue)
+                {
+                    if (arg2 is DayTimeDurationValue)
+                        return new DayTimeDurationValue(((DayTimeDurationValue)arg1).LowPartValue + ((DayTimeDurationValue)arg2).LowPartValue);
+                    if (arg2 is DateTimeValue)
+                        return DateTimeValue.Add((DateTimeValue)arg2, (DayTimeDurationValue)arg1);
+                    if (arg2 is DateValue)
+                        return DateValue.Add((DateValue)arg2, (DayTimeDurationValue)arg1);
+                    if (arg2 is TimeValue)
+                        return TimeValue.Add((TimeValue)arg2, (DayTimeDurationValue)arg1);
+                }
+                throw new OperatorMismatchException(Funcs.Add, arg1, arg2);
+            }
+
+            public override object Sub(object arg1, object arg2)
+            {
+                if (arg1 is DayTimeDurationValue && arg2 is DayTimeDurationValue)
+                    return new DayTimeDurationValue(((DayTimeDurationValue)arg1).LowPartValue - ((DayTimeDurationValue)arg2).LowPartValue);
+                else
+                    throw new OperatorMismatchException(Funcs.Sub, arg1, arg2);
+            }
+
+            public override object Mul(object arg1, object arg2)
+            {
+                if (arg1 is DayTimeDurationValue && TypeConverter.IsNumberType(arg2.GetType()))
+                    return DayTimeDurationValue.Multiply((DayTimeDurationValue)arg1, Convert.ToDouble(arg2));
+                else if (TypeConverter.IsNumberType(arg1.GetType()) && arg2 is DayTimeDurationValue)
+                    return DayTimeDurationValue.Multiply((DayTimeDurationValue)arg2, Convert.ToDouble(arg1));
+                else
+                    throw new OperatorMismatchException(Funcs.Mul, arg1, arg2);
+            }
+
+            public override object Div(object arg1, object arg2)
+            {
+                if (arg1 is DayTimeDurationValue && TypeConverter.IsNumberType(arg2.GetType()))
+                    return DayTimeDurationValue.Divide((DayTimeDurationValue)arg1, Convert.ToDouble(arg2));
+                else if (arg1 is DayTimeDurationValue && arg2 is DayTimeDurationValue)
+                    return DayTimeDurationValue.Divide((DayTimeDurationValue)arg1, (DayTimeDurationValue)arg2);
+                else
+                    throw new OperatorMismatchException(Funcs.Div, arg1, arg2);
+            }
+
+            public override Integer IDiv(object arg1, object arg2)
+            {
+                throw new OperatorMismatchException(Funcs.IDiv, arg1, arg2);
+            }
+
+            public override object Mod(object arg1, object arg2)
+            {
+                throw new OperatorMismatchException(Funcs.Div, arg1, arg2);
+            }
+        }
     }
 }

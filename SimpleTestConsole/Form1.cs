@@ -15,6 +15,7 @@ using System.Xml;
 using System.Xml.Schema;
 using System.Xml.XPath;
 
+using DataEngine.CoreServices;
 using DataEngine.XQuery;
 
 namespace SimpleTestConsole
@@ -28,6 +29,8 @@ namespace SimpleTestConsole
         {
             InitializeComponent();
             ActiveControl = textBox2;
+
+            XQueryFunctionTable.Register(typeof(OpenXML));
 
             using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\WMHelp Software\\DataEngine", true))
             {
@@ -93,7 +96,7 @@ namespace SimpleTestConsole
         }
 
         private void toolStripMenuItem2_Click(object sender, EventArgs e)
-        {
+        {            
             if (textBox2.Text == "")
                 return;
             StringWriter sw = new StringWriter();
@@ -102,6 +105,7 @@ namespace SimpleTestConsole
             {                
                 Stopwatch stopwatch = new Stopwatch();
                 stopwatch.Start();
+                //XPathContext context = new XPathContext(new NameTable());
                 using (XQueryCommand command = new XQueryCommand())
                 {
                     command.OnResolveCollection += new ResolveCollectionEvent(command_OnResolveCollection);

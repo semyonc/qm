@@ -31,6 +31,11 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="DocumentFormat.OpenXml, Version=2.0.4330.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>bin\DocumentFormat.OpenXml.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
@@ -46,6 +51,9 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
+    <Reference Include="WindowsBase">
+      <RequiredTargetFramework>3.0</RequiredTargetFramework>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Form1.cs">
@@ -54,6 +62,7 @@
     <Compile Include="Form1.Designer.cs">
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
+    <Compile Include="OpenXML.cs" />
     <Compile Include="PathForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -88,6 +97,10 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\CoreServices\CoreServices.csproj">
+      <Project>{454016BE-0E1C-4DFB-A22F-2E642A1AE9A6}</Project>
+      <Name>CoreServices</Name>
+    </ProjectReference>
     <ProjectReference Include="..\QueryMachine.XQuery\QueryMachine.XQuery.csproj">
       <Project>{0FDD0A6C-E9FA-4CE2-B2A7-461C7444EEFF}</Project>
       <Name>QueryMachine.XQuery</Name>

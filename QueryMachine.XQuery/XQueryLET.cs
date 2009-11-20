@@ -37,43 +37,46 @@ namespace DataEngine.XQuery
 {
     internal class XQueryLET : XQueryFLWORBase
     {
-        private SymbolLink m_value;        
+        private SymbolLink m_value;
+        private bool m_convert;
 
-        public XQueryLET(XQueryContext context, object var, XQuerySequenceType varType, object expr, XQueryExprBase bodyExpr)
+        public XQueryLET(XQueryContext context, object var, XQuerySequenceType varType, object expr, XQueryExprBase bodyExpr, bool convert)
             : base(context, var, varType, expr, bodyExpr)
         {
             m_value = new SymbolLink(varType.ValueType);
-        }
-
-        private IEnumerable<XPathItem> Iterator(IContextProvider provider, object[] args, object value)
-        {
-            m_value.Value = value;
-            XQueryNodeIterator iter = m_bodyExpr.Execute(provider, args);
-            iter = iter.Clone();
-            while (iter.MoveNext())
-                yield return iter.Current;
+            m_convert = convert;
         }
 
         public override void Bind(Executive.Parameter[] parameters)
         {
-            m_compiledExpr = new SymbolLink();
-            QueryContext.Engine.Compile(parameters, m_expr, m_compiledExpr);
+            m_valueExpr = new SymbolLink();
+            QueryContext.Engine.Compile(parameters, m_expr, m_valueExpr);
             object data = QueryContext.Resolver.GetCurrentStack();
             QueryContext.Resolver.SetValue(m_var, m_value);
+            if (ConditionExpr != null)
+            {
+                m_conditionExpr = new SymbolLink();
+                QueryContext.Engine.Compile(parameters, ConditionExpr, m_conditionExpr);
+            }
             m_bodyExpr.Bind(parameters);
             QueryContext.Resolver.RevertToStack(data);
         }
 
-        public override XQueryNodeIterator Execute(IContextProvider provider, object[] args)
+        public override object Execute(IContextProvider provider, object[] args)
         {
-            object value = QueryContext.Engine.Apply(null, null, m_expr, args, m_compiledExpr);
+            object value = QueryContext.Engine.Apply(null, null, m_expr, args, m_valueExpr);
             if (value == null)
                 value = DataEngine.CoreServices.Generation.RuntimeOps.False;
-            if (m_varType != XQuerySequenceType.Item)
+            if (m_varType != XQuerySequenceType.Item && m_convert)
                 value = Core.TreatAs(QueryContext.Engine, value, m_varType);
-            if (value is XQueryNodeIterator && !(value is BufferedNodeIterator))
-                value = new BufferedNodeIterator((XQueryNodeIterator)value);
-            return new NodeIterator(Iterator(provider, args, value));
+            XQueryNodeIterator iter = value as XQueryNodeIterator;
+            if (iter != null)
+                value = iter.CreateBufferedIterator();
+            m_value.Value = value;
+            if (m_conditionExpr != null &&
+                !Core.BooleanValue(QueryContext.Engine.Apply(null, null, ConditionExpr, args, m_conditionExpr)))
+                return EmptyIterator.Shared;
+            return m_bodyExpr.Execute(provider, args);
         }
 
 #if DEBUG
@@ -88,6 +91,11 @@ namespace DataEngine.XQuery
             sb.Append(m_varType.ToString());
             sb.Append(" := ");
             sb.Append(m_expr.ToString());
+            if (ConditionExpr != null)
+            {
+                sb.Append(" where ");
+                sb.Append(ConditionExpr.ToString());
+            }
             sb.Append(" return ");
             sb.Append(m_bodyExpr.ToString());
             sb.Append("]");
