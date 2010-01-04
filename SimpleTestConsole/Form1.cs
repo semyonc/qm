@@ -96,7 +96,7 @@ namespace SimpleTestConsole
         }
 
         private void toolStripMenuItem2_Click(object sender, EventArgs e)
-        {            
+        {
             if (textBox2.Text == "")
                 return;
             StringWriter sw = new StringWriter();

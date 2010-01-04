@@ -62,8 +62,15 @@ namespace DataEngine.CoreServices
             if (Name.Arity == lval.Length || Name.Arity == -1)
             {
                 proceed = true;
-                object res = engine.Apply(null, _parameters, _body, lval, null);
-                return res;
+                engine.EnterMacro();
+                try
+                {
+                    return engine.Apply(null, _parameters, _body, lval, null);
+                }
+                finally
+                {
+                    engine.LeaveMacro();
+                }
             }
             else
             {

@@ -48,6 +48,11 @@ namespace DataEngine.XQuery
 
         public abstract IEnumerable<SymbolLink> EnumDynamicFuncs();
 
+        public virtual bool IsContextSensitive(Executive.Parameter[] parameters)
+        {
+            return false;
+        }
+
         public abstract object Execute(IContextProvider provider, object[] args);
 
         public XQueryContext QueryContext

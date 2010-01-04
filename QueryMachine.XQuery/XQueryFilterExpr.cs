@@ -73,9 +73,10 @@ namespace DataEngine.XQuery
         #endregion
     }
 
-    class XQueryFilterExpr: XQueryExprBase
+    sealed class XQueryFilterExpr: XQueryExprBase
     {
         private XQueryExprBase[] m_filter;
+        private bool m_contextSensitive;
         
         public XQueryExprBase SourceExpr { get; set; }
         
@@ -107,15 +108,22 @@ namespace DataEngine.XQuery
             else
             {
                 ContextProvider provider = new ContextProvider(iter);
+                object res = Undefined.Value;
                 while (iter.MoveNext())
                 {
-                    object res = expr.Execute(provider, args);
+                    if (m_contextSensitive || res == Undefined.Value)
+                        res = expr.Execute(provider, args);
                     if (res == Undefined.Value)
+                    {
+                        if (!m_contextSensitive)
+                            break;
                         continue;
+                    }                            
                     XQueryNodeIterator iter2 = res as XQueryNodeIterator;
                     XPathItem item;
                     if (iter2 != null)
                     {
+                        iter2 = iter2.Clone();
                         if (!iter2.MoveNext())
                             continue;
                         item = iter2.Current.Clone();
@@ -136,7 +144,11 @@ namespace DataEngine.XQuery
                         if (TypeConverter.IsNumberType(item.ValueType))
                         {
                             if (QueryContext.Engine.OperatorEq(iter.CurrentPosition + 1, item.TypedValue) != null)
+                            {
                                 yield return iter.Current;
+                                if (!m_contextSensitive)
+                                    break;
+                            }
                         }
                         else
                             if (Core.BooleanValue(item))
@@ -149,8 +161,13 @@ namespace DataEngine.XQuery
         public override void Bind(Executive.Parameter[] parameters)
         {
             SourceExpr.Bind(parameters);
+            m_contextSensitive = false;
             foreach (XQueryExprBase expr in m_filter)
+            {
                 expr.Bind(parameters);
+                if (!m_contextSensitive)
+                    m_contextSensitive = expr.IsContextSensitive(parameters);
+            }
         }
 
         public override IEnumerable<SymbolLink> EnumDynamicFuncs()

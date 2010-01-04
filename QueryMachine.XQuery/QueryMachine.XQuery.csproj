@@ -34,6 +34,23 @@
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug Threaded|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\Debug Parallel\</OutputPath>
+    <DefineConstants>TRACE;DEBUG;PARALLEL</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release Threaded|AnyCPU' ">
+    <OutputPath>bin\Release Threaded\</OutputPath>
+    <DefineConstants>TRACE;PARALLEL</DefineConstants>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core">
@@ -57,6 +74,7 @@
     <Compile Include="DocumentModel\DmPI.cs" />
     <Compile Include="DocumentModel\DmRoot.cs" />
     <Compile Include="DocumentModel\DmText.cs" />
+    <Compile Include="DOMConverter.cs" />
     <Compile Include="DTD\DTD.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>

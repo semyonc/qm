@@ -573,7 +573,8 @@ namespace DataEngine.CoreServices
 #endif
         }
 
-        private Dictionary<Key, TypeProxy> _op = new Dictionary<Key, TypeProxy>();
+        private Dictionary<Key, TypeProxy> _op1 = new Dictionary<Key, TypeProxy>();
+        private Dictionary<Key, TypeProxy> _op2 = new Dictionary<Key, TypeProxy>();
         private Key _key = new Key();
 
         public OperatorManager()
@@ -585,27 +586,44 @@ namespace DataEngine.CoreServices
             _key.type1 = arg1.GetType();
             _key.type2 = arg2.GetType();
             TypeProxy oper;
-            if (_op.TryGetValue(_key, out oper))
+            if (_op1.TryGetValue(_key, out oper))
+                return oper;
+            if (_op2.TryGetValue(_key, out oper))
                 return oper;
             return null;
         }
 
         public void DefineProxy(Type type1, Type type2, TypeProxy proxy)
         {
-            _op.Add(new Key(type1, type2), proxy);
+            _op1.Add(new Key(type1, type2), proxy);
         }
 
         public void DefineProxy(Type type1, Type[] type2, TypeProxy proxy)
         {
-            _op[new Key(type1, type1)] = proxy;
+            _op1[new Key(type1, type1)] = proxy;
             for (int k = 0; k < type2.Length; k++)
             {
-                _op[new Key(type1, type2[k])] = proxy;
-                _op[new Key(type2[k], type1)] = proxy;
+                _op1[new Key(type1, type2[k])] = proxy;
+                _op1[new Key(type2[k], type1)] = proxy;
             }
         }
 
-        protected virtual void ThrowUnsupportedException(object id, object arg1, object arg2)
+        public void DefineProxy2(Type type1, Type type2, TypeProxy proxy)
+        {
+            _op2.Add(new Key(type1, type2), proxy);
+        }
+
+        public void DefineProxy2(Type type1, Type[] type2, TypeProxy proxy)
+        {
+            _op2[new Key(type1, type1)] = proxy;
+            for (int k = 0; k < type2.Length; k++)
+            {
+                _op2[new Key(type1, type2[k])] = proxy;
+                _op2[new Key(type2[k], type1)] = proxy;
+            }
+        }
+
+        protected virtual object HandleUnsupported(object id, object arg1, object arg2)
         {
             throw new OperatorMismatchException(id, arg1, arg2);
         }
@@ -614,7 +632,7 @@ namespace DataEngine.CoreServices
         {
             TypeProxy oper = Get(arg1, arg2);
             if (oper == null)
-                ThrowUnsupportedException(Funcs.Eq, arg1, arg2);
+                return (bool)HandleUnsupported(Funcs.Eq, arg1, arg2);
             return oper.Eq(arg1, arg2);
         }
 
@@ -633,7 +651,7 @@ namespace DataEngine.CoreServices
         {
             TypeProxy oper = Get(arg1, arg2);
             if (oper == null)
-                ThrowUnsupportedException(Funcs.Gt, arg1, arg2);
+                return (bool)HandleUnsupported(Funcs.Eq, arg1, arg2);
             return oper.Gt(arg1, arg2);
         }
 
@@ -660,7 +678,7 @@ namespace DataEngine.CoreServices
         {
             TypeProxy oper = Get(arg1, arg1);
             if (oper == null)
-                ThrowUnsupportedException(Funcs.Neg, arg1, null);
+                return HandleUnsupported(Funcs.Neg, arg1, null);
             return oper.Neg(arg1);
         }
 
@@ -668,7 +686,7 @@ namespace DataEngine.CoreServices
         {
             TypeProxy oper = Get(arg1, arg2);
             if (oper == null)
-                ThrowUnsupportedException(Funcs.Add, arg1, arg2);
+                return HandleUnsupported(Funcs.Add, arg1, arg2);
             return oper.Add(arg1, arg2);
         }
 
@@ -676,7 +694,7 @@ namespace DataEngine.CoreServices
         {
             TypeProxy oper = Get(arg1, arg2);
             if (oper == null)
-                ThrowUnsupportedException(Funcs.Sub, arg1, arg2);
+                return HandleUnsupported(Funcs.Sub, arg1, arg2);
             return oper.Sub(arg1, arg2);
         }
 
@@ -684,7 +702,7 @@ namespace DataEngine.CoreServices
         {
             TypeProxy oper = Get(arg1, arg2);
             if (oper == null)
-                ThrowUnsupportedException(Funcs.Mul, arg1, arg2);
+                return HandleUnsupported(Funcs.Mul, arg1, arg2);
             return oper.Mul(arg1, arg2);
         }
 
@@ -692,7 +710,7 @@ namespace DataEngine.CoreServices
         {
             TypeProxy oper = Get(arg1, arg2);
             if (oper == null)
-                ThrowUnsupportedException(Funcs.Div, arg1, arg2);
+                return HandleUnsupported(Funcs.Div, arg1, arg2);
             return oper.Div(arg1, arg2);
         }
 
@@ -700,7 +718,7 @@ namespace DataEngine.CoreServices
         {
             TypeProxy oper = Get(arg1, arg2);
             if (oper == null)
-                ThrowUnsupportedException(Funcs.IDiv, arg1, arg2);
+                return (Integer)HandleUnsupported(Funcs.IDiv, arg1, arg2);
             return oper.IDiv(arg1, arg2);
         }
 
@@ -708,7 +726,7 @@ namespace DataEngine.CoreServices
         {
             TypeProxy oper = Get(arg1, arg2);
             if (oper == null)
-                ThrowUnsupportedException(Funcs.Mod, arg1, arg2);
+                return HandleUnsupported(Funcs.Mod, arg1, arg2);
             return oper.Mod(arg1, arg2);
         }
 

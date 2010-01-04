@@ -177,6 +177,9 @@ namespace DataEngine.XQuery
 
         private void Read()
         {
+#if PARALLEL
+            XQueryNodeIterator.CheckThreadCanceled();
+#endif
             if (input.Read())
             {
                 if (documentRoot == null)

@@ -103,6 +103,9 @@ namespace DataEngine.XQuery
                 pos = -1;
                 iteratorStarted = true;
             }
+#if PARALLEL
+            CheckThreadCanceled();
+#endif
             XPathItem item = NextItem();
             if (item != null)
             {
@@ -112,6 +115,16 @@ namespace DataEngine.XQuery
             }
             return false;
         }
+
+#if PARALLEL
+        public static event EventHandler CheckThread;
+
+        public static void CheckThreadCanceled()
+        {
+            if (CheckThread != null)
+                CheckThread(this, EventArgs.Empty);
+        }
+#endif
 
         public abstract XQueryNodeIterator CreateBufferedIterator();
 
