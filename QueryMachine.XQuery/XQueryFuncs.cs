@@ -2110,21 +2110,24 @@ namespace DataEngine.XQuery
         }
 
         [XQuerySignature("current-dateTime")]
-        public static DateTimeValue GetCurrentDateTime()
+        public static DateTimeValue GetCurrentDateTime([Implict] Executive engine)
         {
-            return new DateTimeValue(false, DateTimeOffset.Now);
+            XQueryContext context = (XQueryContext)engine.Owner;
+            return new DateTimeValue(false, new DateTimeOffset(context.now));
         }
 
         [XQuerySignature("current-date")]
-        public static DateValue GetCurrentDate()
+        public static DateValue GetCurrentDate([Implict] Executive engine)
         {
-            return new DateValue(false, new DateTimeOffset(DateTime.Today, TimeZoneInfo.Local.BaseUtcOffset));
+            XQueryContext context = (XQueryContext)engine.Owner;
+            return new DateValue(false, new DateTimeOffset(context.now.Date, TimeZoneInfo.Local.BaseUtcOffset));
         }
 
         [XQuerySignature("current-time")]
-        public static TimeValue GetCurrentTime()
+        public static TimeValue GetCurrentTime([Implict] Executive engine)
         {
-            return new TimeValue(DateTimeOffset.Now);
+            XQueryContext context = (XQueryContext)engine.Owner;
+            return new TimeValue(new DateTimeOffset(context.now));
         }
 
         internal static void ScanLocalNamespaces(XmlNamespaceManager nsmgr, XPathNavigator node, bool recursive)
@@ -2374,7 +2377,6 @@ namespace DataEngine.XQuery
             return false;
         }
 
-#if DEBUG
         [XQuerySignature("fill")]
         public static string FillDocument([Implict] Executive executive, string name)
         {
@@ -2382,12 +2384,16 @@ namespace DataEngine.XQuery
             string fileName = context.GetFileName(name);
             if (fileName == null)
                 throw new XQueryException(Properties.Resources.FileNotFound, name);
-            XQueryDocument doc = (XQueryDocument)context.OpenDocument(context.GetFileName(name));
-            doc.Fill();
-            StringWriter sw = new StringWriter();
-            doc.documentRoot.Dump(sw);
-            return sw.ToString();
+            IXPathNavigable nv = context.OpenDocument(context.GetFileName(name));
+            if (nv is XQueryDocument)
+            {
+                XQueryDocument doc = (XQueryDocument)nv;
+                doc.Fill();
+                StringWriter sw = new StringWriter();
+                doc.documentRoot.Dump(sw);
+                return sw.ToString();
+            }
+            return "";
         }    
-#endif
     }
 }

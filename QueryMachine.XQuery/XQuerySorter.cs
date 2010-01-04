@@ -57,7 +57,7 @@ namespace DataEngine.XQuery
         public String collation;
     }
 
-    class XQuerySorter : XQueryExprBase
+    sealed class XQuerySorter : XQueryExprBase
     {
         private bool m_stable;
         private XQueryOrderSpec[] m_spec;

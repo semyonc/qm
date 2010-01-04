@@ -35,7 +35,7 @@ using DataEngine.XQuery.Util;
 
 namespace DataEngine.XQuery
 {
-    public class XQueryNavigatorWrapper: XPathNavigator, IConvertible
+    public class XQueryNavigatorWrapper : XPathNavigator, IConvertible, IHasXmlNode
     {
         private class UnderlyingObjectDecorate
         {
@@ -632,6 +632,18 @@ namespace DataEngine.XQuery
         public ulong ToUInt64(IFormatProvider provider)
         {
             return Convert.ToUInt64(TypedValue, provider);
+        }
+
+        #endregion
+
+        #region IHasXmlNode Members
+
+        public XmlNode GetNode()
+        {
+            IHasXmlNode hasNode = m_inner as IHasXmlNode;
+            if (hasNode != null)
+                return hasNode.GetNode();
+            return null;
         }
 
         #endregion

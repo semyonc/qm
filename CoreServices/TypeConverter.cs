@@ -165,11 +165,6 @@ namespace DataEngine.CoreServices
             return GetNumericCode(obj.GetType());
         }
 
-        //public static TypeCode GetTypeCode(Type t1, Type t2)
-        //{
-        //    return GetTypeCode(Type.GetTypeCode(t1), Type.GetTypeCode(t2));
-        //}        
-
         public static Type GetTypeByNumericCode(NumericCode code)
         {
             switch (code)
@@ -229,5 +224,93 @@ namespace DataEngine.CoreServices
             return Convert.ChangeType(value, GetTypeByNumericCode(code));
         }
 
+        public static object ChangeType(object value, TypeCode typeCode)
+        {
+            switch (typeCode)
+            {
+                case TypeCode.Empty:
+                    return null;
+                case TypeCode.DBNull:
+                    return typeof(DBNull);
+                case TypeCode.Boolean:
+                    return Convert.ChangeType(value, typeof(System.Boolean));
+                case TypeCode.Int16:
+                    return Convert.ChangeType(value, typeof(System.Int16));
+                case TypeCode.Int32:
+                    return Convert.ChangeType(value, typeof(System.Int32));
+                case TypeCode.Int64:
+                    return Convert.ChangeType(value, typeof(System.Int64));
+                case TypeCode.UInt16:
+                    return Convert.ChangeType(value, typeof(System.UInt16));
+                case TypeCode.UInt32:
+                    return Convert.ChangeType(value, typeof(System.UInt32));
+                case TypeCode.UInt64:
+                    return Convert.ChangeType(value, typeof(System.UInt64));
+                case TypeCode.SByte:
+                    return Convert.ChangeType(value, typeof(System.SByte));
+                case TypeCode.Byte:
+                    return Convert.ChangeType(value, typeof(System.Byte));
+                case TypeCode.Single:
+                    return Convert.ChangeType(value, typeof(System.Single));
+                case TypeCode.Decimal:
+                    return Convert.ChangeType(value, typeof(System.Decimal));
+                case TypeCode.Double:
+                    return Convert.ChangeType(value, typeof(System.Double));
+                case TypeCode.Char:
+                    return Convert.ChangeType(value, typeof(System.Char));
+                case TypeCode.String:
+                    return Convert.ChangeType(value, typeof(System.String));
+                case TypeCode.DateTime:
+                    return Convert.ChangeType(value, typeof(System.DateTime));
+                case TypeCode.Object:
+                    return value;
+                default:
+                    throw new InvalidCastException();
+            }
+        }
+
+        public static Type GetTypeByTypeCode(TypeCode typeCode)
+        {
+            switch (typeCode)
+            {
+                case TypeCode.Empty:
+                    return null;
+                case TypeCode.DBNull:
+                    return typeof(DBNull);
+                case TypeCode.Boolean:
+                    return typeof(System.Boolean);
+                case TypeCode.Int16:
+                    return typeof(System.Int16);
+                case TypeCode.Int32:
+                    return typeof(System.Int32);
+                case TypeCode.Int64:
+                    return typeof(System.Int64);
+                case TypeCode.UInt16:
+                    return typeof(System.UInt16);
+                case TypeCode.UInt32:
+                    return typeof(System.UInt32);
+                case TypeCode.UInt64:
+                    return typeof(System.UInt64);
+                case TypeCode.SByte:
+                    return typeof(System.SByte);
+                case TypeCode.Byte:
+                    return typeof(System.Byte);
+                case TypeCode.Single:
+                    return typeof(System.Single);
+                case TypeCode.Decimal:
+                    return typeof(System.Decimal);
+                case TypeCode.Double:
+                    return typeof(System.Double);
+                case TypeCode.Char:
+                case TypeCode.String:
+                    return typeof(System.String);
+                case TypeCode.DateTime:
+                    return typeof(System.DateTime);
+                case TypeCode.Object:
+                    return typeof(System.Object);
+                default:
+                    throw new InvalidCastException();
+            }
+        }
     }
 }

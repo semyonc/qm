@@ -42,7 +42,7 @@ namespace DataEngine.XQuery
         Unordered
     }
 
-    class XQueryExpr : XQueryExprBase
+    sealed class XQueryExpr : XQueryExprBase
     {
         internal object[] m_expr;
         internal SymbolLink[] m_compiledBody;
@@ -92,6 +92,30 @@ namespace DataEngine.XQuery
             return m_compiledBody;
         }
 
+        public override bool IsContextSensitive(Executive.Parameter[] parameters)
+        {
+            for (int k = 0; k < m_expr.Length; k++)
+            {
+                SymbolLink[] dps = QueryContext.Engine.GetValueDependences(parameters,
+                    m_expr[k], m_compiledBody[k]);
+                foreach (SymbolLink s in dps)
+                    if (s == m_context)
+                        return true;
+            }
+            if (Annotation != null)
+            {
+                for (int k = 0; k < Annotation.Length; k++)
+                {
+                    SymbolLink[] dps = QueryContext.Engine.GetValueDependences(parameters,
+                       Annotation[k], m_compiledAnnotation[k]);
+                    foreach (SymbolLink s in dps)
+                        if (s == m_context)
+                            return true;
+                }
+            }
+            return false;
+        }
+
         public override object Execute(IContextProvider provider, object[] args)
         {
             m_context.Value = provider;
@@ -115,7 +139,7 @@ namespace DataEngine.XQuery
             return new XQueryExprIterator(this, args, null);
         }
 
-        internal class XQueryExprIterator : XQueryNodeIterator
+        private sealed class XQueryExprIterator : XQueryNodeIterator
         {
             private XQueryExpr owner;
             private object[] args;

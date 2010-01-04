@@ -70,7 +70,7 @@ namespace DataEngine.XQuery
     }
 
 
-    internal class XQueryFLWOR : XQueryFLWORBase
+    internal sealed class XQueryFLWOR : XQueryFLWORBase
     {
         private object m_pos;                
         private SymbolLink m_value;
@@ -114,7 +114,7 @@ namespace DataEngine.XQuery
                 XQueryNodeIterator.Create(QueryContext.Engine.Apply(null, null, m_expr, args, m_valueExpr)));
         }
 
-        protected bool MoveNext(IContextProvider provider, object[] args, XPathItem curr, Integer index, out object res)
+        private bool MoveNext(IContextProvider provider, object[] args, XPathItem curr, Integer index, out object res)
         {
             object value;
             if (curr.IsNode)

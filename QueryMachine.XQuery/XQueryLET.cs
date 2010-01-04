@@ -35,7 +35,7 @@ using DataEngine.CoreServices;
 
 namespace DataEngine.XQuery
 {
-    internal class XQueryLET : XQueryFLWORBase
+    internal sealed class XQueryLET : XQueryFLWORBase
     {
         private SymbolLink m_value;
         private bool m_convert;

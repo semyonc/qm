@@ -58,6 +58,7 @@ namespace DataEngine.CoreServices
         private List<ValueConverter> m_converter;
         private Dictionary<object, MacroFuncDef> m_macro;
         private Stack<Resolver> m_resolvers = new Stack<Resolver>();
+        private int m_resolvers_lock = 0;
         private OperatorManager m_oper;
 
         public Executive(object owner)
@@ -162,6 +163,16 @@ namespace DataEngine.CoreServices
             m_resolvers.Pop();
         }
 
+        internal void EnterMacro()
+        {
+            m_resolvers_lock++;
+        }
+
+        public void LeaveMacro()
+        {
+            m_resolvers_lock--;
+        }
+
         public Resolver CurrentResolver()
         {
             return m_resolvers.Peek();
@@ -170,7 +181,7 @@ namespace DataEngine.CoreServices
         public SymbolLink TryGet(object atom, bool bindings, bool resolvers)
         {
             SymbolLink link;
-            if (resolvers)
+            if (resolvers && m_resolvers_lock == 0)
             {
                 Resolver[] rls = m_resolvers.ToArray();
                 for (int k = 0; k < rls.Length; k++)

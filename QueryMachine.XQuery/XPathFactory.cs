@@ -71,30 +71,29 @@ namespace DataEngine.XQuery
             private List<XmlNode> _list;
             private XQueryNodeIterator _iter;
             private bool _done;
+            private DOMConverter _converter;
 
-            public NodeList(XQueryNodeIterator iter)
+            public NodeList(XQueryNodeIterator iter, XmlDocument doc)
             {
                 _list = new List<XmlNode>();
                 _iter = iter;
+                _converter = new DOMConverter(doc);
             }
 
             public override int Count
             {
                 get 
                 {
-                    return _iter.Count;
+                    if (!_done)
+                        Item(Int32.MaxValue);
+                    return _list.Count;
                 }
             }
 
-            private static XmlNode GetNode(XPathItem item)
+            private XmlNode GetNode(XPathItem item)
             {
-                XQueryNavigatorWrapper nav = item as XQueryNavigatorWrapper;
-                if (nav != null)
-                {
-                    IHasXmlNode node = nav.m_inner as IHasXmlNode;
-                    if (node != null)
-                        return node.GetNode();
-                }
+                if (item.IsNode)
+                    return _converter.ToXmlNode((XPathNavigator)item);
                 return null;
             }
 
@@ -210,7 +209,10 @@ namespace DataEngine.XQuery
                 context.CopyNamespaces(nsmgr);
             command.ContextItem = nav;
             command.CommandText = xquery;
-            return new NodeList(command.Execute());
+            XmlDocument owner = node as XmlDocument;
+            if (owner == null)
+                owner = node.OwnerDocument;
+            return new NodeList(command.Execute(), owner);
         }
 
         public static XmlNode QuerySingleNode(this XmlNode node, string xquery)

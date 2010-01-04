@@ -30,7 +30,7 @@ using System.Globalization;
 
 namespace DataEngine.XQuery.Util
 {
-    public abstract class DateTimeValueBase: IComparable
+    public abstract class DateTimeValueBase: IComparable, IConvertible
     {
         public DateTimeValueBase(bool sign, DateTime value)
         {
@@ -133,5 +133,94 @@ namespace DataEngine.XQuery.Util
             else
                 return new GMonthDayValue(new DateTimeOffset(new DateTime(2008, Value.Month, Value.Day), Value.Offset));
         }
+
+        #region IConvertible Members
+
+        public TypeCode GetTypeCode()
+        {
+            return TypeCode.DateTime;
+        }
+
+        public bool ToBoolean(IFormatProvider provider)
+        {
+            return Convert.ToBoolean(Value.DateTime, provider);
+        }
+
+        public byte ToByte(IFormatProvider provider)
+        {
+            return Convert.ToByte(Value.DateTime, provider);
+        }
+
+        public char ToChar(IFormatProvider provider)
+        {
+            return Convert.ToChar(Value.DateTime, provider);
+        }
+
+        public DateTime ToDateTime(IFormatProvider provider)
+        {
+            return Convert.ToDateTime(Value.DateTime, provider);
+        }
+
+        public decimal ToDecimal(IFormatProvider provider)
+        {
+            return Convert.ToDecimal(Value.DateTime, provider);
+        }
+
+        public double ToDouble(IFormatProvider provider)
+        {
+            return Convert.ToDouble(Value.DateTime, provider);
+        }
+
+        public short ToInt16(IFormatProvider provider)
+        {
+            return Convert.ToInt16(Value.DateTime, provider);
+        }
+
+        public int ToInt32(IFormatProvider provider)
+        {
+            return Convert.ToInt32(Value.DateTime, provider);
+        }
+
+        public long ToInt64(IFormatProvider provider)
+        {
+            return Convert.ToInt64(Value.DateTime, provider);
+        }
+
+        public sbyte ToSByte(IFormatProvider provider)
+        {
+            return Convert.ToSByte(Value.DateTime, provider);
+        }
+
+        public float ToSingle(IFormatProvider provider)
+        {
+            return Convert.ToSingle(Value.DateTime, provider);
+        }
+
+        public string ToString(IFormatProvider provider)
+        {
+            return Convert.ToString(Value.DateTime, provider);
+        }
+
+        public object ToType(Type conversionType, IFormatProvider provider)
+        {
+            return Convert.ChangeType(Value.DateTime, conversionType, provider);
+        }
+
+        public ushort ToUInt16(IFormatProvider provider)
+        {
+            return Convert.ToUInt16(Value.DateTime, provider);
+        }
+
+        public uint ToUInt32(IFormatProvider provider)
+        {
+            return Convert.ToUInt32(Value.DateTime, provider);
+        }
+
+        public ulong ToUInt64(IFormatProvider provider)
+        {
+            return Convert.ToUInt64(Value.DateTime, provider);
+        }
+
+        #endregion
     }
 }

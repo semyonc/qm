@@ -51,7 +51,7 @@ namespace DataEngine.XQuery
         Namespace
     };
 
-    public class XQueryStepExpr : XQueryExprBase
+    public sealed class XQueryStepExpr : XQueryExprBase
     {
         private delegate IEnumerable<XPathItem> PathExprIterator(XPathItem item);        
 
@@ -216,12 +216,16 @@ namespace DataEngine.XQuery
             XPathNavigator nav = item as XPathNavigator;
             if (nav != null)
             {
-                XPathNavigator curr = nav.Clone();
+                XPathNavigator curr = nav.Clone();                
                 if (curr.MoveToFirstChild())
                     do
                     {
                         if (TestItem(curr))
                             yield return curr;
+                        if (nav.NodeType == XPathNodeType.Root &&
+                            curr.NodeType == XPathNodeType.Element &&
+                            m_nameTest != null)
+                            break;
                     } 
                     while (curr.MoveToNext());
             }

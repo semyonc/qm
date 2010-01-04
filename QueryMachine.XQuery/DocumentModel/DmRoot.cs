@@ -56,7 +56,6 @@ namespace DataEngine.XQuery.DocumentModel
             return new XdmDocument();
         }
 
-#if DEBUG
         public void Dump(TextWriter o)
         {
             o.Write("DmRoot");
@@ -120,6 +119,5 @@ namespace DataEngine.XQuery.DocumentModel
             else
                 o.Write(node.NodeType);
         }
-#endif
     }
 }

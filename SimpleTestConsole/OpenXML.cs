@@ -79,7 +79,7 @@ namespace SimpleTestConsole
                 if (id == "")
                     part = doc.WorkbookPart;
                 else
-                    part = doc.GetPartById(id);
+                    part = doc.WorkbookPart.GetPartById(id);
                 Stream content = part.GetStream();
                 XQueryDocument res = new XQueryDocument(content, context.GetSettings());
                 res.Fill();

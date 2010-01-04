@@ -176,6 +176,8 @@ namespace DataEngine.XQuery
             if (OnPreProcess != null) // Chance to process custom declare option statement
                 OnPreProcess(this, EventArgs.Empty);
             m_res = translator.Process(notation);
+            if (m_res == null)
+                throw new XQueryException("Can't run XQuery function module");
             m_res.Bind(null);
             // Compile variables and check it for XQST0054
             m_vars = new SymbolLink[m_context.variables.Count];
@@ -223,8 +225,6 @@ namespace DataEngine.XQuery
             CheckDisposed();
             if (!m_compiled)
                 Compile();
-            if (m_res == null)
-                throw new XQueryException("Can't run XQuery function module");
             foreach (XQueryParameter param in Parameters)
             {
                 if (param.ID == null)
@@ -242,7 +242,7 @@ namespace DataEngine.XQuery
                     value = iter.CreateBufferedIterator();
                 rec.link.Value = value;
             }            
-            m_context.CheckExternalVariables();
+            m_context.CheckExternalVariables();            
             XQueryNodeIterator res = XQueryNodeIterator.Create(m_res.Execute(this, null));
             return res;
         }
@@ -288,6 +288,14 @@ namespace DataEngine.XQuery
         public XQueryParameterCollection Parameters { get; private set; }
         public XPathNavigator ContextItem { get; set; }
         
+        public XmlNameTable NameTable
+        {
+            get
+            {
+                return m_context.nameTable;
+            }
+        }
+        
         public XQueryContext Context
         {
             get
@@ -322,7 +330,7 @@ namespace DataEngine.XQuery
                 if (ContextItem is XQueryNavigator)
                     return ContextItem;
                 else
-                    return new XQueryNavigatorWrapper(ContextItem);
+                    return new XQueryNavigatorWrapper(ContextItem.Clone());
             }
         }
 

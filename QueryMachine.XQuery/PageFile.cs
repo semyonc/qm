@@ -35,7 +35,7 @@ using DataEngine.XQuery.DocumentModel;
 
 namespace DataEngine.XQuery
 {
-    class PageFile: IDisposable
+    sealed class PageFile: IDisposable
     {
         private string fileName;
         private Stream fileStream;
@@ -81,13 +81,13 @@ namespace DataEngine.XQuery
 
         #endregion
                                                    
-        public const int XQueryBlockSize = 100;    
+        public const int XQueryBlockSize = 1000;    
         
         public PageFile(bool large)
         {
             if (large)
             {
-                pagesize = 500;
+                pagesize = 800;
                 min_workset = 3;
                 max_workset = 15;
                 workset_delta = 5;
@@ -348,7 +348,7 @@ namespace DataEngine.XQuery
                     pagelist.Add(lastblock);
                 }
                 lastblock[blockcount++] = lastpage;
-                lastcount = 0;                                
+                lastcount = 0;
             }
             count++;
             if (head == null)

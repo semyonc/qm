@@ -36,7 +36,7 @@ using System.Diagnostics;
 
 namespace DataEngine.XQuery
 {
-    internal class XQueryPathExpr: XQueryExprBase
+    internal sealed class XQueryPathExpr: XQueryExprBase
     {
         private XQueryExprBase[] _stepExpr;        
         private bool _isOrdered;
