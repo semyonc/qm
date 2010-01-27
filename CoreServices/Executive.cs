@@ -78,9 +78,14 @@ namespace DataEngine.CoreServices
             Set(Lisp.UNKNOWN, Undefined.Value);
         }
 
+        protected virtual OperatorManager CreateOperatorManager()
+        {
+            return new OperatorManager();
+        }
+
         protected virtual OperatorManager InitDynamicOperators()
         {
-            OperatorManager res = new OperatorManager();
+            OperatorManager res = CreateOperatorManager();
             res.DefineProxy(typeof(SByte), new Type[] { 
                 typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
                 typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64) }, new IntegerProxy());
@@ -312,10 +317,18 @@ namespace DataEngine.CoreServices
 
         public Type Compile(Parameter[] parameters, object expr, SymbolLink dynamicFunc)
         {
-            CompiledLambda lambda = Compile(parameters, expr);
-            if (dynamicFunc != null)
-                dynamicFunc.Value = lambda;
-            return lambda.ReturnType;
+            try
+            {
+                CompiledLambda lambda = Compile(parameters, expr);
+                if (dynamicFunc != null)
+                    dynamicFunc.Value = lambda;
+                return lambda.ReturnType;
+            }
+            catch (Exception ex)
+            {
+                HandleRuntimeException(ex);
+                throw;
+            }
         }
 
         internal Type Compile(LambdaExpr expr)

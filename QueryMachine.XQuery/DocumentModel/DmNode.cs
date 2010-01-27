@@ -39,7 +39,7 @@ namespace DataEngine.XQuery.DocumentModel
     {        
         internal DmNode _parent = null;
         internal int _index = -1;
-        
+
         public abstract XdmNode CreateNode();
 
         public abstract XPathNodeType NodeType

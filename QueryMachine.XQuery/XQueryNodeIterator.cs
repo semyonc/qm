@@ -122,7 +122,7 @@ namespace DataEngine.XQuery
         public static void CheckThreadCanceled()
         {
             if (CheckThread != null)
-                CheckThread(this, EventArgs.Empty);
+                CheckThread(null, EventArgs.Empty);
         }
 #endif
 

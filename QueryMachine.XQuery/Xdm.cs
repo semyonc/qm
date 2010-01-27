@@ -81,7 +81,7 @@ namespace DataEngine.XQuery
         }
     }
 
-    internal class XdmAttribute : XdmNode
+    internal sealed class XdmAttribute : XdmNode
     {
         internal DmAttribute _dm;
         internal String _value;
@@ -112,7 +112,7 @@ namespace DataEngine.XQuery
         }
     }
 
-    internal class XdmNamespace : XdmNode
+    internal sealed class XdmNamespace : XdmNode
     {
         internal String _name;
         internal String _value;
@@ -150,10 +150,11 @@ namespace DataEngine.XQuery
         }
     }
 
-    internal class XdmElement : XdmNode
+    internal sealed class XdmElement : XdmNode
     {
         internal XdmNamespace _ns;
         internal XdmAttribute _attributes;
+        internal string _value = String.Empty;
 
         public XdmElement()
         {
@@ -162,6 +163,14 @@ namespace DataEngine.XQuery
         public XdmElement(int parent)
             : base(parent)
         {
+        }
+
+        public override string Value
+        {
+            get
+            {
+                return _value;
+            }
         }
 
         public override void Load(PageFile pagefile)
@@ -196,7 +205,7 @@ namespace DataEngine.XQuery
                     attr._next = curr;
                     attr = curr;
                 }
-            }
+            }            
         }
 
         public override void Store(PageFile pagefile)
@@ -219,9 +228,19 @@ namespace DataEngine.XQuery
             }
             pagefile.WriteBoolean(false);
         }
+
+        public void LoadTextValue(PageFile pagefile)
+        {
+            _value = pagefile.ReadString();
+        }
+
+        public void StoreTextValue(PageFile pagefile)
+        {
+            pagefile.WriteString(_value);
+        }
     }
 
-    internal class XdmProcessingInstruction : XdmNode
+    internal sealed class XdmProcessingInstruction : XdmNode
     {
         internal String _value;
 
@@ -256,7 +275,7 @@ namespace DataEngine.XQuery
         }
     }
 
-    internal class XdmComment : XdmNode
+    internal sealed class XdmComment : XdmNode
     {
         internal String _text;
 
@@ -291,7 +310,7 @@ namespace DataEngine.XQuery
         }
     }
 
-    internal class XdmWhitespace : XdmNode
+    internal sealed class XdmWhitespace : XdmNode
     {
         internal String _text;
 
@@ -326,7 +345,7 @@ namespace DataEngine.XQuery
         }
     }
 
-    internal class XdmText : XdmNode
+    internal sealed class XdmText : XdmNode
     {
         internal String _text;
 

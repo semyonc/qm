@@ -12,6 +12,7 @@ using System.IO;
 
 using DataEngine.CoreServices;
 using DataEngine.XQuery;
+using System.Diagnostics;
 
 namespace SimpleTestConsole
 {

@@ -30,7 +30,7 @@ using System.Reflection.Emit;
 using DataEngine.CoreServices.Generation;
 
 namespace DataEngine.CoreServices
-{
+{    
     public class LocalAccess: IEnumerable<LocalAccess.LocalBinding>
     {
         public struct LocalBinding
@@ -201,7 +201,7 @@ namespace DataEngine.CoreServices
                     {
                         link = engine.TryGet(atom, true, false);
                         if (link == null)
-                            throw new ArgumentException("Value not defined", atom.ToString());
+                            throw new ValueNotDefined(atom.ToString());
                     }
                 }
                 localVar = il.DeclareLocal(link.Type);

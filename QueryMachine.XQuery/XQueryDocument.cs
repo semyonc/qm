@@ -43,6 +43,7 @@ namespace DataEngine.XQuery
         internal PageFile pagefile;        
         internal XmlReader input;
         internal DmRoot documentRoot;
+        internal bool lookahead;
 
         internal XQueryDocumentBuilder builder = null;
         internal string baseUri = String.Empty;       
@@ -180,13 +181,14 @@ namespace DataEngine.XQuery
 #if PARALLEL
             XQueryNodeIterator.CheckThreadCanceled();
 #endif
-            if (input.Read())
+            if (lookahead || input.Read())
             {
                 if (documentRoot == null)
                 {
                     builder.WriteStartDocument();
                     documentRoot = builder.DocumentRoot;
                 }
+                lookahead = false;
                 switch (input.NodeType)
                 {
                     case XmlNodeType.XmlDeclaration:
@@ -246,9 +248,32 @@ namespace DataEngine.XQuery
                                 }
                             }
                         }
-                        builder.CompleteElement();
                         if (builder.IsEmptyElement)
                             builder.WriteEndElement();
+                        else
+                        {
+                            while (input.Read())
+                            {
+                                if (input.NodeType == XmlNodeType.Text)
+                                    builder.WriteString(input.Value);
+                                else if (input.NodeType == XmlNodeType.Whitespace)
+                                {
+                                    if (preserveSpace)
+                                        builder.WriteString(input.Value);
+                                }
+                                else if (input.NodeType == XmlNodeType.EndElement)
+                                {
+                                    builder.WriteEndElement();
+                                    break;
+                                }
+                                else
+                                {
+                                    builder.CompleteElement();
+                                    lookahead = true;
+                                    break;
+                                }
+                            }                            
+                        }
                         break;
 
                     case XmlNodeType.EndElement:

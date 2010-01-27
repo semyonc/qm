@@ -517,6 +517,11 @@ namespace DataEngine.XQuery
                 throw new XQueryException(Properties.Resources.FODC0004, collection_name);
         }
 
+        public virtual bool StringEquals(string s1, string s2)
+        {
+            return Object.ReferenceEquals(s1, s2);
+        }
+
         public bool IsOrdered
         {
             get

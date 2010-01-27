@@ -52,6 +52,14 @@
     <OutputPath>bin\Release Parallel\</OutputPath>
     <DefineConstants>PARALLEL</DefineConstants>
   </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Concurrent|AnyCPU' ">
+    <OutputPath>bin\Concurrent\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core">

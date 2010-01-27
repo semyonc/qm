@@ -289,12 +289,11 @@ namespace DataEngine.XQuery
             }
         }
 
-        internal static XPathItem ChangeType(this XPathItem item, XQuerySequenceType destType,
-            XmlNameTable nameTable, XmlNamespaceManager nsmgr)
+        internal static XPathItem ChangeType(this XPathItem item, XQuerySequenceType destType, XQueryContext context)
         {
             if (destType.IsNode)
             {
-                if (!destType.Match(item))
+                if (!destType.Match(item, context))
                     throw new XQueryException(Properties.Resources.XPTY0004,
                         new XQuerySequenceType(item.XmlType.TypeCode), destType);
                 return item.Clone();
@@ -314,7 +313,7 @@ namespace DataEngine.XQuery
                     if (simpleType == XQuerySequenceType.XmlSchema.AnySimpleType)
                         throw new XQueryException(Properties.Resources.XPST0051, "xs:anySimpleType");
                     return new XQueryItem(XQueryConvert.ChangeType(item.XmlType, item.TypedValue,
-                        destType, nameTable, nsmgr), destType.SchemaType);
+                        destType, context.nameTable, context.NamespaceManager), destType.SchemaType);
                 }
             }
         }
@@ -419,8 +418,7 @@ namespace DataEngine.XQuery
                 yield return item;
         }
 
-        internal static IEnumerable<XPathItem> ConvertIterator(XQueryNodeIterator iter, XQuerySequenceType destType, 
-            XmlNameTable nameTable, XmlNamespaceManager nsmgr)
+        internal static IEnumerable<XPathItem> ConvertIterator(XQueryNodeIterator iter, XQuerySequenceType destType, XQueryContext context)
         {
             int num = 0;
             XQuerySequenceType itemType = new XQuerySequenceType(destType);
@@ -433,7 +431,7 @@ namespace DataEngine.XQuery
                         destType.Cardinality == XmlTypeCardinality.One)
                         throw new XQueryException(Properties.Resources.XPTY0004, "item()+", destType);
                 }
-                yield return item.ChangeType(itemType, nameTable, nsmgr);
+                yield return item.ChangeType(itemType, context);
                 num++;
             }
             if (num == 0)
@@ -445,7 +443,7 @@ namespace DataEngine.XQuery
         }
 
         internal static IEnumerable<XPathItem> ValueIterator(XQueryNodeIterator iter, XQuerySequenceType destType,
-            XmlNameTable nameTable, XmlNamespaceManager nsmgr)
+            XQueryContext context)
         {
             int num = 0;
             foreach (XPathItem item in iter)
@@ -458,13 +456,14 @@ namespace DataEngine.XQuery
                 }
                 if (destType.IsNode)
                 {
-                    if (!destType.Match(item))
+                    if (!destType.Match(item, context))
                         throw new XQueryException(Properties.Resources.XPTY0004,
                             new XQuerySequenceType(item.XmlType, XmlTypeCardinality.OneOrMore, null), destType);
                     yield return item;
                 }
                 else
-                    yield return new XQueryItem(XQueryConvert.ValueAs(item.TypedValue, destType, nameTable, nsmgr));
+                    yield return new XQueryItem(XQueryConvert.ValueAs(item.TypedValue, destType, 
+                        context.nameTable, context.NamespaceManager));
                 num++;
             }
             if (num == 0)
@@ -475,7 +474,7 @@ namespace DataEngine.XQuery
             }
         }
 
-        internal static IEnumerable<XPathItem> TreatIterator(XQueryNodeIterator iter, XQuerySequenceType destType)
+        internal static IEnumerable<XPathItem> TreatIterator(XQueryNodeIterator iter, XQuerySequenceType destType, XQueryContext context)
         {
             int num = 0;
             foreach (XPathItem item in iter)
@@ -488,7 +487,7 @@ namespace DataEngine.XQuery
                 }
                 if (destType.IsNode)
                 {
-                    if (!destType.Match(item))
+                    if (!destType.Match(item, context))
                         throw new XQueryException(Properties.Resources.XPTY0004,
                             new XQuerySequenceType(item.XmlType, XmlTypeCardinality.OneOrMore, null), destType);
                     yield return item;

@@ -97,9 +97,13 @@ namespace DataEngine.CoreServices
     {
         const string mesg = "Value not defined for atom '{0}'";
 
+        public String Name { get; private set; }
+
         public ValueNotDefined(string name) :
             base(String.Format(mesg, name))
-        { }
+        {
+            Name = name;
+        }
     }
 
     public class ImproperlyFormat : Exception
