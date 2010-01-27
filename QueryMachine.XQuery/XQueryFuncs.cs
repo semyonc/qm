@@ -38,6 +38,7 @@ using System.IO;
 
 using DataEngine.XQuery.Util;
 using DataEngine.XQuery.DocumentModel;
+using System.Diagnostics;
 
 namespace DataEngine.XQuery
 {

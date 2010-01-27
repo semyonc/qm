@@ -69,6 +69,7 @@ namespace DataEngine.XQuery
         private PageFile _pf;
         private Properties _props;
 
+        internal const int iText = 10000;
 
         private XQueryNavigator()
         {
@@ -156,7 +157,10 @@ namespace DataEngine.XQuery
         private XdmNode GetNode()
         {
             if (_props.node == null)
-                _pf.Get(_pos, true, out _props.head, out _props.node);
+            {
+                DmNode head;
+                _pf.Get(_pos, true, out head, out _props.node);
+            }
             return _props.node;
         }
 
@@ -164,17 +168,7 @@ namespace DataEngine.XQuery
         {
             get
             {
-                if (NodeType == XPathNodeType.Element)
-                {
-                    int p = _pos + 1;
-                    _props.doc.ExpandPageFile(p);
-                    if (p < _pf.Count)
-                    {
-                        if (_pf.Head(p) == null)
-                            return true;
-                    }
-                }
-                return false;
+                return _pf[_pos] == PageFile.Leaf;
             }
         }
 
@@ -302,15 +296,33 @@ namespace DataEngine.XQuery
             if (NodeType == XPathNodeType.Root ||
                 NodeType == XPathNodeType.Element)
             {
-                int p = _pos + 1;
-                _props.doc.ExpandPageFile(p);
-                if (p < _pf.Count && _pf.Head(p) != null)
+                switch (_pf[_pos])
                 {
-                    _pos = p;
-                    Read();
-                    return true;
+                    case PageFile.Leaf:
+                        return false;
+                    
+                    case PageFile.MixedLeaf:
+                        {
+                            DmElement elem = (DmElement)_props.head;
+                            _props.head = elem.ChildText;
+                            _props.index = iText;
+                            _props.typedValue = null;
+                            return true;
+                        }
+                    
+                    default:
+                        {
+                            int p = _pos + 1;
+                            _props.doc.ExpandPageFile(p);
+                            if (p < _pf.Count && _pf.Head(p) != null)
+                            {
+                                _pos = p;
+                                Read();
+                                return true;
+                            }                            
+                        }
+                        break;
                 }
-
             }
             return false;
         }        
@@ -359,14 +371,17 @@ namespace DataEngine.XQuery
 
         public override bool MoveToNext()
         {
-            if (_pos == 0)
+            if (_pos == 0 || _props.index > 0)
                 return false;
             int p = _pf[_pos];
-            if (p == 0)
-            {
-                _props.doc.ExpandUtilElementEnd(_pos);
-                p = _pf[_pos];
-            }
+            if (p == PageFile.Leaf || p == PageFile.MixedLeaf)
+                p = _pos + 1;
+            else
+                if (p == 0)
+                {
+                    _props.doc.ExpandUtilElementEnd(_pos);
+                    p = _pf[_pos];
+                }
             _props.doc.ExpandPageFile(p);
             if (p < _pf.Count && _pf.Head(p) != null)
             {
@@ -381,6 +396,8 @@ namespace DataEngine.XQuery
 
         public override bool MoveToPrevious()
         {
+            if (_props.index > 0)
+                return false;
             int p = _pos - 1;
             if (p > 0)
             {
@@ -388,10 +405,15 @@ namespace DataEngine.XQuery
                 if (head == null)
                     _pos = _pf[p];
                 else
+                {
                     if (head.NodeType == XPathNodeType.Element)
-                        return false;
-                    else
-                        _pos = p;
+                    {
+                        int h = _pf[p];
+                        if (h != PageFile.Leaf && h != PageFile.MixedLeaf)
+                            return false;
+                    }
+                    _pos = p;
+                }
                 if (NodeType == XPathNodeType.Element)
                     LeaveElement();
                 Read();
@@ -570,7 +592,7 @@ namespace DataEngine.XQuery
         {
             get
             {
-                if (NodeType == XPathNodeType.Element ||
+                if ((NodeType == XPathNodeType.Element && _pf[_pos] >= 0) ||
                     NodeType == XPathNodeType.Root)
                 {
                     StringBuilder sb = new StringBuilder();
@@ -587,7 +609,8 @@ namespace DataEngine.XQuery
                                 break;
                         }
                         else if (head.NodeType == XPathNodeType.Text ||
-                            head.NodeType == XPathNodeType.Whitespace)
+                                 head.NodeType == XPathNodeType.Whitespace ||
+                                 _pf[p] == PageFile.MixedLeaf)
                         {
                             if (node == null)
                                 _pf.Get(p, true, out head, out node);

@@ -176,11 +176,11 @@ namespace DataEngine.XQuery
                 XPathNavigator nav = item as XPathNavigator;
                 return (nav != null && 
                     (nav.NodeType == XPathNodeType.Element || nav.NodeType == XPathNodeType.Attribute) &&
-                    (m_nameTest.IsNamespaceWildcard || Object.ReferenceEquals(m_nameTest.Namespace, nav.NamespaceURI)) &&
-                    (m_nameTest.IsNameWildcard || Object.ReferenceEquals(m_nameTest.Name, nav.LocalName)));
+                    (m_nameTest.IsNamespaceWildcard || QueryContext.StringEquals(m_nameTest.Namespace, nav.NamespaceURI)) &&
+                    (m_nameTest.IsNameWildcard || QueryContext.StringEquals(m_nameTest.Name, nav.LocalName)));
             }
             else if (m_typeTest != null)
-                return m_typeTest.Match(item);
+                return m_typeTest.Match(item, QueryContext);
             return true;    
         }
 
@@ -216,7 +216,7 @@ namespace DataEngine.XQuery
             XPathNavigator nav = item as XPathNavigator;
             if (nav != null)
             {
-                XPathNavigator curr = nav.Clone();                
+                XPathNavigator curr = nav.Clone();
                 if (curr.MoveToFirstChild())
                     do
                     {

@@ -266,13 +266,13 @@ namespace DataEngine.XQuery
             }
         }
 
-        private bool MatchName(XPathNavigator nav)
+        private bool MatchName(XPathNavigator nav, XQueryContext context)
         {
-            return (NameTest.IsNamespaceWildcard || Object.ReferenceEquals(NameTest.Namespace, nav.NamespaceURI)) &&
-               (NameTest.IsNameWildcard || Object.ReferenceEquals(NameTest.Name, nav.LocalName));
+            return (NameTest.IsNamespaceWildcard || context.StringEquals(NameTest.Namespace, nav.NamespaceURI)) &&
+               (NameTest.IsNameWildcard || context.StringEquals(NameTest.Name, nav.LocalName));
         }
 
-        public bool Match(XPathItem item)
+        public bool Match(XPathItem item, XQueryContext context)
         {
             switch (TypeCode)
             {
@@ -301,7 +301,7 @@ namespace DataEngine.XQuery
                                 XPathNavigator cur = nav.Clone();                                
                                 if (SchemaElement == null)
                                 {
-                                    if (cur.MoveToChild(XPathNodeType.Element) && MatchName(cur))
+                                    if (cur.MoveToChild(XPathNodeType.Element) && MatchName(cur, context))
                                     {
                                         if (SchemaType == null || SchemaType == XmlSchema.UntypedAtomic)
                                             return true;
@@ -335,7 +335,7 @@ namespace DataEngine.XQuery
                         {
                             if (SchemaElement == null)
                             {
-                                if (MatchName(nav))
+                                if (MatchName(nav, context))
                                 {
                                     if (SchemaType == null || SchemaType == XmlSchema.UntypedAtomic)
                                         return true;
@@ -366,7 +366,7 @@ namespace DataEngine.XQuery
                         {
                             if (SchemaAttribute == null)
                             {
-                                if (MatchName(nav))
+                                if (MatchName(nav, context))
                                 {
                                     if (SchemaType == null || SchemaType == XmlSchema.UntypedAtomic) 
                                         return true;

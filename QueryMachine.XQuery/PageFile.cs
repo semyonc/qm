@@ -31,14 +31,21 @@ using System.IO;
 using System.Xml;
 using System.Xml.Schema;
 using System.Diagnostics;
+using System.Threading;
+
 using DataEngine.XQuery.DocumentModel;
 
 namespace DataEngine.XQuery
 {
     sealed class PageFile: IDisposable
     {
+        internal const int Leaf = -2;
+        internal const int MixedLeaf = -3;
+
+        private object filelock;
         private string fileName;
         private Stream fileStream;
+        private bool closed;
         private BinaryWriter binWriter;
         private BinaryReader binReader;
         private int pagesize;
@@ -51,7 +58,6 @@ namespace DataEngine.XQuery
         private double workset;
         private long hit_count;
         private long miss_count;
-        private int pincount;
         private double ratio;
         private int pagecount;
         private XdmNode lastnode;
@@ -81,7 +87,7 @@ namespace DataEngine.XQuery
 
         #endregion
                                                    
-        public const int XQueryBlockSize = 1000;    
+        public const int XQueryBlockSize = 1000;            
         
         public PageFile(bool large)
         {
@@ -103,6 +109,7 @@ namespace DataEngine.XQuery
             cached = new List<Page>();
             heads = new List<DmNode>();
             workset = min_workset;
+            filelock = new object();
         }
 
         ~PageFile()
@@ -167,41 +174,50 @@ namespace DataEngine.XQuery
 
         public void Close()
         {
-            if (fileStream != null)
+            lock (filelock)
             {
-                fileStream.Close();
-                File.Delete(fileName);
-                fileStream = null;
+                if (fileStream != null)
+                {
+                    fileStream.Close();
+                    File.Delete(fileName);
+                    fileStream = null;
+                    closed = true;
+                }
             }
         }
    
         public void Get(int index, bool load, out DmNode head, out XdmNode node)
         {
             if (index < 0 || index >= count)
-                throw new ArgumentException("index");            
+                throw new ArgumentException("index");
+            OptimizeCache();
             int pagenum = index / pagesize;
             Page[] block = pagelist[pagenum / XQueryBlockSize];
             Page page = block[pagenum % XQueryBlockSize];
             int k = index % pagesize;
             if (load)
-                hit_count++;
+                page.pin++;
             int hindex = page.hindex[k];
             if (hindex == -1)
                 head = null;
             else
                 head = heads[hindex];
-            if (page.nodes == null)
+            XdmNode[] nodes = page.nodes;
+            if (nodes == null)
             {
                 if (load)
                 {
-                    ReadPage(page);
-                    node = page.nodes[k];
+                    nodes = ReadPage(page);
+                    node = nodes[k];
                 }
                 else
                     node = null;
             }
             else
-                node = page.nodes[k];            
+            {
+                node = nodes[k];
+                hit_count++;
+            }
         }
 
         public DmNode Head(int index)
@@ -247,46 +263,57 @@ namespace DataEngine.XQuery
             }
         }
         
-        private void ReadPage(Page page)
+        private XdmNode[] ReadPage(Page page)
         {
-            page.nodes = new XdmNode[pagesize];
-            fileStream.Seek(page.offset, SeekOrigin.Begin);
-            for (int k = 0; k < page.nodes.Length; k++)
+            XdmNode[] nodes = new XdmNode[pagesize];
+            lock (filelock)
             {
-                int hindex = page.hindex[k];
-                if (hindex != -1)
+                fileStream.Seek(page.offset, SeekOrigin.Begin);
+                for (int k = 0; k < pagesize; k++)
                 {
-                    XdmNode node = heads[hindex].CreateNode();
-                    node.Load(this);
-                    page.nodes[k] = node;
+                    int hindex = page.hindex[k];
+                    if (hindex != -1)
+                    {
+                        XdmNode node = heads[hindex].CreateNode();
+                        node.Load(this);
+                        if (page.next[k] == MixedLeaf)
+                            ((XdmElement)node).LoadTextValue(this);
+                        nodes[k] = node;
+                    }
                 }
+                page.nodes = nodes;
+                cached.Add(page);
             }
-            page.pin = ++pincount;
-            cached.Add(page);
             miss_count++;
-            OptimizeCache();
+            return nodes;
         }
 
         private void WritePage(Page page)
         {
-            if (!page.stored)
+            lock (filelock)
             {
-                if (fileStream == null)
-                    CreateFile();
-                fileStream.Seek(0, SeekOrigin.End);
-                page.offset = fileStream.Position;
-                int num = page.num * pagesize;
-                for (int k = 0; k < page.nodes.Length; k++)
+                if (!page.stored && !closed)
                 {
-                    XdmNode node = page.nodes[k];
-                    if (node != null)
-                        node.Store(this);
+                    if (fileStream == null)
+                        CreateFile();
+                    fileStream.Seek(0, SeekOrigin.End);
+                    page.offset = fileStream.Position;
+                    int num = page.num * pagesize;
+                    for (int k = 0; k < page.nodes.Length; k++)
+                    {
+                        XdmNode node = page.nodes[k];
+                        if (node != null)
+                        {
+                            node.Store(this);
+                            if (page.next[k] == MixedLeaf)
+                                ((XdmElement)node).StoreTextValue(this);
+                        }
+                    }
+                    page.stored = true;
                 }
-                page.stored = true;
-            }            
-            page.nodes = null;
-            cached.Remove(page);            
-        }        
+                page.nodes = null;
+            }
+        }
 
         private void OptimizeCache()
         {
@@ -305,25 +332,47 @@ namespace DataEngine.XQuery
                     }
                     ratio = ratio1;
                 }
-                Page[] pages = cached.ToArray();
-                Array.Sort<Page>(pages, (Page x, Page y) =>
+                if (workset < cached.Count)
+                {
+                    int len; 
+                    Page[] pages;
+                    Page[] cached_pages;
+                    lock (filelock)
                     {
-                        if (x.pin < y.pin)
-                            return -1;
-                        else if (x.pin > y.pin)
-                            return 1;
-                        else
+                        len = cached.Count - (int)workset;
+                        pages = new Page[len];
+                        cached_pages = cached.ToArray();
+                        cached.Clear();
+                    }
+                    for (int i = 0; i < cached_pages.Length; i++)
+                    {
+                        Page curr = cached_pages[i];
+                        if (curr == lastpage)
+                            continue;
+                        for (int k = 0; k < len; k++)
+                            if (pages[k] == null || pages[k].pin < curr.pin)
+                            {
+                                Page p = pages[k];
+                                pages[k] = curr;
+                                if (p == null)
+                                    break;
+                                else
+                                    curr = p;
+                            }
+                    }                    
+                    ThreadPool.QueueUserWorkItem(new WaitCallback((object o) =>
                         {
-                            if (x.stored && !y.stored)
-                                return 1;
-                            else if (!x.stored && y.stored)
-                                return -1;
-                            else
-                                return 0;
-                        }
-                    });
-                for (int k = 0; k < pages.Length && cached.Count > workset; k++)
-                    WritePage(pages[k]);
+                            for (int k = 0; k < len; k++)
+                                if (pages[k] != null)
+                                    WritePage(pages[k]);
+                            lock (filelock)
+                            {
+                                for (int k = 0; k < cached_pages.Length; k++)
+                                    if (cached_pages[k].nodes != null)
+                                        cached.Add(cached_pages[k]);
+                            }
+                        }));
+                }
             }
         }
 
@@ -334,11 +383,12 @@ namespace DataEngine.XQuery
             {
                 if (lastpage != null)
                 {
-                    cached.Add(lastpage);
+                    lock (filelock)
+                        cached.Add(lastpage);
                     OptimizeCache();
                 }
-                lastpage = new Page(pagesize);
-                lastpage.pin = ++pincount;
+                lastpage = new Page(pagesize);                
+                lastpage.pin = 1;
                 lastpage.num = pagecount++;
                 if (lastblock == null ||
                     blockcount == lastblock.Length)

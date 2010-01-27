@@ -908,7 +908,7 @@ namespace DataEngine.XQuery
                             (destType.TypeCode == XmlTypeCode.Notation && iter.Current.XmlType.TypeCode != XmlTypeCode.Notation))
                             throw new XQueryException(Properties.Resources.XPTY0004_CAST, destType);
                     }
-                    res = iter.Current.ChangeType(destType, context.nameTable, context.nsManager);
+                    res = iter.Current.ChangeType(destType, context);
                     if (iter.MoveNext())
                         throw new XQueryException(Properties.Resources.MoreThanOneItem);
                     if (destType.IsNode)
@@ -924,14 +924,13 @@ namespace DataEngine.XQuery
                         (destType.TypeCode == XmlTypeCode.Notation && item.XmlType.TypeCode != XmlTypeCode.Notation))
                         throw new XQueryException(Properties.Resources.XPTY0004_CAST, destType);
                 }
-                res = item.ChangeType(destType, context.nameTable, context.nsManager);
+                res = item.ChangeType(destType, context);
                 if (destType.IsNode)
                     return res;
                 return res.TypedValue;
             }
             else
-                return new NodeIterator(XPathFactory.ConvertIterator(XQueryNodeIterator.Create(value), destType, 
-                    context.nameTable, context.nsManager));
+                return new NodeIterator(XPathFactory.ConvertIterator(XQueryNodeIterator.Create(value), destType, context));
         }
 
         public static object CastArg([Implict] Executive engine, object value, XQuerySequenceType destType)
@@ -964,7 +963,7 @@ namespace DataEngine.XQuery
                     }
                     if (destType.IsNode)
                     {
-                        if (!destType.Match(iter.Current))
+                        if (!destType.Match(iter.Current, context))
                             throw new XQueryException(Properties.Resources.XPTY0004,
                                 new XQuerySequenceType(iter.Current.XmlType, XmlTypeCardinality.OneOrMore, null), destType);
                         res = iter.Current.Clone();
@@ -982,7 +981,7 @@ namespace DataEngine.XQuery
                     {
                         if (item.IsNode)
                         {
-                            if (!destType.Match(item))
+                            if (!destType.Match(item, context))
                                 throw new XQueryException(Properties.Resources.XPTY0004,
                                     new XQuerySequenceType(item.XmlType, XmlTypeCardinality.OneOrMore, null), destType);
                             return item;
@@ -995,8 +994,7 @@ namespace DataEngine.XQuery
                 }
             }
             else
-                return new NodeIterator(XPathFactory.ValueIterator(XQueryNodeIterator.Create(value), destType,
-                    context.nameTable, context.nsManager));
+                return new NodeIterator(XPathFactory.ValueIterator(XQueryNodeIterator.Create(value), destType, context));
         }
 
         public static object TreatAs([Implict] Executive engine, object value, XQuerySequenceType destType)
@@ -1032,7 +1030,7 @@ namespace DataEngine.XQuery
                             new XQuerySequenceType(iter.Current.XmlType, XmlTypeCardinality.OneOrMore, null), "empty-sequence()");
                     if (destType.IsNode)
                     {
-                        if (!destType.Match(iter.Current))
+                        if (!destType.Match(iter.Current, context))
                             throw new XQueryException(Properties.Resources.XPTY0004,
                                 new XQuerySequenceType(iter.Current.XmlType, XmlTypeCardinality.OneOrMore, null), destType);
                         res = iter.Current.Clone();
@@ -1050,7 +1048,7 @@ namespace DataEngine.XQuery
                     {
                         if (item.IsNode)
                         {
-                            if (!destType.Match(item))
+                            if (!destType.Match(item, context))
                                 throw new XQueryException(Properties.Resources.XPTY0004,
                                     new XQuerySequenceType(item.XmlType, XmlTypeCardinality.OneOrMore, null), destType);
                             return item;
@@ -1062,7 +1060,8 @@ namespace DataEngine.XQuery
                 }
             }
             else
-                return new NodeIterator(XPathFactory.TreatIterator(XQueryNodeIterator.Create(value), destType));
+                return new NodeIterator(XPathFactory.TreatIterator(
+                    XQueryNodeIterator.Create(value), destType, context));
         }
 
         public static object CastToItem([Implict] Executive executive, 
@@ -1107,7 +1106,7 @@ namespace DataEngine.XQuery
                             destType.Cardinality == XmlTypeCardinality.One)
                             return false;
                     }
-                    if (!destType.Match(item))
+                    if (!destType.Match(item, context))
                         return false;
                     num++;
                 }
@@ -1126,7 +1125,7 @@ namespace DataEngine.XQuery
                 XPathItem item = value as XPathItem;
                 if (item == null)
                     item = new XQueryItem(value);
-                return destType.Match(item);
+                return destType.Match(item, context);
             }
         }
 
@@ -1179,8 +1178,7 @@ namespace DataEngine.XQuery
                     if (y is String)
                         x = x.ToString();
                     else if (!(y is UntypedAtomic))
-                        x = item1.ChangeType(new XQuerySequenceType(item2.XmlType.TypeCode),
-                            context.nameTable, context.NamespaceManager).TypedValue;
+                        x = item1.ChangeType(new XQuerySequenceType(item2.XmlType.TypeCode), context).TypedValue;
             }
             if (y is UntypedAtomic)
             {
@@ -1190,8 +1188,7 @@ namespace DataEngine.XQuery
                     if (x is String)
                         y = y.ToString();
                     else if (!(x is UntypedAtomic))
-                        y = item2.ChangeType(new XQuerySequenceType(item1.XmlType.TypeCode),
-                            context.nameTable, context.NamespaceManager).TypedValue;
+                        y = item2.ChangeType(new XQuerySequenceType(item1.XmlType.TypeCode), context).TypedValue;
             }
         }
 
