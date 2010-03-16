@@ -35,12 +35,49 @@ using System.Xml.XPath;
 
 namespace DataEngine.XQuery.DocumentModel
 {
+    internal class NodeSet
+    {
+        public readonly DmNode[] nodes;
+        public readonly int inf;
+        public readonly int sup;
+
+        public NodeSet(DmNode[] nodes)
+        {
+            this.nodes = nodes;
+            inf = -1;
+            sup = -1;
+            foreach (DmNode node in nodes)
+            {
+                if (inf == -1 || inf > node._begin_pos)
+                    inf = node._begin_pos;
+                if (sup == -1 || sup < node._end_pos)
+                    sup = node._end_pos;
+            }
+        }
+    }
+
     internal abstract class DmNode
     {        
         internal DmNode _parent = null;
         internal int _index = -1;
 
+        internal Dictionary<object, NodeSet> _cached_set;
+        internal int _begin_pos = -1;
+        internal int _end_pos = -1;
+        
         public abstract XdmNode CreateNode();
+
+        public DmNode()
+        {
+        }
+
+        public void IndexNode(int pos)
+        {
+            if (_begin_pos == -1 || pos < _begin_pos)
+                _begin_pos = pos;
+            if (_end_pos == -1 || pos > _end_pos)
+                _end_pos = pos;
+        }
 
         public abstract XPathNodeType NodeType
         {
@@ -180,6 +217,124 @@ namespace DataEngine.XQuery.DocumentModel
                 SchemaType = xmlSchemaInfo.SchemaType;
                 Validity = xmlSchemaInfo.Validity;
             }
+        }
+
+        public bool TestNode(XmlQualifiedNameTest nameTest, XQuerySequenceType typeTest)
+        {
+            if (nameTest != null)
+            {
+                return (NodeType == XPathNodeType.Element || NodeType == XPathNodeType.Attribute) &&
+                    (nameTest.IsNamespaceWildcard || nameTest.Namespace == NamespaceURI) &&
+                    (nameTest.IsNameWildcard || nameTest.Name == LocalName);
+            }
+            else if (typeTest != null)
+                return typeTest.Match(this);
+            return true;
+        }
+
+        private void DescendantsVisitor(List<DmNode> nodes, bool recursive, DmNode exclude)
+        {
+            if (ChildNodes != null)
+                foreach (DmNode node in ChildNodes)
+                {
+                    if (node != exclude)
+                        nodes.Add(node);
+                    if (recursive)
+                        node.DescendantsVisitor(nodes, true, exclude);
+                }
+            DmContainer container = this as DmContainer;
+            if (container != null)
+            {
+                if (container.ChildText != null)
+                    nodes.Add(container.ChildText);
+                if (container.ChildComment != null)
+                    nodes.Add(container.ChildComment);
+                if (container.ChildWhitespace != null)
+                    nodes.Add(container.ChildWhitespace);
+            }
+        }
+
+        public NodeSet GetNodeSet(object key)
+        {
+            NodeSet res;
+            if (_cached_set != null && _cached_set.TryGetValue(key, out res))
+                return res;
+            return null;
+        }
+
+        public NodeSet CreateNodeSet(object key, DmNode[] nodes)
+        {
+            NodeSet res = new NodeSet(nodes);
+            if (_cached_set == null)
+                _cached_set = new Dictionary<object, NodeSet>();
+            _cached_set.Add(key, res);
+            return res;
+        }
+
+        public DmNode[] GetSelf()
+        {
+            List<DmNode> res = new List<DmNode>();
+            res.Add(this);
+            return res.ToArray();
+        }
+
+        public DmNode[] GetChilds()
+        {
+            List<DmNode> res = new List<DmNode>();
+            DescendantsVisitor(res, false, null);
+            return res.ToArray();
+        }
+
+        public DmNode[] GetDescendants()
+        {
+            List<DmNode> res = new List<DmNode>();
+            DescendantsVisitor(res, true, null);
+            return res.ToArray();
+        }
+
+        public DmNode[] GetDescendantOrSelf()
+        {
+            List<DmNode> res = new List<DmNode>();
+            res.Add(this);
+            DescendantsVisitor(res, true, null);
+            return res.ToArray();
+        }
+
+        public DmNode[] GetParent()
+        {
+            List<DmNode> res = new List<DmNode>();
+            if (ParentNode != null)
+                res.Add(ParentNode);
+            return res.ToArray();
+        }
+
+        public DmNode[] GetAncestor()
+        {
+            List<DmNode> res = new List<DmNode>();
+            DmNode curr = ParentNode;
+            while (curr != null)
+            {
+                res.Add(curr);
+                curr = curr.ParentNode;
+            }
+            return res.ToArray();
+        }
+
+        public DmNode[] GetSiblings()
+        {
+            List<DmNode> res = new List<DmNode>();
+            if (NodeType != XPathNodeType.Attribute && ParentNode != null)
+                foreach (DmNode node in ParentNode.GetChilds())
+                    if (node != this)
+                        res.Add(node);
+            return res.ToArray();
+        }
+
+        public DmNode[] GetClosure()
+        {
+            List<DmNode> res = new List<DmNode>();
+            OwnerDocument.DescendantsVisitor(res, true, this);
+            return res.ToArray();
         }
     }
 }

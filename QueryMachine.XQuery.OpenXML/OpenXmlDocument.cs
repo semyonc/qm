@@ -1,4 +1,4 @@
-﻿//        Copyright (c) 2009, Semyon A. Chertkov (semyonc@gmail.com)
+﻿//        Copyright (c) 2009-2010, Semyon A. Chertkov (semyonc@gmail.com)
 //        All rights reserved.
 //
 //        Redistribution and use in source and binary forms, with or without
@@ -26,33 +26,57 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Collections;
 
 using System.Xml;
-using System.Xml.Schema;
 using System.Xml.XPath;
 
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
 
-namespace DataEngine.XQuery.DocumentModel
+namespace DataEngine.XQuery.OpenXML
 {
-    internal class DmComment : DmNode
+    public class OpenXmlDocument: IXPathNavigable
     {
-        public DmComment(DmNode parent)
+        private OpenXmlPart _part;
+        private XmlNameTable _nameTable;
+
+        public OpenXmlDocument(OpenXmlPart part, XmlNameTable nameTable)
         {
-            _parent = parent;
+            _part = part;
+            _nameTable = nameTable;
         }
 
-        public override XPathNodeType NodeType
+        public string BaseUri
         {
             get
             {
-                return XPathNodeType.Comment;
+                return _part.Uri.ToString();
             }
         }
 
-        public override XdmNode CreateNode()
+        public XmlNameTable NameTable
         {
-            return new XdmComment();
+            get
+            {
+                return _nameTable;
+            }
         }
+
+        public OpenXmlPart Part
+        {
+            get
+            {
+                return _part;
+            }
+        }
+
+        #region IXPathNavigable Members
+
+        public XPathNavigator CreateNavigator()
+        {
+            return new OpenXmlNavigator(new RootAdapter(_part.RootElement, this));
+        }
+
+        #endregion
     }
 }

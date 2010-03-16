@@ -1023,7 +1023,7 @@ CastExpr
   ;
   
 UnaryExpr
-  : UnaryOperator ValueExpr  
+  : UnaryOperator ValueExpr
   {
      if ($1 == null)
        $$ = $2;
@@ -1487,7 +1487,42 @@ DirElemConstructor
    {
        $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
 		 $2, null, $5, $8, $9);
+   }       
+/* Mapping support extension */     
+   | BeginTag QName opt_S '[' PathExpr ']' opt_DirAttributeList '/' '>'
+   { 
+       $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, $2, $7);
+       notation.Confirm((Symbol)$$, Descriptor.MappingExpr, $5);
+   }   
+   | BeginTag QName opt_S '[' PathExpr ']' S '/' '>'
+   {
+       $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, $2, null);
+       notation.Confirm((Symbol)$$, Descriptor.MappingExpr, $5);
+   }   
+   | BeginTag QName opt_S '[' PathExpr ']' opt_DirAttributeList '>' '<' '/' QName opt_S '>'
+   {
+       $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
+		 $2, $7, null, $10, $11); 
+	   notation.Confirm((Symbol)$$, Descriptor.MappingExpr, $5);	 
+   }      
+   | BeginTag QName opt_S '[' PathExpr ']' S '>' '<' '/' QName opt_S '>'
+   {
+       $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
+		 $2, null, null, $10, $11);
+	   notation.Confirm((Symbol)$$, Descriptor.MappingExpr, $5); 
    }         
+   | BeginTag QName opt_S '[' PathExpr ']' opt_DirAttributeList '>' DirElemContentList '<' '/' QName opt_S '>'
+   {
+       $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
+		 $2, $7, $9, $12, $13);
+	   notation.Confirm((Symbol)$$, Descriptor.MappingExpr, $5);
+   }         
+   | BeginTag QName opt_S '[' PathExpr ']' S '>' DirElemContentList '<' '/' QName opt_S '>'
+   {
+       $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
+		 $2, null, $9, $12, $13);
+	   notation.Confirm((Symbol)$$, Descriptor.MappingExpr, $5);	 
+   }          
    ;
     
 DirElemContentList
@@ -1508,7 +1543,7 @@ opt_DirAttributeList
    }
    | DirAttributeList
    ;  
-   
+     
 DirAttributeList
    : S DirAttribute
    {

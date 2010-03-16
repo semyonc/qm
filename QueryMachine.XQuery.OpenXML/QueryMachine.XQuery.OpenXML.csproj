@@ -5,11 +5,11 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProductVersion>9.0.30729</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{AFFF7A90-D6DE-4893-AE39-C739D65BB631}</ProjectGuid>
-    <OutputType>WinExe</OutputType>
+    <ProjectGuid>{76F1BD99-2D8C-41BA-9FD7-31F88F78BABD}</ProjectGuid>
+    <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>SimpleTestConsole</RootNamespace>
-    <AssemblyName>SimpleTestConsole</AssemblyName>
+    <RootNamespace>DataEngine.XQuery.OpenXML</RootNamespace>
+    <AssemblyName>QueryMachine.XQuery.OpenXML</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
@@ -21,7 +21,6 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <UseVSHostingProcess>true</UseVSHostingProcess>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -40,84 +39,55 @@
     <ErrorReport>prompt</ErrorReport>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="DocumentFormat.OpenXml, Version=2.0.5022.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>bin\DocumentFormat.OpenXml.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
-    <Reference Include="System.Xml.Linq">
-      <RequiredTargetFramework>3.5</RequiredTargetFramework>
-    </Reference>
-    <Reference Include="System.Data.DataSetExtensions">
-      <RequiredTargetFramework>3.5</RequiredTargetFramework>
-    </Reference>
     <Reference Include="System.Data" />
-    <Reference Include="System.Deployment" />
-    <Reference Include="System.Drawing" />
-    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
     <Reference Include="WindowsBase">
       <RequiredTargetFramework>3.0</RequiredTargetFramework>
     </Reference>
-    <Reference Include="XmlGridControl, Version=1.1.3.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>bin\XmlGridControl.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Form1.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Form1.Designer.cs">
-      <DependentUpon>Form1.cs</DependentUpon>
-    </Compile>
-    <Compile Include="PathForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="PathForm.designer.cs">
-      <DependentUpon>PathForm.cs</DependentUpon>
-    </Compile>
-    <Compile Include="PerfTest.cs" />
-    <Compile Include="Program.cs" />
+    <Compile Include="AttributeAdapter.cs" />
+    <Compile Include="ElementAdapter.cs" />
+    <Compile Include="ElementTable.cs" />
+    <Compile Include="LeafTextElementAdapter.cs" />
+    <Compile Include="NamespaceAdapter.cs" />
+    <Compile Include="OpenXmlException.cs" />
+    <Compile Include="OpenXmlQueryCommand.cs" />
+    <Compile Include="OpenXmlDocument.cs" />
+    <Compile Include="OpenXmlFactory.cs" />
+    <Compile Include="OpenXmlNavigator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <EmbeddedResource Include="Form1.resx">
-      <DependentUpon>Form1.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="PathForm.resx">
-      <DependentUpon>PathForm.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
+    <Compile Include="NavigatorAdapter.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <None Include="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
-    <Compile Include="Properties\Settings.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Settings.settings</DependentUpon>
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-    </Compile>
-    <Compile Include="ResultBuilder.cs" />
+    <Compile Include="RootAdapter.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CoreServices\CoreServices.csproj">
       <Project>{454016BE-0E1C-4DFB-A22F-2E642A1AE9A6}</Project>
       <Name>CoreServices</Name>
     </ProjectReference>
-    <ProjectReference Include="..\QueryMachine.XQuery.OpenXML\QueryMachine.XQuery.OpenXML.csproj">
-      <Project>{76F1BD99-2D8C-41BA-9FD7-31F88F78BABD}</Project>
-      <Name>QueryMachine.XQuery.OpenXML</Name>
-    </ProjectReference>
     <ProjectReference Include="..\QueryMachine.XQuery\QueryMachine.XQuery.csproj">
       <Project>{0FDD0A6C-E9FA-4CE2-B2A7-461C7444EEFF}</Project>
       <Name>QueryMachine.XQuery</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

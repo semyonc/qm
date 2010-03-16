@@ -75,7 +75,7 @@ namespace DataEngine.XQuery
         Preserve        
     }
 
-    public class XQueryContext
+    public class XQueryContext: IContextProvider
     {
         public class VariableRecord
         {
@@ -299,6 +299,11 @@ namespace DataEngine.XQuery
             lispEngine = new InnerExecutive(this);
             lispEngine.Set("node#type", typeof(XPathNavigator));
             lispEngine.Enter(Resolver);
+            
+            SymbolLink contextLink = new SymbolLink(typeof(IContextProvider));
+            contextLink.Value = this;
+            Resolver.SetValue(ID.Context, contextLink);
+
             //lispEngine.m_traceOutput = Console.Out;
             
             AddNamespace("xml", XmlReservedNs.NsXml);
@@ -453,7 +458,7 @@ namespace DataEngine.XQuery
             worklist.Add(doc);
         }
 
-        public IXPathNavigable OpenDocument(string fileName)
+        public virtual IXPathNavigable OpenDocument(string fileName)
         {
             if (slave)
                 return master.OpenDocument(fileName);
@@ -476,7 +481,7 @@ namespace DataEngine.XQuery
                         return doc;
                 }
                 XQueryDocument ndoc = CreateDocument();
-                ndoc.Open(uri, GetSettings(), XmlSpace.Default);
+                ndoc.Open(uri, GetSettings(), XmlSpace.Default);                
                 return ndoc;
             }
         }
@@ -546,7 +551,7 @@ namespace DataEngine.XQuery
                 collationName == XmlReservedNs.NsCollationCodepoint)
                 return null;
             try
-            {
+            {                
                 return CultureInfo.GetCultureInfoByIetfLanguageTag(collationName);
             }
             catch (ArgumentException)
@@ -635,6 +640,14 @@ namespace DataEngine.XQuery
             }
         }
 
+        public XmlNameTable NameTable
+        {
+            get
+            {
+                return nameTable;
+            }
+        }
+
         public String SearchPath { get; set; }
 
         public String DefaultCollation { get; set; }
@@ -702,6 +715,34 @@ namespace DataEngine.XQuery
                     needValidationParser = value;
             }
         }
+
+        #region IContextProvider Members
+
+        XPathItem IContextProvider.Context
+        {
+            get 
+            {
+                throw new XQueryException(Properties.Resources.XPDY0002);
+            }
+        }
+
+        int IContextProvider.CurrentPosition
+        {
+            get 
+            {
+                throw new XQueryException(Properties.Resources.XPDY0002);
+            }
+        }
+
+        int IContextProvider.LastPosition
+        {
+            get 
+            {
+                throw new XQueryException(Properties.Resources.XPDY0002);
+            }
+        }
+
+        #endregion
     }
 
     public class XPathContext : XQueryContext

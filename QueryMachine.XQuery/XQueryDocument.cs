@@ -59,6 +59,14 @@ namespace DataEngine.XQuery
 
         public static long LargeFileLength = 154533888;
 
+        public bool IsIndexed
+        {
+            get
+            {
+                return documentRoot != null && builder == null;
+            }
+        }
+
         public XQueryDocument()
         {
             sequenceNumber = s_docNumberSequence++;

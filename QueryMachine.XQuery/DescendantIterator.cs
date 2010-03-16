@@ -25,92 +25,78 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections;
 using System.Text;
-using System.Xml;
-using System.Xml.Schema;
-using System.Xml.XPath;
 using System.Diagnostics;
+
+using System.Xml;
+using System.Xml.XPath;
+using System.Xml.Schema;
+
+using DataEngine.CoreServices;
+using DataEngine.XQuery.DocumentModel;
 
 namespace DataEngine.XQuery
 {
-    public sealed class BufferedNodeIterator: XQueryNodeIterator
+    internal sealed class DescendantIterator : XQueryNodeIterator
     {
+        private NodeSet nodeSet;
         private XQueryNodeIterator iter;
-        private List<XPathItem> buffer;
+        private PageFile pf;
+        private XQueryNavigator curr;
+        private int[] buffer;
+        private int index;
+        private int length;
+        private int k;
+        private int size;
 
-        [DebuggerStepThrough]
-        private BufferedNodeIterator()
+        public DescendantIterator(XQueryNodeIterator baseIter, NodeSet nodes)
         {
-        }
-
-        public BufferedNodeIterator(XQueryNodeIterator src)
-        {
-            iter = src.Clone();
-            buffer = new List<XPathItem>();
-        }
-
-        public override int Count
-        {
-            get
-            {
-                if (IsFinished)
-                    return buffer.Count;
-                return base.Count;
-            }
-        }
-
-        public override bool IsSingleIterator
-        {
-            get
-            {
-                if (buffer.Count > 1)
-                    return false;
-                else
-                {
-                    if (IsFinished && buffer.Count == 1)
-                        return true;
-                    return base.IsSingleIterator;
-                }
-            }
-        }
-
-        public void Fill()
-        {
-            XQueryNodeIterator iter = Clone();
-            while (iter.MoveNext())
-                ;
+            iter = baseIter.Clone();
+            nodeSet = nodes;
         }
 
         [DebuggerStepThrough]
         public override XQueryNodeIterator Clone()
         {
-            BufferedNodeIterator clone = new BufferedNodeIterator();
-            clone.iter = iter;
-            clone.buffer = buffer;
-            return clone;
+            return new DescendantIterator(iter, nodeSet);
         }
-        
-        public override XPathItem NextItem()
-        {
-            lock (iter)
-            {
-                int index = CurrentPosition + 1;
-                if (index < buffer.Count)
-                    return buffer[index];
-                else
-                    if (iter.MoveNext())
-                    {
-                        buffer.Add(iter.Current.Clone());
-                        return iter.Current;
-                    }
-                return null;
-            }
-        }
-        
+
         public override XQueryNodeIterator CreateBufferedIterator()
         {
-            return Clone();
+            return new BufferedNodeIterator(this);
+        }
+
+        public override void Init()
+        {
+            buffer = new int[PageFile.XQueryDirectAcessBufferSize];
+        }
+
+        public override XPathItem NextItem()
+        {
+            while (true)
+            {
+                if (index < length)
+                {
+                    if (k == size)
+                    {
+                        size = pf.Select(nodeSet.nodes, ref index, ref length, buffer);
+                        k = 0;
+                    }
+                    if (size > 0)
+                    {
+                        curr.Position = buffer[k++];
+                        return curr;
+                    }
+                }
+                if (!iter.MoveNext())
+                    return null;
+                if (!iter.Current.IsNode)
+                    throw new XQueryException(Properties.Resources.XPTY0019, iter.Current.Value);
+                curr = (XQueryNavigator)iter.Current.Clone();
+                pf = curr.Document.pagefile;
+                index = Math.Max(curr.Position, nodeSet.inf);
+                length = Math.Min(curr.GetLength(), nodeSet.sup - nodeSet.inf + 1);
+            }
         }
     }
 }

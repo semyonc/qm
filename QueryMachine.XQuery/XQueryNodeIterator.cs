@@ -52,6 +52,7 @@ namespace DataEngine.XQuery
         private XPathItem curr;
         private int pos;
         private bool iteratorStarted;
+        private bool iteratorFinished;
 
         public XQueryNodeIterator()
         {
@@ -71,6 +72,17 @@ namespace DataEngine.XQuery
                         count++;
                 }
                 return count;
+            }
+        }
+
+        public virtual bool IsSingleIterator
+        {
+            get
+            {
+                XQueryNodeIterator iter = Clone();
+                if (iter.MoveNext() && !iter.MoveNext())
+                    return true;
+                return false;
             }
         }
 
@@ -94,6 +106,14 @@ namespace DataEngine.XQuery
             }
         }
 
+        public bool IsFinished
+        {
+            get
+            {
+                return iteratorFinished;
+            }
+        }
+
         [DebuggerStepThrough]
         public bool MoveNext()
         {
@@ -113,6 +133,7 @@ namespace DataEngine.XQuery
                 curr = item;
                 return true;
             }
+            iteratorFinished = true;
             return false;
         }
 
@@ -251,6 +272,14 @@ namespace DataEngine.XQuery
             public override XQueryNodeIterator Clone()
             {
                 return new SingleIterator(_item);
+            }
+
+            public override bool IsSingleIterator
+            {
+                get
+                {
+                    return true;
+                }
             }
 
             public override XPathItem NextItem()

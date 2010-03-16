@@ -56,6 +56,18 @@ namespace DataEngine.XQuery.DocumentModel
             return new XdmDocument();
         }
 
+        public DmElement DocumentElement
+        {
+            get
+            {
+                if (ChildNodes != null)
+                    foreach (DmNode child in ChildNodes)
+                        if (child.NodeType == XPathNodeType.Element)
+                            return (DmElement)child;
+                return null;
+            }
+        }
+
         public void Dump(TextWriter o)
         {
             o.Write("DmRoot");

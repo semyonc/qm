@@ -501,7 +501,7 @@ namespace DataEngine.XQuery.Parser
                 }
                 m_state = LexerState.Operator;
             }
-            else if (c == ';' || c == ',' || c == '(' || c == '-' || c == '+' || c == '@')
+            else if (c == ';' || c == ',' || c == '(' || c == '-' || c == '+' || c == '@' || c == '~')
                 ConsumeChar(Read());
             else if (c == '/')
             {
@@ -1171,6 +1171,8 @@ namespace DataEngine.XQuery.Parser
             else if (c == ';' || c == ',' || c == '=' || c == '+' || c == '-' || c == '[' || c == '|')
             {
                 ConsumeChar(Read());
+                if (c == '[')
+                    m_states.Push(m_state);
                 m_state = LexerState.Default;
             }
             else if (c == '*')
@@ -1241,8 +1243,13 @@ namespace DataEngine.XQuery.Parser
                     m_state = LexerState.ItemType;
                 }
             }
-            else if (c == '?' || c == ']')
+            else if (c == '?') 
                 ConsumeChar(Read());
+            else if (c == ']')
+            {
+                ConsumeChar(Read());
+                m_state = m_states.Pop();
+            }
             else if (MatchIdentifer("then"))
             {
                 EndToken();
@@ -1882,6 +1889,8 @@ namespace DataEngine.XQuery.Parser
             else if (c == '=' || c == '(' || c == '[' || c == '|')
             {
                 ConsumeChar(Read());
+                if (c == '[')
+                    m_states.Push(m_state);
                 m_state = LexerState.Default;
             }
             else if (c == ':' && Peek(1) == '=')
@@ -2318,6 +2327,12 @@ namespace DataEngine.XQuery.Parser
             {
                 ConsumeChar(Read());
                 m_state = LexerState.ElementContent;
+            }
+            else if (c == '[') // Mapping extensions
+            {
+                ConsumeChar(Read());
+                m_states.Push(LexerState.AttributeState);
+                m_state = LexerState.Default;
             }
             else if (c == '"')
             {
