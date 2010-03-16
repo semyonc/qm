@@ -71,6 +71,7 @@
   <ItemGroup>
     <Compile Include="BigInteger.cs" />
     <Compile Include="BufferedNodeIterator.cs" />
+    <Compile Include="DescendantIterator.cs" />
     <Compile Include="DocumentModel\DmAttribute.cs" />
     <Compile Include="DocumentModel\DmComment.cs" />
     <Compile Include="DocumentModel\DmContainer.cs" />
@@ -126,6 +127,7 @@
     <Compile Include="Parser\Tokenizer.cs" />
     <Compile Include="TreeComparer.cs" />
     <Compile Include="VarTable.cs" />
+    <Compile Include="XQueryMapping.cs" />
     <Compile Include="XQueryNavigatorWrapper.cs" />
     <Compile Include="XQueryParameter.cs" />
     <Compile Include="XQueryParameterCollection.cs" />

@@ -1419,6 +1419,13 @@ namespace DataEngine.XQuery
         {
             WriteText('<');
             WriteQName((Qname)rec.Arg0);
+            Notation.Record[] recs1 = notation.Select(rec.sym, Descriptor.MappingExpr, 1);
+            if (recs1.Length > 0) // Mapping extension support
+            {
+                WriteText("[");
+                WritePathExpr(recs1[0].Arg0);
+                WriteText("]");
+            }
             if (rec.args[1] != null)
                 foreach (Symbol sym in Lisp.getIterator<Symbol>(rec.args[1]))
                 {

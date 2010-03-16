@@ -37,8 +37,9 @@ namespace DataEngine.XQuery.DocumentModel
 {
     internal class DmText : DmNode
     {
-        public DmText()
+        public DmText(DmNode parent)
         {
+            _parent = parent;
         }
 
         public override XPathNodeType NodeType
@@ -57,8 +58,9 @@ namespace DataEngine.XQuery.DocumentModel
 
     internal class DmWhitespace : DmNode
     {
-        public DmWhitespace()
+        public DmWhitespace(DmNode parent)
         {
+            _parent = parent;
         }
 
         public override XPathNodeType NodeType

@@ -1,4 +1,4 @@
-﻿//        Copyright (c) 2009, Semyon A. Chertkov (semyonc@gmail.com)
+﻿//        Copyright (c) 2009-2010, Semyon A. Chertkov (semyonc@gmail.com)
 //        All rights reserved.
 //
 //        Redistribution and use in source and binary forms, with or without
@@ -26,33 +26,46 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Collections;
 
 using System.Xml;
-using System.Xml.Schema;
 using System.Xml.XPath;
 
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
 
-namespace DataEngine.XQuery.DocumentModel
+namespace DataEngine.XQuery.OpenXML
 {
-    internal class DmComment : DmNode
+    public static class OpenXMLFactory
     {
-        public DmComment(DmNode parent)
+        public static XQueryNodeIterator QueryNodes(this OpenXmlPart part, string xquery)
         {
-            _parent = parent;
+            return QueryNodes(part, xquery, null);
         }
 
-        public override XPathNodeType NodeType
+        public static XQueryNodeIterator QueryNodes(this OpenXmlPart part, string xquery, XmlNamespaceManager nsmgr)
         {
-            get
-            {
-                return XPathNodeType.Comment;
-            }
+            return QueryNodes(part, part.RootElement, xquery, nsmgr);
         }
 
-        public override XdmNode CreateNode()
+        public static XQueryNodeIterator QueryNodes(this OpenXmlPart part, OpenXmlElement contextNode, string xquery)
         {
-            return new XdmComment();
+            return QueryNodes(part, part.RootElement, xquery, null);
+        }
+
+        public static XQueryNodeIterator QueryNodes(this OpenXmlPart part, OpenXmlElement contextNode, 
+            string xquery, XmlNamespaceManager nsmgr)
+        {
+            NameTable nameTable = new NameTable();
+            OpenXmlDocument doc = new OpenXmlDocument(part, nameTable);
+            OpenXmlNavigator node = new OpenXmlNavigator(new ElementAdapter(contextNode, new RootAdapter(doc.Part.RootElement, doc)));
+            OpenXmlQueryCommand command = new OpenXmlQueryCommand(nameTable);
+            if (nsmgr != null)
+                command.Context.CopyNamespaces(nsmgr);
+            command.ContextItem = node;
+            command.CommandText = xquery;
+            BufferedNodeIterator res = (BufferedNodeIterator)command.Execute().CreateBufferedIterator();
+            res.Fill(); // Load all nodes for preventing to close container before finish query
+            return res;
         }
     }
 }

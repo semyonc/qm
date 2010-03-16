@@ -60,6 +60,8 @@ namespace DataEngine.XQuery
         private XmlQualifiedNameTest m_nameTest;
         private XQuerySequenceType m_typeTest;
 
+        internal XQueryExpr Filter { get; set; }
+
         public XQueryStepExpr(object nodeTest, XQueryPathExprType type, XQueryContext queryContext)
             : this(type, queryContext)
         {
@@ -152,14 +154,34 @@ namespace DataEngine.XQuery
             }
         }
 
+        public bool IsText
+        {
+            get
+            {
+                return m_typeTest != null && m_typeTest.TypeCode == XmlTypeCode.Text;
+            }
+        }
+
+        public bool IsAttribute
+        {
+            get
+            {
+                return m_type == XQueryPathExprType.Attribute;
+            }
+        }
+
         public override void Bind(DataEngine.CoreServices.Executive.Parameter[] parameters)
         {
-            return;
+            if (Filter != null)
+                Filter.Bind(parameters);
         }
 
         public override IEnumerable<SymbolLink> EnumDynamicFuncs()
         {
-            return new SymbolLink[0];
+            List<SymbolLink> res = new List<SymbolLink>();
+            if (Filter != null)                
+                res.AddRange(Filter.EnumDynamicFuncs());
+            return res;
         }
 
         public override object Execute(IContextProvider provider, object[] args)
@@ -169,7 +191,7 @@ namespace DataEngine.XQuery
             return new NodeIterator(m_iter(provider.Context));                
         }
 
-        private bool TestItem(XPathItem item)
+        public bool TestItem(XPathItem item)
         {
             if (m_nameTest != null)
             {
@@ -226,7 +248,7 @@ namespace DataEngine.XQuery
                             curr.NodeType == XPathNodeType.Element &&
                             m_nameTest != null)
                             break;
-                    } 
+                    }
                     while (curr.MoveToNext());
             }
         }
@@ -440,6 +462,6 @@ namespace DataEngine.XQuery
                     }
                 }
             }
-        }        
+        }
     }
 }

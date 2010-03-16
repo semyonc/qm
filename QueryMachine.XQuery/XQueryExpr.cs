@@ -69,6 +69,7 @@ namespace DataEngine.XQuery
         public override void Bind(Executive.Parameter[] parameters)
         {
             m_context = new SymbolLink(typeof(IContextProvider));
+            object data = QueryContext.Resolver.GetCurrentStack();
             QueryContext.Resolver.SetValue(ID.Context, m_context);
             m_compiledBody = new SymbolLink[m_expr.Length];
             for (int k = 0; k < m_expr.Length; k++)
@@ -84,7 +85,8 @@ namespace DataEngine.XQuery
                     m_compiledAnnotation[k] = new SymbolLink();
                     QueryContext.Engine.Compile(parameters, Annotation[k], m_compiledAnnotation[k]);
                 }
-            }            
+            }
+            QueryContext.Resolver.RevertToStack(data);
         }
 
         public override IEnumerable<SymbolLink> EnumDynamicFuncs()

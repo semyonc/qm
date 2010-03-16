@@ -1984,7 +1984,7 @@ namespace DataEngine.XQuery
                 XQueryNavigator curr = (XQueryNavigator)root.Clone();
                 for (int k = 0; k < pf.Count; k++)
                 {
-                    DmNode head = pf.Head(k);
+                    DmNode head = pf.GetHead(k);
                     if (head != null)
                     {
                         curr.Position = k;
@@ -2131,7 +2131,7 @@ namespace DataEngine.XQuery
             return new TimeValue(new DateTimeOffset(context.now));
         }
 
-        internal static void ScanLocalNamespaces(XmlNamespaceManager nsmgr, XPathNavigator node, bool recursive)
+        public static void ScanLocalNamespaces(XmlNamespaceManager nsmgr, XPathNavigator node, bool recursive)
         {
             if (node.NodeType == XPathNodeType.Root)
                 node.MoveToChild(XPathNodeType.Element);

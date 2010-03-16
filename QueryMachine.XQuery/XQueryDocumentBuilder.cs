@@ -136,7 +136,8 @@ namespace DataEngine.XQuery
             if (context != null)
                 pos = context.pos;
             DmComment comment = (DmComment)_parent.CreateChildComment();
-            m_pageFile.AddNode(comment, new XdmComment(pos, text));
+            comment.IndexNode(m_pageFile.Count);
+            m_pageFile.AddNode(pos, comment, new XdmComment(text));
         }
 
         public override void WriteDocType(string name, string pubid, string sysid, string subset)
@@ -166,7 +167,8 @@ namespace DataEngine.XQuery
             if (context != null)
                 pos = context.pos;
             DmPI pi = (DmPI)_parent.CreateChildPI(name, NameTable);
-            m_pageFile.AddNode(pi, new XdmProcessingInstruction(pos, text));
+            pi.IndexNode(m_pageFile.Count);
+            m_pageFile.AddNode(pos, pi, new XdmProcessingInstruction(text));
         }
 
         public override void WriteRaw(string data)
@@ -317,7 +319,11 @@ namespace DataEngine.XQuery
         {
             if (cflag)
             {
-                m_pageFile.AddNode(_parent = context.node, context.element);
+                int pos = -1;
+                if (context.parent != null)
+                    pos = context.parent.pos;
+                context.node.IndexNode(m_pageFile.Count);
+                m_pageFile.AddNode(pos, _parent = context.node, context.element);
                 if (isElemEnd)
                 {
                     if (_text != null)
@@ -336,7 +342,8 @@ namespace DataEngine.XQuery
                     if (_text != null)
                     {
                         DmText node = (DmText)_parent.CreateChildText();
-                        m_pageFile.AddNode(node, new XdmText(context.pos, _text));
+                        node.IndexNode(m_pageFile.Count);
+                        m_pageFile.AddNode(context.pos, node, new XdmText(_text));
                         _text = null;
                     }
                 }
@@ -422,8 +429,11 @@ namespace DataEngine.XQuery
         public override void WriteStartDocument(bool standalone)
         {
             DocumentRoot.Standalone = standalone;
-            m_pageFile.AddNode(DocumentRoot, new XdmDocument());
+            DocumentRoot.IndexNode(m_pageFile.Count);
+            m_pageFile.AddNode(-1, DocumentRoot, new XdmDocument());
             m_pageFile[0] = 0;
+            context = new ElementContext(null);
+            context.pos = 0;
         }
 
         public override void WriteStartDocument()
@@ -450,7 +460,7 @@ namespace DataEngine.XQuery
                 ns = String.Empty;
             context.node = (DmElement)_parent.CreateChild(new DmQName(prefix, localName, ns, NameTable));
             context.pos = m_pageFile.Count;
-            context.element = new XdmElement(pos);
+            context.element = new XdmElement();
             context.isEmptyElement = IsEmptyElement;
             if (NamespaceManager != null && NamespaceInheritanceMode == NamespaceInheritanceMode.Inherit)
                 context.inheritedScope = NamespaceManager.GetNamespacesInScope(XmlNamespaceScope.Local);            
@@ -468,7 +478,7 @@ namespace DataEngine.XQuery
             if (!isLeaf)
             {
                 m_pageFile[context.pos] = m_pageFile.Count + 1;                
-                m_pageFile.AddNode(null, null);
+                m_pageFile.AddNode(-1, null, null);
                 m_pageFile[m_pageFile.Count - 1] = LastElementEnd;
             }
             _parent = (DmContainer)context.node.ParentNode;
@@ -519,7 +529,8 @@ namespace DataEngine.XQuery
                         if (context != null)
                             pos = context.pos;
                         DmText node = (DmText)_parent.CreateChildText();
-                        m_pageFile.AddNode(node, new XdmText(pos, text));
+                        node.IndexNode(m_pageFile.Count);
+                        m_pageFile.AddNode(pos, node, new XdmText(text));
                     }
                 }
             }
@@ -551,7 +562,8 @@ namespace DataEngine.XQuery
                     if (context != null)
                         pos = context.pos;
                     DmWhitespace node = (DmWhitespace)_parent.CreateChildWhitespace();
-                    m_pageFile.AddNode(node, new XdmWhitespace(pos, ws));
+                    node.IndexNode(m_pageFile.Count);
+                    m_pageFile.AddNode(pos, node, new XdmWhitespace(ws));
                 }
             }
         }

@@ -1,4 +1,4 @@
-﻿//        Copyright (c) 2009, Semyon A. Chertkov (semyonc@gmail.com)
+﻿//        Copyright (c) 2009-2010, Semyon A. Chertkov (semyonc@gmail.com)
 //        All rights reserved.
 //
 //        Redistribution and use in source and binary forms, with or without
@@ -26,33 +26,25 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Collections;
+using System.IO;
 
 using System.Xml;
-using System.Xml.Schema;
 using System.Xml.XPath;
+using System.Xml.Schema;
 
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
 
-namespace DataEngine.XQuery.DocumentModel
+using DataEngine.CoreServices;
+
+namespace DataEngine.XQuery.OpenXML
 {
-    internal class DmComment : DmNode
+    public class OpenXmlException: Exception
     {
-        public DmComment(DmNode parent)
-        {
-            _parent = parent;
-        }
+		public OpenXmlException (string message, Exception innerException) : base (message, innerException) {}
 
-        public override XPathNodeType NodeType
-        {
-            get
-            {
-                return XPathNodeType.Comment;
-            }
-        }
+		internal OpenXmlException (string message) : base (message, null) {}
 
-        public override XdmNode CreateNode()
-        {
-            return new XdmComment();
-        }
+        internal OpenXmlException(string message, params object[] args) : base(String.Format(message, args), null) { }
     }
 }

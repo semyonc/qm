@@ -26,19 +26,21 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Diagnostics;
 
 using System.Xml;
 using System.Xml.XPath;
 using System.Xml.Schema;
 
 using DataEngine.CoreServices;
-using System.Diagnostics;
+using DataEngine.XQuery.DocumentModel;
 
 namespace DataEngine.XQuery
 {
     internal sealed class XQueryPathExpr: XQueryExprBase
     {
         private XQueryExprBase[] _stepExpr;        
+        
         private bool _isOrdered;
         private bool _isOrderedSet;
 
@@ -80,7 +82,7 @@ namespace DataEngine.XQuery
         {
             XQueryNodeIterator rootIter = 
                 XQueryNodeIterator.Create(_stepExpr[0].Execute(provider, args)).CreateBufferedIterator();
-            return new ResultIterator(this, provider, _isOrderedSet, rootIter, args);
+            return new ResultIterator(this, provider, _isOrderedSet || !rootIter.IsSingleIterator, rootIter, args);
         }
 
         private bool IsOrderedSet()
@@ -112,6 +114,85 @@ namespace DataEngine.XQuery
                 }
             }
             return true;
+        }
+
+        private bool IsIndexedPathExpr()
+        {
+            for (int k = 1; k < _stepExpr.Length; k++)
+            {
+                XQueryStepExpr stepExpr = _stepExpr[k] as XQueryStepExpr;
+                if (stepExpr == null)
+                    return false;
+                switch (stepExpr.ExprType)
+                {                    
+                    case XQueryPathExprType.Ancestor:
+                    case XQueryPathExprType.AncestorOrSelf:
+                    case XQueryPathExprType.Parent:
+                    case XQueryPathExprType.Preceding:
+                    case XQueryPathExprType.PrecedingSibling:
+                    case XQueryPathExprType.Following:
+                    case XQueryPathExprType.FollowingSibling:
+                    case XQueryPathExprType.Namespace:
+                        return false;
+                }
+            }
+            return true;
+        }
+
+        private void GetTermNodes(DmNode curr, int index, HashSet<DmNode> nodes)
+        {
+            XQueryStepExpr expr = _stepExpr[index] as XQueryStepExpr;
+            if (expr == null)
+                throw new InvalidOperationException();
+            switch (expr.ExprType)
+            {
+                case XQueryPathExprType.Self:
+                    if (index < _stepExpr.Length - 1)
+                        GetTermNodes(curr, index + 1, nodes);
+                    else
+                        nodes.Add(curr);
+                    break;
+
+                case XQueryPathExprType.Child:
+                    foreach (DmNode node in curr.GetChilds())
+                        if (node.TestNode(expr.NameTest, expr.TypeTest))
+                        {
+                            if (index < _stepExpr.Length - 1)
+                                GetTermNodes(node, index + 1, nodes);
+                            else
+                                nodes.Add(node);
+                        }
+                    break;
+
+                case XQueryPathExprType.Attribute:
+                    nodes.Add(curr);
+                    break;
+
+                case XQueryPathExprType.Descendant:
+                    foreach (DmNode node in curr.GetDescendants())
+                        if (node.TestNode(expr.NameTest, expr.TypeTest))
+                        {
+                            if (index < _stepExpr.Length - 1)
+                                GetTermNodes(node, index + 1, nodes);
+                            else
+                                nodes.Add(node);
+                        }
+                    break;
+
+                case XQueryPathExprType.DescendantOrSelf:
+                    foreach (DmNode node in curr.GetDescendantOrSelf())
+                        if (node.TestNode(expr.NameTest, expr.TypeTest))
+                        {
+                            if (index < _stepExpr.Length - 1)
+                                GetTermNodes(node, index + 1, nodes);
+                            else
+                                nodes.Add(node);
+                        }
+                    break;
+
+                default:
+                    throw new NotImplementedException();
+            }
         }
 
         private bool MoveNext(object[] args, XQueryNodeIterator[] iter, int index)
@@ -196,11 +277,8 @@ namespace DataEngine.XQuery
                             XPathItem curr = iter[_stepExpr.Length - 1].Current;
                             if (!curr.IsNode)
                                 throw new XQueryException(Properties.Resources.XPTY0018, curr.Value);
-                            if (!hs.Contains(curr))
-                            {
+                            if (hs.Add(curr.Clone()))
                                 yield return curr;
-                                hs.Add(curr.Clone());
-                            }
                         }
                         while (MoveNext(res.args, iter, _stepExpr.Length - 1));
                     }
@@ -251,9 +329,11 @@ namespace DataEngine.XQuery
 
             public override XQueryNodeIterator CreateBufferedIterator()
             {
+                if (orderedSet)
+                    return Clone();
                 return new BufferedNodeIterator(this);
             }
-        }
+        }        
 
 #if DEBUG
         public override string ToString()

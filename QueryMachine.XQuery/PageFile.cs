@@ -51,7 +51,9 @@ namespace DataEngine.XQuery
         private int pagesize;
         private int min_workset;
         private int max_workset;
-        private int workset_delta; 
+        private int workset_delta;
+        private int min_increment;
+        private int max_decrement;
         private int count;
         private int lastcount;
         private int blockcount;
@@ -87,7 +89,8 @@ namespace DataEngine.XQuery
 
         #endregion
                                                    
-        public const int XQueryBlockSize = 1000;            
+        public const int XQueryBlockSize = 1000;
+        public const int XQueryDirectAcessBufferSize = 500;    
         
         public PageFile(bool large)
         {
@@ -97,13 +100,17 @@ namespace DataEngine.XQuery
                 min_workset = 3;
                 max_workset = 15;
                 workset_delta = 5;
+                min_increment = 2;
+                max_decrement = 1;
             }
             else
             {
                 pagesize = 16;
                 min_workset = 100;
-                max_workset = 300;
-                workset_delta = 150;
+                max_workset = 3000;
+                workset_delta = 500;
+                min_increment = 150;
+                max_decrement = 100;
             }
             pagelist = new List<Page[]>();
             cached = new List<Page>();
@@ -182,31 +189,39 @@ namespace DataEngine.XQuery
                     File.Delete(fileName);
                     fileStream = null;
                     closed = true;
+                    //Console.WriteLine(count);
+                    //Console.WriteLine(miss_count);
+                    //Console.WriteLine(hit_count);
+                    //Console.WriteLine((double)miss_count / hit_count);
                 }
             }
         }
    
-        public void Get(int index, bool load, out DmNode head, out XdmNode node)
+        public void Get(int index, bool load, out int parent, out DmNode head, out XdmNode node)
         {
             if (index < 0 || index >= count)
                 throw new ArgumentException("index");
-            OptimizeCache();
             int pagenum = index / pagesize;
             Page[] block = pagelist[pagenum / XQueryBlockSize];
             Page page = block[pagenum % XQueryBlockSize];
             int k = index % pagesize;
             if (load)
+            {
                 page.pin++;
+                hit_count++;
+            }
             int hindex = page.hindex[k];
             if (hindex == -1)
                 head = null;
             else
                 head = heads[hindex];
+            parent = page.parent[k];
             XdmNode[] nodes = page.nodes;
             if (nodes == null)
             {
                 if (load)
                 {
+                    OptimizeCache();
                     nodes = ReadPage(page);
                     node = nodes[k];
                 }
@@ -214,20 +229,22 @@ namespace DataEngine.XQuery
                     node = null;
             }
             else
-            {
-                node = nodes[k];
-                hit_count++;
-            }
+                node = nodes [k];                
         }
 
-        public DmNode Head(int index)
+        public int GetHIndex(int index)
         {
             if (index < 0 || index >= count)
                 throw new ArgumentException("index");
             int pagenum = index / pagesize;
             Page[] block = pagelist[pagenum / XQueryBlockSize];
             Page page = block[pagenum % XQueryBlockSize];
-            int hindex = page.hindex[index % pagesize];
+            return page.hindex[index % pagesize];
+        }
+
+        public DmNode GetHead(int index)
+        {
+            int hindex = GetHIndex(index);
             if (hindex == -1)
                 return null;
             return heads[hindex];
@@ -261,6 +278,67 @@ namespace DataEngine.XQuery
                 Page page = block[pagenum % XQueryBlockSize];
                 page.next[index % pagesize] = value;
             }
+        }
+
+        public int Select(DmNode target, ref int index, ref int length, int[] buffer)
+        {
+            int count = 0;
+            int pagenum = index / pagesize;
+            int blocknum = pagenum / XQueryBlockSize;
+            Page[] block = pagelist[blocknum];
+            Page curr = block[pagenum % XQueryBlockSize];
+            int k = index % pagesize;
+            for ( ; length > 0; length--)
+            {
+                if (count == buffer.Length)
+                    break;
+                if (target._index == curr.hindex[k])
+                    buffer[count++] = index;
+                index++;
+                if (k <= pagesize)
+                    k++;
+                else
+                {
+                    pagenum = index / pagesize;
+                    block = pagelist[pagenum / XQueryBlockSize];
+                    curr = block[pagenum % XQueryBlockSize];
+                    k = 0;
+                }
+            }
+            return count;
+        }
+
+        public int Select(DmNode[] targets, ref int index, ref int length, int[] buffer)
+        {
+            int count = 0;
+            int pagenum = index / pagesize;
+            int blocknum = pagenum / XQueryBlockSize;
+            Page[] block = pagelist[blocknum];
+            Page curr = block[pagenum % XQueryBlockSize];
+            int k = index % pagesize;
+            for (; length > 0; length--)
+            {
+                if (count == buffer.Length)
+                    break;
+                int hindex = curr.hindex[k];
+                for (int s = 0; s < targets.Length; k++)
+                    if (targets[k]._index == hindex)
+                    {
+                        buffer[count++] = index;
+                        break;
+                    }
+                index++;
+                if (k <= pagesize)
+                    k++;
+                else
+                {
+                    pagenum = index / pagesize;
+                    block = pagelist[pagenum / XQueryBlockSize];
+                    curr = block[pagenum % XQueryBlockSize];
+                    k = 0;
+                }
+            }
+            return count;
         }
         
         private XdmNode[] ReadPage(Page page)
@@ -316,7 +394,7 @@ namespace DataEngine.XQuery
         }
 
         private void OptimizeCache()
-        {
+        {            
             if (cached.Count > workset + workset_delta)
             {
                 if (miss_count > 0 && hit_count > 0)
@@ -324,7 +402,12 @@ namespace DataEngine.XQuery
                     double ratio1 = (double)miss_count / hit_count;
                     if (ratio > 0)
                     {
-                        workset = Math.Ceiling((workset * ratio1) / ratio);
+                        double delta = Math.Ceiling((workset * ratio1) / ratio) - workset;
+                        if (delta > 0 && delta < min_increment)
+                            delta = min_increment;
+                        else if (delta < 0 && delta > max_decrement)
+                            delta = -max_decrement;
+                        workset += delta;
                         if (workset < min_workset)
                             workset = min_workset;
                         else if (workset > max_workset)
@@ -376,7 +459,7 @@ namespace DataEngine.XQuery
             }
         }
 
-        public void AddNode(DmNode head, XdmNode node)
+        public void AddNode(int parent, DmNode head, XdmNode node)
         {
             if (lastpage == null ||
                 lastcount == pagesize)
@@ -414,6 +497,7 @@ namespace DataEngine.XQuery
             }
             lastpage.nodes[lastcount] = node;
             lastpage.next[lastcount] = count;
+            lastpage.parent[lastcount] = parent;
             lastnode = node;
             lastcount++;
         }
@@ -435,6 +519,7 @@ namespace DataEngine.XQuery
             internal XdmNode[] nodes;
             internal int[] next;
             internal int[] hindex;
+            internal int[] parent;
 
             public Page(int pagesize)
             {
@@ -443,6 +528,7 @@ namespace DataEngine.XQuery
                     hindex[k] = -1;
                 nodes = new XdmNode[pagesize];
                 next = new int[pagesize];
+                parent = new int[pagesize];
                 stored = false;
             }
         }

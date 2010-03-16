@@ -1710,6 +1710,15 @@ namespace DataEngine.XQuery
                     if (recs1.Length > 0)
                         filter.Add((XQueryExpr)ProcessExpr(notation, recs1[0].args[0]));
                 }
+                //XQueryStepExpr stepExpr = ancestor as XQueryStepExpr;
+                //if (stepExpr != null && filter.Count == 1)
+                //    stepExpr.Filter = filter[0];
+                //else
+                //{
+                //    XQueryFilterExpr filterExpr = new XQueryFilterExpr(_context, filter.ToArray());
+                //    filterExpr.SourceExpr = ancestor;
+                //    return filterExpr;
+                //}
                 XQueryFilterExpr filterExpr = new XQueryFilterExpr(_context, filter.ToArray());
                 filterExpr.SourceExpr = ancestor;
                 return filterExpr;
@@ -1719,7 +1728,6 @@ namespace DataEngine.XQuery
         
         private XQueryExprBase ProcessFilterExpr(Notation notation, Notation.Record rec)
         {
-
             return ProcessPredicateList(notation, rec.Arg0, 
                 new XQueryExpr(_context, new object[] { ProcessPrimaryExpr(notation, rec.Arg0) }));
         }
@@ -1879,13 +1887,33 @@ namespace DataEngine.XQuery
                 {
                     case Descriptor.DirElemConstructor:
                         {
+                            bool mapping = false;                            
                             object builder = Lisp.Defatom("b");
                             List<object> stmt = new List<object>();
                             stmt.Add(Funcs.Progn);
-                            WriteDirElemConstructor(notation, recs[0], builder, stmt);
-                            stmt.Add(Lisp.List(ID.CreateNavigator, builder));
-                            return Lisp.List(Funcs.Let1, Lisp.Cons(Lisp.List(builder, Lisp.Cons(ID.CreateBuilder))),
-                                Lisp.List(stmt.ToArray()));
+                            WriteDirElemConstructor(notation, recs[0], builder, stmt, ref mapping);
+                            stmt.Add(Lisp.List(ID.CreateNavigator, builder));                            
+                            object body = Lisp.List(stmt.ToArray());
+                            object res;
+                            if (mapping)
+                                res = new XQueryLET(_context, builder, XQuerySequenceType.Item,
+                                    Lisp.Cons(ID.CreateBuilder), new XQueryExpr(_context, new object[] { body }), false);
+                            else
+                                res = Lisp.List(Funcs.Let1, Lisp.Cons(Lisp.List(builder, Lisp.Cons(ID.CreateBuilder))), body);
+                            Notation.Record[] recs1 = notation.Select(sym, Descriptor.MappingExpr, 1);
+                            if (recs1.Length > 0) // Mapping extension support
+                            {
+                                if (!mapping)
+                                    res = new XQueryExpr(_context, new object[] { res });
+                                return new XQueryMapping(_context, ProcessPathExpr(notation, recs1[0].Arg0), 
+                                    (XQueryExprBase)res, true).ToLispFunction();
+                            }
+                            else
+                            {
+                                if (mapping)
+                                    return ((XQueryExprBase)res).ToLispFunction();
+                                return res;
+                            }
                         }
 
                     case Descriptor.DirCommentConstructor:
@@ -1910,7 +1938,7 @@ namespace DataEngine.XQuery
                 return ProcessComputedConstructor(notation, sym);
         }
 
-        private void WriteDirElemConstructor(Notation notation, Notation.Record rec, object builder, List<object> stmt)
+        private void WriteDirElemConstructor(Notation notation, Notation.Record rec, object builder, List<object> stmt, ref bool mapping)
         {           
             string prefix;
             string localName;
@@ -1987,7 +2015,7 @@ namespace DataEngine.XQuery
             }
             if (rec.args.Length > 2 && rec.args[2] != null)
                 foreach (Symbol sym in Lisp.getIterator<Symbol>(rec.args[2]))
-                    WriteDirElemContent(notation, sym, builder, stmt);
+                    WriteDirElemContent(notation, sym, builder, stmt, ref mapping);
             stmt.Add(Lisp.List(ID.WriteEndElement, builder));
             if (openScope)
                 _context.NamespaceManager.PopScope();
@@ -2014,7 +2042,7 @@ namespace DataEngine.XQuery
                     WriteCommonContent(notation, sym, builder, stmt, true);
         }
 
-        private void WriteDirElemContent(Notation notation, Symbol sym, object builder, List<object> stmt)
+        private void WriteDirElemContent(Notation notation, Symbol sym, object builder, List<object> stmt, ref bool mapping)
         {
             if (sym.Tag == Tag.Literal)
             {
@@ -2036,7 +2064,20 @@ namespace DataEngine.XQuery
                     switch (recs[0].descriptor)
                     {
                         case Descriptor.DirElemConstructor:
-                            WriteDirElemConstructor(notation, recs[0], builder, stmt);
+                            {
+                                Notation.Record[] recs1 = notation.Select(recs[0].sym, Descriptor.MappingExpr, 1);
+                                if (recs1.Length > 0) // Mapping extension support
+                                {
+                                    List<object> group = new List<object>();
+                                    group.Add(Funcs.Progn);
+                                    WriteDirElemConstructor(notation, recs[0], builder, group, ref mapping);
+                                    stmt.Add(new XQueryMapping(_context, ProcessPathExpr(notation, recs1[0].Arg0),
+                                        new XQueryExpr(_context, new object[] { Lisp.List(group.ToArray()) }), false).ToLispFunction());
+                                    mapping = true;
+                                }
+                                else
+                                    WriteDirElemConstructor(notation, recs[0], builder, stmt, ref mapping);
+                            }
                             break;
 
                         case Descriptor.DirCommentConstructor:

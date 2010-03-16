@@ -57,12 +57,12 @@ namespace DataEngine.XQuery
         protected class WorkContext : XQueryContext
         {
             private XQueryCommand m_command;
-            private Dictionary<string, XQueryNodeIterator> m_dict;
+            private Dictionary<string, XQueryNodeIterator> m_dict = new Dictionary<string, XQueryNodeIterator>();
 
-            public WorkContext(XQueryCommand command)
+            public WorkContext(XQueryCommand command, XmlNameTable nameTable)
+                : base(nameTable)
             {
                 m_command = command;
-                m_dict = new Dictionary<string, XQueryNodeIterator>();
             }
 
             public override XQueryNodeIterator CreateCollection(string collection_name)
@@ -122,13 +122,19 @@ namespace DataEngine.XQuery
             m_context = context;
             Parameters = new XQueryParameterCollection();
         }
+        
 
-        public XQueryCommand()
+        public XQueryCommand(XmlNameTable nameTable)
         {
-            m_context = new WorkContext(this);
+            m_context = new WorkContext(this, nameTable);
             BaseUri = null;
             SearchPath = null;
             Parameters = new XQueryParameterCollection();
+        }
+
+        public XQueryCommand()
+            : this(new NameTable())
+        {
         }
 
         ~XQueryCommand()
@@ -242,7 +248,7 @@ namespace DataEngine.XQuery
                     value = iter.CreateBufferedIterator();
                 rec.link.Value = value;
             }            
-            m_context.CheckExternalVariables();            
+            m_context.CheckExternalVariables();     
             XQueryNodeIterator res = XQueryNodeIterator.Create(m_res.Execute(this, null));
             return res;
         }

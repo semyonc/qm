@@ -106,21 +106,21 @@ namespace DataEngine.XQuery.DocumentModel
         public DmNode CreateChildText()
         {
             if (_text == null)
-                _text = new DmText();
+                _text = new DmText(this);
             return _text;
         }
 
         public DmNode CreateChildComment()
         {
             if (_comment == null)
-                _comment = new DmComment();
+                _comment = new DmComment(this);
             return _comment;
         }
 
         public DmNode CreateChildWhitespace()
         {
             if (_whitespace == null)
-                _whitespace = new DmWhitespace();
+                _whitespace = new DmWhitespace(this);
             return _whitespace;
         }
 
@@ -155,6 +155,14 @@ namespace DataEngine.XQuery.DocumentModel
             get
             {
                 return _comment;
+            }
+        }
+
+        public DmWhitespace ChildWhitespace
+        {
+            get
+            {
+                return _whitespace;
             }
         }
     }

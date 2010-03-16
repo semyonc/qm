@@ -502,7 +502,7 @@ namespace XQTSRun
         {
             ResultFile resFile = new ResultFile();
             resFile.AddFeature("Minimal Conformance", true);
-            resFile.AddFeature("Schema Import", false);
+            resFile.AddFeature("Schema Import", true);
             resFile.AddFeature("Schema Validation", false);
             resFile.AddFeature("Full Axis", true);
             resFile.AddFeature("Serialization", false);

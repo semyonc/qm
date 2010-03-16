@@ -32,6 +32,7 @@ using System.Xml.Schema;
 using System.Xml.XPath;
 
 using DataEngine.XQuery.Util;
+using DataEngine.XQuery.DocumentModel;
 
 namespace DataEngine.XQuery
 {
@@ -272,6 +273,12 @@ namespace DataEngine.XQuery
                (NameTest.IsNameWildcard || context.StringEquals(NameTest.Name, nav.LocalName));
         }
 
+        private bool MatchName(DmNode node)
+        {
+            return (NameTest.IsNamespaceWildcard || NameTest.Namespace == node.NamespaceURI) &&
+               (NameTest.IsNameWildcard || NameTest.Name == node.LocalName);
+        }
+
         public bool Match(XPathItem item, XQueryContext context)
         {
             switch (TypeCode)
@@ -497,6 +504,117 @@ namespace DataEngine.XQuery
                             return XmlSchemaType.IsDerivedFrom(item.XmlType, SchemaType, XmlSchemaDerivationMethod.Empty);
                     }
                     break;
+            }
+            return false;
+        }
+
+        internal bool Match(DmNode node)
+        {
+            switch (TypeCode)
+            {
+                case XmlTypeCode.Item:
+                case XmlTypeCode.Node:
+                    return true;
+
+                case XmlTypeCode.Document:
+                    if (node.NodeType == XPathNodeType.Root)
+                    {
+                        DmElement documentElement = ((DmRoot)node).DocumentElement;
+                        if (documentElement != null)
+                        {
+                            if (SchemaElement == null)
+                            {
+                                if (MatchName(documentElement))
+                                {
+                                    if (SchemaType == null || SchemaType == XmlSchema.UntypedAtomic)
+                                        return true;
+                                    IXmlSchemaInfo schemaInfo = documentElement.SchemaInfo;
+                                    if (schemaInfo != null)
+                                    {
+                                        if (XmlSchemaType.IsDerivedFrom(schemaInfo.SchemaType, SchemaType, XmlSchemaDerivationMethod.Empty))
+                                            return !schemaInfo.IsNil || Nillable;
+                                    }
+                                    else
+                                        return XmlSchemaType.IsDerivedFrom(XmlSchema.UntypedAtomic, SchemaType, XmlSchemaDerivationMethod.Empty);
+                                }
+                            }
+                            else
+                            {
+                                IXmlSchemaInfo schemaInfo = documentElement.SchemaInfo;
+                                if (schemaInfo != null)
+                                    return schemaInfo.SchemaElement.QualifiedName == SchemaElement.QualifiedName;
+                            }
+                        }
+                    }
+                    break;
+
+                case XmlTypeCode.Element:
+                    {
+                        if (node.NodeType == XPathNodeType.Element)
+                        {
+                            if (SchemaElement == null)
+                            {
+                                if (MatchName(node))
+                                {
+                                    if (SchemaType == null || SchemaType == XmlSchema.UntypedAtomic)
+                                        return true;
+                                    IXmlSchemaInfo schemaInfo = node.SchemaInfo;
+                                    if (schemaInfo != null)
+                                    {
+                                        if (XmlSchemaType.IsDerivedFrom(schemaInfo.SchemaType, SchemaType, XmlSchemaDerivationMethod.Empty))
+                                            return !schemaInfo.IsNil || Nillable;
+                                    }
+                                    else
+                                        return XmlSchemaType.IsDerivedFrom(XmlSchema.UntypedAtomic, SchemaType, XmlSchemaDerivationMethod.Empty);
+                                }
+                            }
+                            else
+                            {
+                                IXmlSchemaInfo schemaInfo = node.SchemaInfo;
+                                if (schemaInfo != null)
+                                    return schemaInfo.SchemaElement.QualifiedName == SchemaElement.QualifiedName;
+                            }
+                        }
+                    }
+                    break;
+
+                case XmlTypeCode.Attribute:
+                    {
+                        if (node.NodeType == XPathNodeType.Attribute)
+                        {
+                            if (SchemaAttribute == null)
+                            {
+                                if (MatchName(node))
+                                {
+                                    if (SchemaType == null || SchemaType == XmlSchema.UntypedAtomic)
+                                        return true;
+                                    IXmlSchemaInfo schemaInfo = node.SchemaInfo;
+                                    if (schemaInfo == null)
+                                        return XmlSchemaType.IsDerivedFrom(XmlSchema.UntypedAtomic, SchemaType, XmlSchemaDerivationMethod.Empty);
+                                    else
+                                        return XmlSchemaType.IsDerivedFrom(schemaInfo.SchemaType, SchemaType, XmlSchemaDerivationMethod.Empty);
+                                }
+                            }
+                            else
+                            {
+                                IXmlSchemaInfo schemaInfo = node.SchemaInfo;
+                                if (schemaInfo != null)
+                                    return schemaInfo.SchemaAttribute.QualifiedName == SchemaAttribute.QualifiedName;
+                            }
+                        }
+                    }
+                    break;
+
+                case XmlTypeCode.ProcessingInstruction:
+                    return (node.NodeType == XPathNodeType.ProcessingInstruction &&
+                         (NameTest.IsNameWildcard || NameTest.Name == node.Name));
+
+                case XmlTypeCode.Comment:
+                    return node.NodeType == XPathNodeType.Comment;
+
+                case XmlTypeCode.Text:
+                    return node.NodeType == XPathNodeType.Text ||
+                       node.NodeType == XPathNodeType.SignificantWhitespace;
             }
             return false;
         }

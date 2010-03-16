@@ -36,15 +36,8 @@ namespace DataEngine.XQuery
 {   
     internal abstract class XdmNode
     {
-        internal int _parent;
-
         protected XdmNode()
         {
-        }
-
-        protected XdmNode(int parent)
-        {
-            _parent = parent;
         }
 
         public virtual String Value
@@ -57,12 +50,10 @@ namespace DataEngine.XQuery
 
         public virtual void Load(PageFile pagefile)
         {
-            _parent = pagefile.ReadInt32();
         }
 
         public virtual void Store(PageFile pagefile)
         {
-            pagefile.WriteInt32(_parent);
         }
     }
 
@@ -122,11 +113,6 @@ namespace DataEngine.XQuery
         {
         }
 
-        public XdmNamespace(int parent)
-            : base(parent)
-        {
-        }
-
         public override string Value
         {
             get
@@ -157,11 +143,6 @@ namespace DataEngine.XQuery
         internal string _value = String.Empty;
 
         public XdmElement()
-        {
-        }
-
-        public XdmElement(int parent)
-            : base(parent)
         {
         }
 
@@ -248,8 +229,7 @@ namespace DataEngine.XQuery
         {
         }
 
-        public XdmProcessingInstruction(int parent, string value)
-            : base(parent)
+        public XdmProcessingInstruction(string value)
         {
             _value = value;
         }
@@ -283,8 +263,7 @@ namespace DataEngine.XQuery
         {
         }
 
-        public XdmComment(int parent, string text)
-            : base(parent)
+        public XdmComment(string text)
         {
             _text = text;
         }
@@ -318,8 +297,7 @@ namespace DataEngine.XQuery
         {
         }
 
-        public XdmWhitespace(int parent, string text)
-            : base(parent)
+        public XdmWhitespace(string text)
         {
             _text = text;
         }
@@ -353,8 +331,7 @@ namespace DataEngine.XQuery
         {
         }
 
-        public XdmText(int parent, string text)
-            : base(parent)
+        public XdmText(string text)
         {
             _text = text;
         }

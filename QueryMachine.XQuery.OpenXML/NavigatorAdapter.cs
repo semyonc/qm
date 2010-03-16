@@ -1,4 +1,4 @@
-﻿//        Copyright (c) 2009, Semyon A. Chertkov (semyonc@gmail.com)
+﻿//        Copyright (c) 2009-2010, Semyon A. Chertkov (semyonc@gmail.com)
 //        All rights reserved.
 //
 //        Redistribution and use in source and binary forms, with or without
@@ -26,33 +26,58 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Collections;
 
 using System.Xml;
-using System.Xml.Schema;
 using System.Xml.XPath;
+using DocumentFormat.OpenXml;
 
-
-namespace DataEngine.XQuery.DocumentModel
+namespace DataEngine.XQuery.OpenXML
 {
-    internal class DmComment : DmNode
-    {
-        public DmComment(DmNode parent)
+    abstract class NavigatorAdapter
+    {                
+        protected OpenXmlElement _elem;
+
+        public NavigatorAdapter(OpenXmlElement elem)
         {
-            _parent = parent;
+            _elem = elem;
         }
 
-        public override XPathNodeType NodeType
+        public abstract NavigatorAdapter Clone();
+
+        public abstract NavigatorAdapter MoveToParent();
+        public abstract NavigatorAdapter MoveToFirstAttribute();
+        public abstract NavigatorAdapter MoveToFirstChild();
+        public abstract NavigatorAdapter MoveToFirstNamespace(XPathNamespaceScope namespaceScope);        
+        public abstract bool MoveToNext();
+        public abstract bool MoveToNextAttribute();
+        public abstract bool MoveToNextNamespace(XPathNamespaceScope namespaceScope);
+        public abstract bool MoveToPrevious();
+
+        public abstract bool IsEmptyElement { get; }
+        public abstract XPathNodeType NodeType { get; }
+        public abstract string LocalName { get; }
+        public abstract string NamespaceURI { get; }
+        public abstract string Prefix { get; }
+        public abstract string Value { get; }
+        public abstract XmlNameTable NameTable { get; }
+        
+        public OpenXmlElement Element
         {
             get
             {
-                return XPathNodeType.Comment;
+                return _elem;
             }
         }
 
-        public override XdmNode CreateNode()
+        public int Depth
         {
-            return new XdmComment();
+            get
+            {
+                int num = 0;
+                for (NavigatorAdapter curr = Clone().MoveToParent(); curr != null; curr = curr.MoveToParent())
+                    num++;
+                return num;
+            }
         }
     }
 }

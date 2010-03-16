@@ -91,9 +91,9 @@ namespace DataEngine.XQuery
         {
             XQueryNodeIterator iter = baseIter.Clone();
             if (expr != null && expr.m_expr.Length == 1 
-                && expr.m_expr[0] is int)
+                && expr.m_expr[0] is Integer)
             {
-                int pos = (int)expr.m_expr[0];
+                Integer pos = (Integer)expr.m_expr[0];
                 foreach (XPathItem item in iter)
                 {
                     if (pos == 1)

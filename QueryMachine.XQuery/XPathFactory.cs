@@ -226,7 +226,7 @@ namespace DataEngine.XQuery
             return nodes[0];
         }
       
-        internal static Type GetNavigatorValueType(XPathNavigator nav, Type valueType)
+        public static Type GetNavigatorValueType(XPathNavigator nav, Type valueType)
         {
             IXmlSchemaInfo schemaInfo = nav.SchemaInfo;
             if (schemaInfo == null || schemaInfo.SchemaType == null)
