@@ -102,6 +102,7 @@ namespace DataEngine.XQuery.OpenXML
             if (nav != null)
             {
                 _adapter = nav._adapter.Clone();
+                _typedValue = nav._typedValue;
                 return true;
             }
             else

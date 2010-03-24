@@ -1,4 +1,4 @@
-﻿//        Copyright (c) 2009, Semyon A. Chertkov (semyonc@gmail.com)
+﻿//        Copyright (c) 2009-2010, Semyon A. Chertkov (semyonc@gmail.com)
 //        All rights reserved.
 //
 //        Redistribution and use in source and binary forms, with or without
@@ -1504,8 +1504,13 @@ namespace DataEngine.XQuery
                 return expr.ToLispFunction();
             }
             else
+            {
+                XQueryExprBase[] path = OptimizeXPath(steps);
+                if (path.Length == 1 && path[0] is DirectAccessPathExpr)
+                    return Lisp.List(ID.DynExecuteExpr, path[0], ID.Context, Lisp.ARGV);
                 return Lisp.List(ID.DynExecuteExpr,
-                    new XQueryPathExpr(_context, steps.ToArray(), _context.IsOrdered), ID.Context, Lisp.ARGV);
+                    new XQueryPathExpr(_context, path, _context.IsOrdered), ID.Context, Lisp.ARGV);
+            }
         }
 
         private void ProcessRelativePathExpr(Notation notation, Symbol sym, List<XQueryExprBase> steps)
@@ -1720,7 +1725,7 @@ namespace DataEngine.XQuery
                 //    return filterExpr;
                 //}
                 XQueryFilterExpr filterExpr = new XQueryFilterExpr(_context, filter.ToArray());
-                filterExpr.SourceExpr = ancestor;
+                filterExpr.Source = ancestor;
                 return filterExpr;
             }
             return ancestor;
@@ -3051,6 +3056,57 @@ namespace DataEngine.XQuery
             if (clrType != typeof(System.Object))
                 expr = Lisp.List(Funcs.Cast, expr, clrType);
             return expr;
+        }
+
+        private XQueryExprBase[] OptimizeXPath(List<XQueryExprBase> path)
+        {
+            if (!_context.IsDirectAcessSupported())
+                return path.ToArray();
+            bool descendantInGroup = false;
+            List<XQueryExprBase> res = new List<XQueryExprBase>();
+            List<XQueryExprBase> group = new List<XQueryExprBase>();
+            foreach (XQueryExprBase expr in path)
+            {
+                bool eat = false;
+                XQueryStepExpr curr = expr as XQueryStepExpr;
+                if (curr != null)
+                    switch (curr.ExprType)
+                    {
+                        case XQueryPathExprType.Descendant:
+                        case XQueryPathExprType.DescendantOrSelf:
+                        case XQueryPathExprType.Self:
+                        case XQueryPathExprType.Child:
+                            if (curr.ExprType == XQueryPathExprType.Descendant ||
+                                curr.ExprType == XQueryPathExprType.DescendantOrSelf)
+                                descendantInGroup = true;
+                            group.Add(curr);
+                            eat = true;
+                            break;
+                    }
+                if (!eat)
+                {
+                    if (group.Count > 0)
+                    {
+                        if (descendantInGroup)
+                        {
+                            res.Add(new DirectAccessPathExpr(_context, group.ToArray(), _context.IsOrdered));
+                            descendantInGroup = false;
+                        }
+                        else
+                            res.AddRange(group);
+                        group.Clear();
+                    }
+                    res.Add(expr);
+                }
+            }
+            if (group.Count > 0)
+            {
+                if (descendantInGroup)
+                    res.Add(new DirectAccessPathExpr(_context, group.ToArray(), _context.IsOrdered));
+                else
+                    res.AddRange(group);
+            }
+            return res.ToArray();
         }
     }
 }

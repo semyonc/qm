@@ -60,7 +60,7 @@ namespace DataEngine.XQuery
             iterator = master.GetEnumerator();
         }
 
-        public override XPathItem NextItem()
+        protected override XPathItem NextItem()
         {
             if (iterator.MoveNext())
                 return iterator.Current;

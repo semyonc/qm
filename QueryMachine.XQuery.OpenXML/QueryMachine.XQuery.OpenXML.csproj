@@ -56,7 +56,6 @@
   <ItemGroup>
     <Compile Include="AttributeAdapter.cs" />
     <Compile Include="ElementAdapter.cs" />
-    <Compile Include="ElementTable.cs" />
     <Compile Include="LeafTextElementAdapter.cs" />
     <Compile Include="NamespaceAdapter.cs" />
     <Compile Include="OpenXmlException.cs" />

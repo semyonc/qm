@@ -636,7 +636,15 @@ namespace DataEngine.XQuery
             }
         }
 
-        internal DmNode Node
+        internal bool IsLeafTextElement
+        {
+            get
+            {
+                return _pf[_pos] == PageFile.MixedLeaf;
+            }
+        }
+
+        internal DmNode DmNode
         {
             get
             {

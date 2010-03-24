@@ -189,10 +189,6 @@ namespace DataEngine.XQuery
                     File.Delete(fileName);
                     fileStream = null;
                     closed = true;
-                    //Console.WriteLine(count);
-                    //Console.WriteLine(miss_count);
-                    //Console.WriteLine(hit_count);
-                    //Console.WriteLine((double)miss_count / hit_count);
                 }
             }
         }
@@ -280,63 +276,29 @@ namespace DataEngine.XQuery
             }
         }
 
-        public int Select(DmNode target, ref int index, ref int length, int[] buffer)
+        public int Select(int[] targets, ref int index, ref int length, int[] buffer)
         {
             int count = 0;
+            int size = buffer.Length;
             int pagenum = index / pagesize;
             int blocknum = pagenum / XQueryBlockSize;
             Page[] block = pagelist[blocknum];
             Page curr = block[pagenum % XQueryBlockSize];
             int k = index % pagesize;
-            for ( ; length > 0; length--)
+            while (length > 0 && count < size)
             {
-                if (count == buffer.Length)
-                    break;
-                if (target._index == curr.hindex[k])
+                if (targets == null || Array.BinarySearch(targets, curr.hindex[k]) >= 0)
                     buffer[count++] = index;
                 index++;
-                if (k <= pagesize)
-                    k++;
-                else
+                k++;
+                if (k == pagesize)
                 {
                     pagenum = index / pagesize;
                     block = pagelist[pagenum / XQueryBlockSize];
                     curr = block[pagenum % XQueryBlockSize];
                     k = 0;
                 }
-            }
-            return count;
-        }
-
-        public int Select(DmNode[] targets, ref int index, ref int length, int[] buffer)
-        {
-            int count = 0;
-            int pagenum = index / pagesize;
-            int blocknum = pagenum / XQueryBlockSize;
-            Page[] block = pagelist[blocknum];
-            Page curr = block[pagenum % XQueryBlockSize];
-            int k = index % pagesize;
-            for (; length > 0; length--)
-            {
-                if (count == buffer.Length)
-                    break;
-                int hindex = curr.hindex[k];
-                for (int s = 0; s < targets.Length; k++)
-                    if (targets[k]._index == hindex)
-                    {
-                        buffer[count++] = index;
-                        break;
-                    }
-                index++;
-                if (k <= pagesize)
-                    k++;
-                else
-                {
-                    pagenum = index / pagesize;
-                    block = pagelist[pagenum / XQueryBlockSize];
-                    curr = block[pagenum % XQueryBlockSize];
-                    k = 0;
-                }
+                length--;
             }
             return count;
         }

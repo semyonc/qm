@@ -66,7 +66,7 @@ namespace DataEngine.XQuery
             _index = _min;
         }
 
-        public override XPathItem NextItem()
+        protected override XPathItem NextItem()
         {
             if (_index <= _max)
             {
