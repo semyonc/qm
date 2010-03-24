@@ -106,7 +106,7 @@ namespace DataEngine.XQuery
                 return new BufferedNodeIterator(this);
             }
 
-            public override XPathItem NextItem()
+            protected override XPathItem NextItem()
             {
                 if (baseIter.MoveNext())
                     return (XPathItem)bodyExpr.Execute(provider, args);

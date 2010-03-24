@@ -71,13 +71,21 @@ namespace DataEngine.XQuery.OpenXML
             public override bool StringEquals(string s1, string s2)
             {
                 return String.CompareOrdinal(s1, s2) == 0;
-            }
+            }            
 
             public override void Close()
             {
                 base.Close();
                 foreach (OpenXmlPackage package in _packages.Values)
                     package.Close();
+            }
+
+            public override bool SupportDirectAccess
+            {
+                get
+                {
+                    return false;
+                }
             }
 
             public OpenXmlPackage OpenPackage(string fileName)

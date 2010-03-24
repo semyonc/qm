@@ -46,7 +46,7 @@ namespace DataEngine.XQuery
             return this;
         }
 
-        public override XPathItem NextItem()
+        protected override XPathItem NextItem()
         {
             return null;
         }

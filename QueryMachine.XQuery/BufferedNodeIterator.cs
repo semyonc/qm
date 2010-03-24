@@ -91,7 +91,7 @@ namespace DataEngine.XQuery
             return clone;
         }
         
-        public override XPathItem NextItem()
+        protected override XPathItem NextItem()
         {
             lock (iter)
             {

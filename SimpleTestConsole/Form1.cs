@@ -103,7 +103,7 @@ namespace SimpleTestConsole
             string title = "QueryMachine.XQuery";
             MessageBox.Show(
                 String.Format("{0} {1}\n", title, asm.GetName().Version) +
-                "Copyright © Semyon A. Chertkov 2009\n" +
+                "Copyright © Semyon A. Chertkov 2009-2010\n" +
                 "e-mail: semyonc@gmail.com",
                 "About " + Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
             GC.Collect();
@@ -113,8 +113,8 @@ namespace SimpleTestConsole
         {
             if (tabControl1.SelectedTab != tabPage1)
             {
-                ExecuteTextQuery();
-                tabControl1.SelectedTab = tabPage2;
+                if (ExecuteTextQuery())
+                    tabControl1.SelectedTab = tabPage2;
             }
             else
                 ExecuteGridQuery();

@@ -686,6 +686,14 @@ namespace DataEngine.XQuery
 
         public CultureInfo DefaultCulture { get; private set; }
 
+        public virtual bool SupportDirectAccess
+        {
+            get
+            {
+                return true;
+            }
+        }
+
         public IDictionary<object, object> ExtraProperties
         {
             get
@@ -714,6 +722,14 @@ namespace DataEngine.XQuery
                 else
                     needValidationParser = value;
             }
+        }
+
+        internal bool IsDirectAcessSupported()
+        {
+            if (slave)
+                return master.IsDirectAcessSupported();
+            else
+                return SupportDirectAccess;
         }
 
         #region IContextProvider Members
@@ -774,6 +790,14 @@ namespace DataEngine.XQuery
                 reader.Close();
                 docs.Add(uri.AbsoluteUri, doc);
                 return doc;
+            }
+        }
+
+        public override bool SupportDirectAccess
+        {
+            get
+            {
+                return false;
             }
         }
     }

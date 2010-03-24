@@ -179,7 +179,7 @@ namespace DataEngine.XQuery
                 index = 1;
             }
 
-            public override XPathItem NextItem()
+            protected override XPathItem NextItem()
             {
                 while (true)
                 {

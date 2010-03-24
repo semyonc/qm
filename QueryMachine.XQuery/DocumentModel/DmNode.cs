@@ -1,4 +1,4 @@
-﻿//        Copyright (c) 2009, Semyon A. Chertkov (semyonc@gmail.com)
+﻿//        Copyright (c) 2009-2010, Semyon A. Chertkov (semyonc@gmail.com)
 //        All rights reserved.
 //
 //        Redistribution and use in source and binary forms, with or without
@@ -26,6 +26,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 using System.Xml;
@@ -37,22 +38,56 @@ namespace DataEngine.XQuery.DocumentModel
 {
     internal class NodeSet
     {
-        public readonly DmNode[] nodes;
-        public readonly int inf;
-        public readonly int sup;
+        public readonly int[] hindex;
+        public readonly DmNode[] anchors;
+        public readonly HashSet<DmNode> targets;
+        public bool mixed;
 
-        public NodeSet(DmNode[] nodes)
+        public NodeSet(List<DmNode> nodes)
         {
-            this.nodes = nodes;
+            List<DmNode> anchors = new List<DmNode>();
+            foreach (DmNode node in nodes)
+                if (!node.IsText)
+                    anchors.Add(node);
+            foreach (DmNode node in nodes)
+                if (node.IsText)
+                {
+                    mixed = true;
+                    if (targets == null)
+                        targets = new HashSet<DmNode>(anchors);
+                    if (node._index != -1)
+                    {
+                        anchors.Add(node);
+                        targets.Add(node);
+                    }
+                    if (node.ParentNode.NodeType == XPathNodeType.Element && 
+                        !anchors.Contains(node.ParentNode))
+                        anchors.Add(node.ParentNode);
+                    targets.Add(node);                    
+                }
+            this.anchors = anchors.ToArray();
+            hindex = new int[anchors.Count];
+            for (int k = 0; k < anchors.Count; k++)
+                hindex[k] = anchors[k]._index;
+            Array.Sort(hindex);
+        }
+
+        public void GetBounds(out int inf, out int sup)
+        {
             inf = -1;
             sup = -1;
-            foreach (DmNode node in nodes)
+            foreach (DmNode n in anchors)
             {
-                if (inf == -1 || inf > node._begin_pos)
-                    inf = node._begin_pos;
-                if (sup == -1 || sup < node._end_pos)
-                    sup = node._end_pos;
+                if (inf == -1 || inf > n._begin_pos)
+                    inf = n._begin_pos;
+                if (sup == -1 || sup < n._end_pos)
+                    sup = n._end_pos;
             }
+        }
+
+        public bool Accept(XQueryNavigator nav)
+        {
+            return targets == null || targets.Contains(nav.DmNode);
         }
     }
 
@@ -121,6 +156,16 @@ namespace DataEngine.XQuery.DocumentModel
             get
             {
                 return null;
+            }
+        }
+
+        public bool IsText
+        {
+            get
+            {
+                return NodeType == XPathNodeType.Text ||
+                       NodeType == XPathNodeType.Whitespace ||
+                       NodeType == XPathNodeType.SignificantWhitespace;
             }
         }
 
@@ -254,6 +299,43 @@ namespace DataEngine.XQuery.DocumentModel
             }
         }
 
+        private void GetNodesVisitor(XQueryExprBase[] path, DmNode curr, int index, int length, List<DmNode> res)
+        {
+            XQueryStepExpr expr = path[index] as XQueryStepExpr;
+            if (expr == null)
+                throw new ArgumentException();
+            DmNode[] nodes;
+            switch (expr.ExprType)
+            {
+                case XQueryPathExprType.Self:
+                    nodes = curr.GetSelf();
+                    break;
+
+                case XQueryPathExprType.Child:
+                    nodes = curr.GetChilds();
+                    break;
+
+                case XQueryPathExprType.Descendant:
+                    nodes = curr.GetDescendants();
+                    break;
+
+                case XQueryPathExprType.DescendantOrSelf:
+                    nodes = curr.GetDescendantOrSelf();
+                    break;
+
+                default:
+                    throw new ArgumentException();
+            }
+            foreach (DmNode node in nodes)
+                if (node.TestNode(expr.NameTest, expr.TypeTest))
+                {
+                    if (index < length -1)
+                        GetNodesVisitor(path, node, index + 1, length, res);
+                    else
+                        res.Add(node);
+                }
+        }
+
         public NodeSet GetNodeSet(object key)
         {
             NodeSet res;
@@ -262,8 +344,10 @@ namespace DataEngine.XQuery.DocumentModel
             return null;
         }
 
-        public NodeSet CreateNodeSet(object key, DmNode[] nodes)
+        public NodeSet CreateNodeSet(object key, XQueryExprBase[] path)
         {
+            List<DmNode> nodes = new List<DmNode>();
+            GetNodesVisitor(path, this, 0, path.Length, nodes);
             NodeSet res = new NodeSet(nodes);
             if (_cached_set == null)
                 _cached_set = new Dictionary<object, NodeSet>();

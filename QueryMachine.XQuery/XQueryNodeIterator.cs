@@ -126,7 +126,7 @@ namespace DataEngine.XQuery
 #if PARALLEL
             CheckThreadCanceled();
 #endif
-            XPathItem item = NextItem();
+            XPathItem item = GetNextItem();
             if (item != null)
             {
                 pos++;
@@ -153,7 +153,12 @@ namespace DataEngine.XQuery
         {
         }
 
-        public abstract XPathItem NextItem();
+        protected virtual XPathItem GetNextItem()
+        {
+            return NextItem();
+        }
+
+        protected abstract XPathItem NextItem();
 
         public static XQueryNodeIterator Create(object value)
         {
@@ -282,7 +287,7 @@ namespace DataEngine.XQuery
                 }
             }
 
-            public override XPathItem NextItem()
+            protected override XPathItem NextItem()
             {
                 if (CurrentPosition == -1)
                     return _item;

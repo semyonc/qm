@@ -78,7 +78,7 @@ namespace DataEngine.XQuery
         private XQueryExprBase[] m_filter;
         private bool m_contextSensitive;
         
-        public XQueryExprBase SourceExpr { get; set; }
+        public XQueryExprBase Source { get; set; }
         
         public XQueryFilterExpr(XQueryContext queryContext, XQueryExprBase[] filter)
             : base(queryContext)
@@ -160,7 +160,7 @@ namespace DataEngine.XQuery
 
         public override void Bind(Executive.Parameter[] parameters)
         {
-            SourceExpr.Bind(parameters);
+            Source.Bind(parameters);
             m_contextSensitive = false;
             foreach (XQueryExprBase expr in m_filter)
             {
@@ -173,7 +173,7 @@ namespace DataEngine.XQuery
         public override IEnumerable<SymbolLink> EnumDynamicFuncs()
         {
             List<SymbolLink> res = new List<SymbolLink>();
-            res.AddRange(SourceExpr.EnumDynamicFuncs());
+            res.AddRange(Source.EnumDynamicFuncs());
             foreach (XQueryExprBase expr in m_filter)
                 res.AddRange(expr.EnumDynamicFuncs());
             return res;
@@ -181,9 +181,9 @@ namespace DataEngine.XQuery
 
         public override object Execute(IContextProvider provider, object[] args)
         {
-            if (SourceExpr == null)
+            if (Source == null)
                 return EmptyIterator.Shared;
-            XQueryNodeIterator iter = XQueryNodeIterator.Create(SourceExpr.Execute(provider, args));
+            XQueryNodeIterator iter = XQueryNodeIterator.Create(Source.Execute(provider, args));
             for (int k = 0; k < m_filter.Length; k++)
                 iter = new NodeIterator(CreateEnumerator(args, (XQueryExpr)m_filter[k], iter));
             return iter;
@@ -202,10 +202,10 @@ namespace DataEngine.XQuery
                     sb.Append(", ");
                 sb.Append(m_filter[k].ToString());
             }
-            if (SourceExpr != null)
+            if (Source != null)
             {
                 sb.Append(" ");
-                sb.Append(SourceExpr.ToString());
+                sb.Append(Source.ToString());
             }
             sb.Append("]");
             return sb.ToString();

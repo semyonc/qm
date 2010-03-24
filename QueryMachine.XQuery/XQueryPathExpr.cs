@@ -39,7 +39,7 @@ namespace DataEngine.XQuery
 {
     internal sealed class XQueryPathExpr: XQueryExprBase
     {
-        private XQueryExprBase[] _stepExpr;        
+        private XQueryExprBase[] _path;        
         
         private bool _isOrdered;
         private bool _isOrderedSet;
@@ -48,32 +48,32 @@ namespace DataEngine.XQuery
         {
             get
             {
-                XQueryExprBase t = _stepExpr[_stepExpr.Length - 1];
+                XQueryExprBase t = _path[_path.Length - 1];
                 XQueryFilterExpr filter = t as XQueryFilterExpr;
                 if (filter != null)
-                    return filter.SourceExpr;
+                    return filter.Source;
                 return t;
             }
         }
 
-        public XQueryPathExpr(XQueryContext context, XQueryExprBase[] stepExpr, bool isOrdered)
+        public XQueryPathExpr(XQueryContext context, XQueryExprBase[] path, bool isOrdered)
             : base(context)
         {
-            _stepExpr = stepExpr;
+            _path = path;
             _isOrderedSet = IsOrderedSet();
             _isOrdered = isOrdered;
         }
 
         public override void Bind(Executive.Parameter[] parameters)
         {
-            foreach (XQueryExprBase expr in _stepExpr)
+            foreach (XQueryExprBase expr in _path)
                 expr.Bind(parameters);
         }
 
         public override IEnumerable<SymbolLink> EnumDynamicFuncs()
         {
             List<SymbolLink> res = new List<SymbolLink>();
-            foreach (XQueryExprBase expr in _stepExpr)
+            foreach (XQueryExprBase expr in _path)
                 res.AddRange(expr.EnumDynamicFuncs());
             return res;
         }
@@ -81,19 +81,21 @@ namespace DataEngine.XQuery
         public override object Execute(IContextProvider provider, object[] args)
         {
             XQueryNodeIterator rootIter = 
-                XQueryNodeIterator.Create(_stepExpr[0].Execute(provider, args)).CreateBufferedIterator();
+                XQueryNodeIterator.Create(_path[0].Execute(provider, args)).CreateBufferedIterator();
             return new ResultIterator(this, provider, _isOrderedSet || !rootIter.IsSingleIterator, rootIter, args);
         }
 
         private bool IsOrderedSet()
         {
-            for (int k = 1; k < _stepExpr.Length; k++)
+            for (int k = 1; k < _path.Length; k++)
             {
+                if (_path[k] is DirectAccessPathExpr)
+                    continue;
                 XQueryStepExpr stepExpr;
-                if (_stepExpr[k] is XQueryFilterExpr)
-                    stepExpr = ((XQueryFilterExpr)_stepExpr[k]).SourceExpr as XQueryStepExpr;
+                if (_path[k] is XQueryFilterExpr)
+                    stepExpr = ((XQueryFilterExpr)_path[k]).Source as XQueryStepExpr;
                 else
-                    stepExpr = _stepExpr[k] as XQueryStepExpr;
+                    stepExpr = _path[k] as XQueryStepExpr;
                 if (stepExpr == null)
                     return false;
                 switch (stepExpr.ExprType)
@@ -108,91 +110,12 @@ namespace DataEngine.XQuery
                     case XQueryPathExprType.Descendant:
                     case XQueryPathExprType.DescendantOrSelf:
                     case XQueryPathExprType.Following:
-                        if (k < _stepExpr.Length - 1)
+                        if (k < _path.Length - 1)
                             return false;
                         break;
                 }
             }
             return true;
-        }
-
-        private bool IsIndexedPathExpr()
-        {
-            for (int k = 1; k < _stepExpr.Length; k++)
-            {
-                XQueryStepExpr stepExpr = _stepExpr[k] as XQueryStepExpr;
-                if (stepExpr == null)
-                    return false;
-                switch (stepExpr.ExprType)
-                {                    
-                    case XQueryPathExprType.Ancestor:
-                    case XQueryPathExprType.AncestorOrSelf:
-                    case XQueryPathExprType.Parent:
-                    case XQueryPathExprType.Preceding:
-                    case XQueryPathExprType.PrecedingSibling:
-                    case XQueryPathExprType.Following:
-                    case XQueryPathExprType.FollowingSibling:
-                    case XQueryPathExprType.Namespace:
-                        return false;
-                }
-            }
-            return true;
-        }
-
-        private void GetTermNodes(DmNode curr, int index, HashSet<DmNode> nodes)
-        {
-            XQueryStepExpr expr = _stepExpr[index] as XQueryStepExpr;
-            if (expr == null)
-                throw new InvalidOperationException();
-            switch (expr.ExprType)
-            {
-                case XQueryPathExprType.Self:
-                    if (index < _stepExpr.Length - 1)
-                        GetTermNodes(curr, index + 1, nodes);
-                    else
-                        nodes.Add(curr);
-                    break;
-
-                case XQueryPathExprType.Child:
-                    foreach (DmNode node in curr.GetChilds())
-                        if (node.TestNode(expr.NameTest, expr.TypeTest))
-                        {
-                            if (index < _stepExpr.Length - 1)
-                                GetTermNodes(node, index + 1, nodes);
-                            else
-                                nodes.Add(node);
-                        }
-                    break;
-
-                case XQueryPathExprType.Attribute:
-                    nodes.Add(curr);
-                    break;
-
-                case XQueryPathExprType.Descendant:
-                    foreach (DmNode node in curr.GetDescendants())
-                        if (node.TestNode(expr.NameTest, expr.TypeTest))
-                        {
-                            if (index < _stepExpr.Length - 1)
-                                GetTermNodes(node, index + 1, nodes);
-                            else
-                                nodes.Add(node);
-                        }
-                    break;
-
-                case XQueryPathExprType.DescendantOrSelf:
-                    foreach (DmNode node in curr.GetDescendantOrSelf())
-                        if (node.TestNode(expr.NameTest, expr.TypeTest))
-                        {
-                            if (index < _stepExpr.Length - 1)
-                                GetTermNodes(node, index + 1, nodes);
-                            else
-                                nodes.Add(node);
-                        }
-                    break;
-
-                default:
-                    throw new NotImplementedException();
-            }
         }
 
         private bool MoveNext(object[] args, XQueryNodeIterator[] iter, int index)
@@ -207,7 +130,7 @@ namespace DataEngine.XQuery
                         ContextProvider provider = new ContextProvider(iter[index - 1]);
                         if (!provider.Context.IsNode)
                             throw new XQueryException(Properties.Resources.XPTY0019, provider.Context.Value);
-                        iter[index] = XQueryNodeIterator.Create(_stepExpr[index].Execute(provider, args));
+                        iter[index] = XQueryNodeIterator.Create(_path[index].Execute(provider, args));
                         if (iter[index].MoveNext())
                             return true;
                     }
@@ -217,20 +140,20 @@ namespace DataEngine.XQuery
 
         private IEnumerator<XPathItem> Iterator(ResultIterator res)
         {
-            XQueryNodeIterator[] iter = new XQueryNodeIterator[_stepExpr.Length];
+            XQueryNodeIterator[] iter = new XQueryNodeIterator[_path.Length];
             iter[0] = res.rootIter.Clone();
-            if (MoveNext(res.args, iter, _stepExpr.Length - 1))
+            if (MoveNext(res.args, iter, _path.Length - 1))
             {
-                bool isNode = iter[_stepExpr.Length - 1].Current.IsNode;
+                bool isNode = iter[_path.Length - 1].Current.IsNode;
                 if (!isNode || res.orderedSet)
                     do
                     {
-                        XPathItem curr = iter[_stepExpr.Length - 1].Current;
+                        XPathItem curr = iter[_path.Length - 1].Current;
                         if (curr.IsNode != isNode)
                             throw new XQueryException(Properties.Resources.XPTY0018, curr.Value);
                         yield return curr;
                     }
-                    while (MoveNext(res.args, iter, _stepExpr.Length - 1));
+                    while (MoveNext(res.args, iter, _path.Length - 1));
                 else
                 {
                     if (_isOrdered)
@@ -243,7 +166,7 @@ namespace DataEngine.XQuery
                             res.buffer = new List<XPathItem>();
                             do
                             {
-                                XPathItem item = iter[_stepExpr.Length - 1].Current;
+                                XPathItem item = iter[_path.Length - 1].Current;
                                 if (!item.IsNode)
                                     throw new XQueryException(Properties.Resources.XPTY0018, item.Value);
                                 XPathNavigator node = (XPathNavigator)item;
@@ -255,7 +178,7 @@ namespace DataEngine.XQuery
                                 last_node = node.Clone();
                                 res.buffer.Add(last_node);
                             }
-                            while (MoveNext(res.args, iter, _stepExpr.Length - 1));
+                            while (MoveNext(res.args, iter, _path.Length - 1));
                             if (needSort)
                                 res.buffer.Sort(new XPathComparer());
                         }
@@ -274,13 +197,13 @@ namespace DataEngine.XQuery
                         HashSet<XPathItem> hs = new HashSet<XPathItem>(new XPathNavigatorEqualityComparer());
                         do
                         {
-                            XPathItem curr = iter[_stepExpr.Length - 1].Current;
+                            XPathItem curr = iter[_path.Length - 1].Current;
                             if (!curr.IsNode)
                                 throw new XQueryException(Properties.Resources.XPTY0018, curr.Value);
                             if (hs.Add(curr.Clone()))
                                 yield return curr;
                         }
-                        while (MoveNext(res.args, iter, _stepExpr.Length - 1));
+                        while (MoveNext(res.args, iter, _path.Length - 1));
                     }
                 }
             }
@@ -320,7 +243,7 @@ namespace DataEngine.XQuery
                 iter = owner.Iterator(this);
             }
 
-            public override XPathItem NextItem()
+            protected override XPathItem NextItem()
             {
                 if (iter.MoveNext())
                     return iter.Current;
@@ -342,11 +265,11 @@ namespace DataEngine.XQuery
             sb.Append("[");
             sb.Append(base.ToString());
             sb.Append(": ");
-            for (int k = 0; k < _stepExpr.Length; k++)
+            for (int k = 0; k < _path.Length; k++)
             {
                 if (k > 0)
                     sb.Append(", ");
-                sb.Append(_stepExpr[k].ToString());
+                sb.Append(_path[k].ToString());
             }
             sb.Append("]");
             return sb.ToString();

@@ -58,9 +58,7 @@ namespace DataEngine.XQuery
         private XQueryPathExprType m_type;
         private PathExprIterator m_iter;
         private XmlQualifiedNameTest m_nameTest;
-        private XQuerySequenceType m_typeTest;
-
-        internal XQueryExpr Filter { get; set; }
+        private XQuerySequenceType m_typeTest;        
 
         public XQueryStepExpr(object nodeTest, XQueryPathExprType type, XQueryContext queryContext)
             : this(type, queryContext)
@@ -172,16 +170,11 @@ namespace DataEngine.XQuery
 
         public override void Bind(DataEngine.CoreServices.Executive.Parameter[] parameters)
         {
-            if (Filter != null)
-                Filter.Bind(parameters);
         }
 
         public override IEnumerable<SymbolLink> EnumDynamicFuncs()
         {
-            List<SymbolLink> res = new List<SymbolLink>();
-            if (Filter != null)                
-                res.AddRange(Filter.EnumDynamicFuncs());
-            return res;
+            return new SymbolLink[0];
         }
 
         public override object Execute(IContextProvider provider, object[] args)
