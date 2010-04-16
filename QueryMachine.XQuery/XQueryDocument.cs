@@ -111,7 +111,7 @@ namespace DataEngine.XQuery
         {
             XmlReaderSettings settings = new XmlReaderSettings();
             settings.IgnoreWhitespace = space != XmlSpace.Preserve;
-            settings.ProhibitDtd = false;
+            settings.DtdProcessing = DtdProcessing.Parse;
             settings.XmlResolver = null;
             settings.NameTable = nameTable;
             input = XmlReader.Create(uri, settings);

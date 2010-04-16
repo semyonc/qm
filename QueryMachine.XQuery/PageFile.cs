@@ -34,6 +34,7 @@ using System.Diagnostics;
 using System.Threading;
 
 using DataEngine.XQuery.DocumentModel;
+using System.Runtime;
 
 namespace DataEngine.XQuery
 {
@@ -253,7 +254,7 @@ namespace DataEngine.XQuery
                 return count;
             }
         }
-
+        
         public int this[int index]
         {
             get

@@ -66,7 +66,7 @@ namespace DataEngine.XQuery.Util
 
         public DateTimeOffset Value { get; protected set; }
 
-        public bool IsLocal { get; protected set; }
+        public bool IsLocal { get; set; }
 
         public override bool Equals(object obj)
         {

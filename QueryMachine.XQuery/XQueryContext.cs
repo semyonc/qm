@@ -353,7 +353,7 @@ namespace DataEngine.XQuery
             XmlReaderSettings settings = new XmlReaderSettings();
             settings.NameTable = nameTable;
             settings.Schemas = schemaSet;
-            settings.ProhibitDtd = false;
+            settings.DtdProcessing = DtdProcessing.Parse;
             XmlUrlResolver resolver = new XmlUrlResolver();
             resolver.Credentials = CredentialCache.DefaultCredentials;            
             settings.XmlResolver = resolver;

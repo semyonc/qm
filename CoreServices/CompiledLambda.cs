@@ -29,16 +29,18 @@ using System.Text;
 using System.Reflection.Emit;
 using DataEngine.CoreServices.Generation;
 using System.IO;
+using System.Security;
+using System.Security.Permissions;
 
 
 namespace DataEngine.CoreServices
-{
+{    
     public class CompiledLambda
     {
         private delegate object InvokeLambda(CompiledLambda sender, object[] consts, object[] args);
 
         private DynamicMethod dynamicMethod;
-        private InvokeLambda invoke;                
+        private InvokeLambda invoke;
 
         public CompiledLambda(Executive executive, Executive.Parameter[] parameters)
         {
@@ -57,6 +59,7 @@ namespace DataEngine.CoreServices
         public LambdaExpr[] Dependences { get; set; }
         public Type ReturnType { get; set; }
 
+        [SecurityCritical]
         public object Invoke(object[] args)
         {
             if (invoke == null)
@@ -64,13 +67,14 @@ namespace DataEngine.CoreServices
             if ((args == null && Arity == 0) || args.Length == Arity)
             {
                 try
-                {
+                {                    
                     return invoke(this, Consts, args);
                 }
                 catch (Exception ex)
                 {
                     Engine.HandleRuntimeException(ex);
                 }
+
             }
             throw new InvalidOperationException("Invoke");
         }

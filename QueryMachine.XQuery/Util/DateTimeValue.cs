@@ -397,7 +397,8 @@ namespace DataEngine.XQuery.Util
                     if (IsLocal)
                         return new DateValue(S, Value.Date);
                     else
-                        return new DateValue(S, new DateTimeOffset(Value.Date, Value.Offset));
+                        return new DateValue(S,  
+                            new DateTimeOffset(DateTime.SpecifyKind(Value.Date, DateTimeKind.Unspecified), Value.Offset));
 
                 case XmlTypeCode.Time:
                     if (IsLocal)
