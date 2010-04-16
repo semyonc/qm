@@ -123,8 +123,8 @@ namespace DataEngine.XQuery
         public static readonly object Validate = Lisp.Defatom("validate");
         public static readonly object CastToNumber1 = Lisp.Defatom("cast-to-number1");
         public static readonly object CastToNumber2 = Lisp.Defatom("cast-to-number2");
-    }    
-
+    }
+    
     public static class Core
     {        
         static Core()

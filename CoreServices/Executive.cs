@@ -32,6 +32,7 @@ using System.Reflection.Emit;
 using DataEngine.CoreServices.Generation;
 using System.Threading;
 using System.IO;
+using System.Security;
 
 namespace DataEngine.CoreServices
 {
@@ -314,7 +315,7 @@ namespace DataEngine.CoreServices
                 form[k + 1] = MacroExpand(lval[k], ref proceed);
             return Lisp.List(form);
         }
-
+        
         public Type Compile(Parameter[] parameters, object expr, SymbolLink dynamicFunc)
         {
             try
@@ -642,7 +643,6 @@ namespace DataEngine.CoreServices
                             il.Emit(OpCodes.Ldarg_1);
                             il.EmitInt(locals.DefineConstant(lval));
                             il.Emit(OpCodes.Ldelem_Ref);
-                            il.Emit(OpCodes.Isinst, type);
                             if (type.IsValueType)
                                 il.EmitUnbox(type);
                             // Notify object about compile
@@ -802,7 +802,8 @@ namespace DataEngine.CoreServices
         {
             return Apply(null, null, lval, null, null);
         }
-
+        
+        [SecuritySafeCritical]
         public object Apply(object id, Parameter[] parameters, object lval, object[] args, SymbolLink dynamicFunc)
         {
             object res = Undefined.Value;

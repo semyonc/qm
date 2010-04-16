@@ -481,7 +481,7 @@ namespace DataEngine.CoreServices
         {
             Shared.Defmacro(new MacroFunc(id, parameters, body));
         }
-        
+
         public void Defmacro(MacroFuncBase func)
         {
             MacroFuncDef def;

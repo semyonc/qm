@@ -1231,7 +1231,8 @@ namespace DataEngine.XQuery
             try
             {
                 if (dateTime.IsLocal)
-                    return new DateTimeValue(dateTime.S, new DateTimeOffset(dateTime.Value.DateTime, _tz.LowPartValue));
+                    return new DateTimeValue(dateTime.S, new DateTimeOffset(
+                        DateTime.SpecifyKind(dateTime.Value.DateTime, DateTimeKind.Unspecified), _tz.LowPartValue));
                 else
                     return new DateTimeValue(dateTime.S, dateTime.Value.ToOffset(_tz.LowPartValue));
             }
@@ -1259,7 +1260,8 @@ namespace DataEngine.XQuery
             try
             {
                 if (date.IsLocal)
-                    return new DateValue(date.S, new DateTimeOffset(date.Value.Date, _tz.LowPartValue));
+                    return new DateValue(date.S, new DateTimeOffset(
+                        DateTime.SpecifyKind(date.Value.Date, DateTimeKind.Unspecified), _tz.LowPartValue));
                 else
                 {
                     DateTimeOffset offs = date.Value.ToOffset(_tz.LowPartValue);
@@ -1290,7 +1292,8 @@ namespace DataEngine.XQuery
             try
             {
                 if (time.IsLocal)
-                    return new TimeValue(new DateTimeOffset(time.Value.DateTime, _tz.LowPartValue));
+                    return new TimeValue(new DateTimeOffset(
+                        DateTime.SpecifyKind(time.Value.DateTime, DateTimeKind.Unspecified), _tz.LowPartValue));
                 else
                     return new TimeValue(time.Value.ToOffset(_tz.LowPartValue));
             }
@@ -2121,7 +2124,9 @@ namespace DataEngine.XQuery
         public static DateValue GetCurrentDate([Implict] Executive engine)
         {
             XQueryContext context = (XQueryContext)engine.Owner;
-            return new DateValue(false, new DateTimeOffset(context.now.Date, TimeZoneInfo.Local.BaseUtcOffset));
+            DateValue res = new DateValue(false, context.now.Date);
+            res.IsLocal = false;
+            return res;
         }
 
         [XQuerySignature("current-time")]
@@ -2341,9 +2346,10 @@ namespace DataEngine.XQuery
         }
 
         [XQuerySignature("implicit-timezone")]
-        public static DayTimeDurationValue ImplicitTimezone()
+        public static DayTimeDurationValue ImplicitTimezone([Implict] Executive engine)
         {
-            return new DayTimeDurationValue(TimeZoneInfo.Local.BaseUtcOffset);
+            XQueryContext context = (XQueryContext)engine.Owner;
+            return new DayTimeDurationValue(new DateTimeOffset(context.now).Offset);
         }
 
         [XQuerySignature("lang")]

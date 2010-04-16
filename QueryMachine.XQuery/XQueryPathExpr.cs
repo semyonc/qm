@@ -82,7 +82,7 @@ namespace DataEngine.XQuery
         {
             XQueryNodeIterator rootIter = 
                 XQueryNodeIterator.Create(_path[0].Execute(provider, args)).CreateBufferedIterator();
-            return new ResultIterator(this, provider, _isOrderedSet || !rootIter.IsSingleIterator, rootIter, args);
+            return new ResultIterator(this, provider, _isOrderedSet && rootIter.IsSingleIterator, rootIter, args);
         }
 
         private bool IsOrderedSet()

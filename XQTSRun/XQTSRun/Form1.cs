@@ -114,7 +114,7 @@ namespace XQTSRun
             XmlSchemaSet schemaSet = new XmlSchemaSet();
             XmlReaderSettings settings = new XmlReaderSettings();
             settings.Schemas = schemaSet;
-            settings.ProhibitDtd = false;
+            settings.DtdProcessing = DtdProcessing.Ignore;
             XmlUrlResolver resolver = new XmlUrlResolver();
             resolver.Credentials = CredentialCache.DefaultCredentials;
             settings.XmlResolver = resolver;

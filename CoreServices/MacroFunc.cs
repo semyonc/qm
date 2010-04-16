@@ -27,6 +27,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Security;
 
 namespace DataEngine.CoreServices
 {
@@ -56,7 +57,7 @@ namespace DataEngine.CoreServices
             _body = body;
             _parameters = parameters;
         }
-
+        
         public override object Execute(Executive engine, object[] lval, out bool proceed)
         {
             if (Name.Arity == lval.Length || Name.Arity == -1)
