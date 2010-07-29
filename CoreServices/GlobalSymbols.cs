@@ -408,7 +408,7 @@ namespace DataEngine.CoreServices
 
         public static void DefineStaticOperator(string fname, Type type, string name)
         {
-            DefineStaticOperator(Lisp.Defatom(fname), type, name);
+            DefineStaticOperator(ATOM.Create(fname), type, name);
         }
 
         public static void DefineStaticOperator(object id, MethodInfo method)
@@ -447,12 +447,12 @@ namespace DataEngine.CoreServices
 
         public static void DefineStaticOperator(string fname, Type type, string name, int arity)
         {
-            DefineStaticOperator(Lisp.Defatom(fname), type, name, arity);
+            DefineStaticOperator(ATOM.Create(fname), type, name, arity);
         }
 
         public static void Defun(string name, string parameters, string body)
         {
-            Shared.Defun(new LambdaExpr(Lisp.Defatom(name), parameters, typeof(System.Object), body));
+            Shared.Defun(new LambdaExpr(ATOM.Create(name), parameters, typeof(System.Object), body));
         }
 
         public void Defun(FuncBase func)
@@ -469,7 +469,7 @@ namespace DataEngine.CoreServices
 
         public static void Defmacro(string name, string parameters, string body)
         {
-            Defmacro(Lisp.Defatom(name), parameters, body);
+            Defmacro(ATOM.Create(name), parameters, body);
         }
 
         public static void Defmacro(object id, string parameters, string body)

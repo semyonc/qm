@@ -348,7 +348,7 @@ namespace DataEngine.XQuery.DocumentModel
         {
             List<DmNode> nodes = new List<DmNode>();
             GetNodesVisitor(path, this, 0, path.Length, nodes);
-            NodeSet res = new NodeSet(nodes);
+            NodeSet res = new NodeSet(nodes);            
             if (_cached_set == null)
                 _cached_set = new Dictionary<object, NodeSet>();
             _cached_set.Add(key, res);

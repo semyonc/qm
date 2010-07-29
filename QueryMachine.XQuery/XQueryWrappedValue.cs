@@ -33,12 +33,17 @@ using System.Xml.Schema;
 
 namespace DataEngine.XQuery
 {
-    internal class XQueryWrappedValue : XPathItem
+    internal class XQueryWrappedValue : XQueryItemBase
     {
         public XQueryWrappedValue(XPathItem inner, object[] annotation)
         {
             Inner = inner.Clone();
             Annotation = annotation;
+        }
+
+        public override XPathItem Clone()
+        {
+            return new XQueryWrappedValue(Inner, Annotation);
         }
 
         public XPathItem Inner { get; private set;  }

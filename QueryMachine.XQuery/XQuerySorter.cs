@@ -77,19 +77,19 @@ namespace DataEngine.XQuery
                 yield return item.Inner;
         }
 
-        public override void Bind(Executive.Parameter[] parameters)
+        public override void Bind(Executive.Parameter[] parameters, MemoryPool pool)
         {
-            m_bodyExpr.Bind(parameters);
+            m_bodyExpr.Bind(parameters, pool);
         }
 
-        public override IEnumerable<SymbolLink> EnumDynamicFuncs()
+        public override IEnumerable<FunctionLink> EnumDynamicFuncs()
         {
             return m_bodyExpr.EnumDynamicFuncs();
         }
 
-        public override object Execute(IContextProvider provider, object[] args)
+        public override object Execute(IContextProvider provider, object[] args, MemoryPool pool)
         {
-            XQueryNodeIterator iter = XQueryNodeIterator.Create(m_bodyExpr.Execute(provider, args));
+            XQueryNodeIterator iter = XQueryNodeIterator.Create(m_bodyExpr.Execute(provider, args, pool));
             List<XPathItem> buffer = new List<XPathItem>();
             foreach (XPathItem item in iter)
                 buffer.Add(item);

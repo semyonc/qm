@@ -25,6 +25,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Text;
 using System.IO;
 
@@ -35,20 +36,118 @@ using System.Threading;
 
 using DataEngine.XQuery.DocumentModel;
 using System.Runtime;
+using System.Threading.Tasks;
 
 namespace DataEngine.XQuery
 {
+    sealed class XdmWriter
+    {
+        private List<DmNode> heads;
+        private BinaryWriter binWriter;
+
+        public XdmWriter(Stream stream, List<DmNode> heads)
+        {
+            binWriter = new EmbeddedWriter(stream, Encoding.UTF8);
+            this.heads = heads;
+        }
+
+        public void WriteBoolean(bool value)
+        {
+            binWriter.Write(value);
+        }
+
+        public void WriteString(string value)
+        {
+            binWriter.Write(value);
+        }
+
+        public void WriteInt32(int value)
+        {
+            binWriter.Write(value);
+        }
+
+        public void WriteAttributeInfo(DmAttribute dm)
+        {
+            if (dm._index == -1)
+            {
+                lock (heads)
+                {
+                    dm._index = heads.Count;
+                    heads.Add(dm);
+                }
+            }
+            binWriter.Write(dm._index);
+        }
+
+        private class EmbeddedWriter : BinaryWriter
+        {
+            public EmbeddedWriter(Stream fs, Encoding encoding)
+                : base(fs, encoding)
+            {
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                base.Dispose(false);
+            }
+        }
+    }
+
+    sealed class XdmReader
+    {
+        private List<DmNode> heads;
+        private BinaryReader binReader;
+
+        public XdmReader(Stream stream, List<DmNode> heads)
+        {
+            binReader = new EmbeddedReader(stream, Encoding.UTF8);
+            this.heads = heads;
+        }
+
+        public bool ReadBoolean()
+        {
+            return binReader.ReadBoolean();
+        }
+
+        public String ReadString()
+        {
+            return binReader.ReadString();
+        }
+
+        public int ReadInt32()
+        {
+            return binReader.ReadInt32();
+        }
+
+        public DmAttribute ReadAttributeInfo()
+        {
+            lock (heads)
+            {
+                return (DmAttribute)heads[binReader.ReadInt32()];
+            }
+        }
+
+        private class EmbeddedReader : BinaryReader
+        {
+            public EmbeddedReader(Stream fs, Encoding encoding)
+                : base(fs, encoding)
+            {
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                base.Dispose(false);
+            }
+        }
+    }
+
     sealed class PageFile: IDisposable
     {
         internal const int Leaf = -2;
         internal const int MixedLeaf = -3;
 
-        private object filelock;
-        private string fileName;
-        private Stream fileStream;
-        private bool closed;
-        private BinaryWriter binWriter;
-        private BinaryReader binReader;
+        private volatile bool closed;
+
         private int pagesize;
         private int min_workset;
         private int max_workset;
@@ -63,12 +162,18 @@ namespace DataEngine.XQuery
         private long miss_count;
         private double ratio;
         private int pagecount;
+
         private XdmNode lastnode;
         private Page lastpage;
         private Page[] lastblock;
         private List<Page[]> pagelist;
-        private List<Page> cached;
         private List<DmNode> heads;
+
+        private int partSize;
+        private volatile int cacheCount;
+        private PageFilePart[] parts;
+        private SpinLock cacheLock;
+        private HashSet<Page> cache;
 
         #region IDisposable Members
 
@@ -97,11 +202,11 @@ namespace DataEngine.XQuery
         {
             if (large)
             {
-                pagesize = 800;
+                pagesize = 400;
                 min_workset = 3;
                 max_workset = 15;
                 workset_delta = 5;
-                min_increment = 2;
+                min_increment = 3;
                 max_decrement = 1;
             }
             else
@@ -114,10 +219,12 @@ namespace DataEngine.XQuery
                 max_decrement = 100;
             }
             pagelist = new List<Page[]>();
-            cached = new List<Page>();
             heads = new List<DmNode>();
             workset = min_workset;
-            filelock = new object();
+            cacheLock = new SpinLock();
+            cache = new HashSet<Page>();
+            partSize = Environment.ProcessorCount;
+            _optimizer.Add(this);
         }
 
         ~PageFile()
@@ -127,71 +234,61 @@ namespace DataEngine.XQuery
 
         public bool HasSchemaInfo { get; set; }
 
-        public bool ReadBoolean()
-        {
-            return binReader.ReadBoolean();
-        }
-
-        public void WriteBoolean(bool value)
-        {
-            binWriter.Write(value);
-        }
-
-        public String ReadString()
-        {
-            return binReader.ReadString();
-        }
-
-        public void WriteString(string value)
-        {
-            binWriter.Write(value);
-        }
-
-        public int ReadInt32()
-        {
-            return binReader.ReadInt32();
-        }
-
-        public void WriteInt32(int value)
-        {
-            binWriter.Write(value);
-        }
-
-        public DmAttribute ReadAttributeInfo()
-        {
-            return (DmAttribute)heads[binReader.ReadInt32()];
-        }
-
-        public void WriteAttributeInfo(DmAttribute dm)
-        {
-            if (dm._index == -1)
-            {
-                dm._index = heads.Count;
-                heads.Add(dm);
-            }
-            binWriter.Write(dm._index);
-        }
-
         private void CreateFile()
-        {
-            fileName = Path.GetTempFileName();
-            fileStream = new FileStream(fileName, FileMode.Open, FileAccess.ReadWrite);
-            binWriter = new EmbeddedWriter(fileStream, Encoding.UTF8);
-            binReader = new EmbeddedReader(fileStream, Encoding.UTF8);
+        {            
+            parts = new PageFilePart[partSize];
+            for (int k = 0; k < partSize; k++)
+            {
+                PageFilePart part = new PageFilePart();
+                part.fileName = Path.GetTempFileName();
+                part.fileStream = new FileStream(part.fileName, 
+                    FileMode.Open, FileAccess.ReadWrite);
+                part.fileWriter = new XdmWriter(part.fileStream, heads);
+                part.fileReader = new XdmReader(part.fileStream, heads);
+                parts[k] = part;
+            }
         }
 
         public void Close()
         {
-            lock (filelock)
-            {
-                if (fileStream != null)
+            lock (_optimizer.SyncRoot)
+            {                          
+                if (!closed)
                 {
-                    fileStream.Close();
-                    File.Delete(fileName);
-                    fileStream = null;
                     closed = true;
+                    if (parts != null)
+                    {
+                        foreach (PageFilePart part in parts)
+                        {
+                            lock (part.fileStream)
+                            {
+                                part.fileStream.Close();
+                                File.Delete(part.fileName);
+                            }
+                        }
+                    }
                 }
             }
+        }
+
+        private void AddCache(Page page)
+        {
+            bool lockTaken = false;
+            cacheLock.Enter(ref lockTaken);
+            cache.Add(page);
+            cacheCount++;
+            if (lockTaken)
+                cacheLock.Exit();
+        }
+
+        private void RemoveCache(Page page)
+        {
+            bool lockTaken = false;
+            cacheLock.Enter(ref lockTaken);
+            cache.Remove(page);
+            cacheCount--;
+            if (lockTaken)
+                cacheLock.Exit();
         }
    
         public void Get(int index, bool load, out int parent, out DmNode head, out XdmNode node)
@@ -204,8 +301,8 @@ namespace DataEngine.XQuery
             int k = index % pagesize;
             if (load)
             {
-                page.pin++;
-                hit_count++;
+                Interlocked.Increment(ref page.pin);
+                Interlocked.Increment(ref hit_count);
             }
             int hindex = page.hindex[k];
             if (hindex == -1)
@@ -218,7 +315,6 @@ namespace DataEngine.XQuery
             {
                 if (load)
                 {
-                    OptimizeCache();
                     nodes = ReadPage(page);
                     node = nodes[k];
                 }
@@ -226,7 +322,7 @@ namespace DataEngine.XQuery
                     node = null;
             }
             else
-                node = nodes [k];                
+                node = nodes [k];
         }
 
         public int GetHIndex(int index)
@@ -254,7 +350,7 @@ namespace DataEngine.XQuery
                 return count;
             }
         }
-        
+
         public int this[int index]
         {
             get
@@ -303,62 +399,62 @@ namespace DataEngine.XQuery
             }
             return count;
         }
-        
+
         private XdmNode[] ReadPage(Page page)
         {
             XdmNode[] nodes = new XdmNode[pagesize];
-            lock (filelock)
+            PageFilePart part = parts[page.partid];
+            lock (part.fileStream)
             {
-                fileStream.Seek(page.offset, SeekOrigin.Begin);
+                part.fileStream.Seek(page.offset, SeekOrigin.Begin);
                 for (int k = 0; k < pagesize; k++)
                 {
                     int hindex = page.hindex[k];
                     if (hindex != -1)
                     {
                         XdmNode node = heads[hindex].CreateNode();
-                        node.Load(this);
+                        node.Load(part.fileReader);
                         if (page.next[k] == MixedLeaf)
-                            ((XdmElement)node).LoadTextValue(this);
+                            ((XdmElement)node).LoadTextValue(part.fileReader);
                         nodes[k] = node;
                     }
                 }
                 page.nodes = nodes;
-                cached.Add(page);
+                AddCache(page);
             }
-            miss_count++;
+            Interlocked.Increment(ref miss_count);
             return nodes;
         }
 
         private void WritePage(Page page)
         {
-            lock (filelock)
+            PageFilePart part = parts[page.partid];
+            lock (part.fileStream)
             {
-                if (!page.stored && !closed)
+                if (!closed && !page.stored)
                 {
-                    if (fileStream == null)
-                        CreateFile();
-                    fileStream.Seek(0, SeekOrigin.End);
-                    page.offset = fileStream.Position;
-                    int num = page.num * pagesize;
+                    part.fileStream.Seek(0, SeekOrigin.End);
+                    page.offset = part.fileStream.Position;
                     for (int k = 0; k < page.nodes.Length; k++)
                     {
                         XdmNode node = page.nodes[k];
                         if (node != null)
                         {
-                            node.Store(this);
+                            node.Store(part.fileWriter);
                             if (page.next[k] == MixedLeaf)
-                                ((XdmElement)node).StoreTextValue(this);
+                                ((XdmElement)node).StoreTextValue(part.fileWriter);
                         }
                     }
                     page.stored = true;
                 }
-                page.nodes = null;
             }
+            page.nodes = null;
+            RemoveCache(page);
         }
 
         private void OptimizeCache()
-        {            
-            if (cached.Count > workset + workset_delta)
+        {
+            if (cacheCount > workset + workset_delta)
             {
                 if (miss_count > 0 && hit_count > 0)
                 {
@@ -378,18 +474,19 @@ namespace DataEngine.XQuery
                     }
                     ratio = ratio1;
                 }
-                if (workset < cached.Count)
+                if (workset < cacheCount)
                 {
-                    int len; 
+                    int len;
                     Page[] pages;
                     Page[] cached_pages;
-                    lock (filelock)
-                    {
-                        len = cached.Count - (int)workset;
-                        pages = new Page[len];
-                        cached_pages = cached.ToArray();
-                        cached.Clear();
-                    }
+                    bool lockTaken = false;
+                    cacheLock.Enter(ref lockTaken);
+                    len = cache.Count - (int)workset;
+                    pages = new Page[len];
+                    cached_pages = new Page[cache.Count];
+                    cache.CopyTo(cached_pages);
+                    if (lockTaken)
+                        cacheLock.Exit();
                     for (int i = 0; i < cached_pages.Length; i++)
                     {
                         Page curr = cached_pages[i];
@@ -405,21 +502,27 @@ namespace DataEngine.XQuery
                                 else
                                     curr = p;
                             }
-                    }                    
-                    ThreadPool.QueueUserWorkItem(new WaitCallback((object o) =>
+                    }
+                    if (parts == null)
+                        CreateFile();
+                    List<Page>[] slices = new List<Page>[partSize];
+                    for (int i = 0; i < partSize; i++)
+                        slices[i] = new List<Page>();
+                    for (int k = 0; k < len; k++)
+                        if (pages[k] != null)
                         {
-                            for (int k = 0; k < len; k++)
-                                if (pages[k] != null)
-                                    WritePage(pages[k]);
-                            lock (filelock)
+                            Page p = pages[k];
+                            slices[p.partid].Add(p);
+                        }
+                    for (int i = 0; i < partSize; i++)
+                        Task.Factory.StartNew((object o) =>
                             {
-                                for (int k = 0; k < cached_pages.Length; k++)
-                                    if (cached_pages[k].nodes != null)
-                                        cached.Add(cached_pages[k]);
-                            }
-                        }));
+                                List<Page> page_list = (List<Page>)o;
+                                foreach (Page p in page_list)
+                                    WritePage(p);
+                            }, slices[i]);
                 }
-            }
+            }            
         }
 
         public void AddNode(int parent, DmNode head, XdmNode node)
@@ -428,12 +531,9 @@ namespace DataEngine.XQuery
                 lastcount == pagesize)
             {
                 if (lastpage != null)
-                {
-                    lock (filelock)
-                        cached.Add(lastpage);
-                    OptimizeCache();
-                }
-                lastpage = new Page(pagesize);                
+                    AddCache(lastpage);
+                lastpage = new Page(pagesize);
+                lastpage.partid = (short)(pagecount % partSize); 
                 lastpage.pin = 1;
                 lastpage.num = pagecount++;
                 if (lastblock == null ||
@@ -475,11 +575,12 @@ namespace DataEngine.XQuery
 
         private class Page
         {
+            internal short partid;
             internal int num;
             internal long offset;
-            internal int pin;
             internal bool stored;
             internal XdmNode[] nodes;
+            internal int pin;            
             internal int[] next;
             internal int[] hindex;
             internal int[] parent;
@@ -496,30 +597,73 @@ namespace DataEngine.XQuery
             }
         }
 
-        private class EmbeddedReader : BinaryReader
+        private struct PageFilePart
         {
-            public EmbeddedReader(Stream fs, Encoding encoding)
-                : base(fs, encoding)
+            public string fileName;
+            public Stream fileStream;
+            public XdmWriter fileWriter;
+            public XdmReader fileReader;
+        }
+
+        private class PageFileOptimizer
+        {
+            private object syncRoot;
+            private Timer timer;
+            private bool active;
+            private LinkedList<WeakReference> pagefiles; 
+
+            public PageFileOptimizer()
             {
+                syncRoot = new Object();
+                pagefiles = new LinkedList<WeakReference>();
+                timer = new Timer(OnTimer);
+                active = false;
             }
 
-            protected override void Dispose(bool disposing)
+            public void Add(PageFile p)
             {
-                base.Dispose(false);
+                lock (syncRoot)
+                {
+                    pagefiles.AddLast(new WeakReference(p));
+                    if (!active)
+                    {
+                        timer.Change(50, 0);
+                        active = true;
+                    }
+                }
+            }
+
+            public void OnTimer(object context)
+            {
+                lock (syncRoot)
+                {
+                    LinkedListNode<WeakReference> curr = pagefiles.First;
+                    while (curr != null)
+                    {
+                        PageFile p = (PageFile)curr.Value.Target;
+                        LinkedListNode<WeakReference> next = curr.Next;
+                        if (p == null || p.closed)
+                            pagefiles.Remove(curr);
+                        else                               
+                            p.OptimizeCache();                        
+                        curr = next;
+                    }
+                    if (pagefiles.Count == 0)
+                        active = false;
+                    else
+                        timer.Change(50, 0);
+                }
+            }
+
+            public Object SyncRoot
+            {
+                get
+                {
+                    return syncRoot;
+                }
             }
         }
 
-        private class EmbeddedWriter : BinaryWriter
-        {
-            public EmbeddedWriter(Stream fs, Encoding encoding)
-                : base(fs, encoding)
-            {
-            }
-
-            protected override void Dispose(bool disposing)
-            {
-                base.Dispose(false);
-            }
-        }
+        private static PageFileOptimizer _optimizer = new PageFileOptimizer();
     }
 }

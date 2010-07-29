@@ -41,7 +41,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;_NET_4_0</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
@@ -51,8 +51,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>
-    </DefineConstants>
+    <DefineConstants>_NET_4_0</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
@@ -97,6 +96,7 @@
   <ItemGroup>
     <Compile Include="BigInteger.cs" />
     <Compile Include="BufferedNodeIterator.cs" />
+    <Compile Include="Collections\ItemList.cs" />
     <Compile Include="DocumentModel\DmAttribute.cs" />
     <Compile Include="DocumentModel\DmComment.cs" />
     <Compile Include="DocumentModel\DmContainer.cs" />
@@ -116,6 +116,7 @@
       <DependentUpon>DTD.y</DependentUpon>
     </Compile>
     <Compile Include="DTD\Tokenizer.cs" />
+    <Compile Include="Collections\ItemSet.cs" />
     <Compile Include="Parser\XQuery.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -128,6 +129,7 @@
     <Compile Include="Util\IDREFSValue.cs" />
     <Compile Include="Util\NMTOKENSValue.cs" />
     <Compile Include="Util\NotationValue.cs" />
+    <Compile Include="Collections\SimpleLinkedList.cs" />
     <Compile Include="Util\StringTokenizer.cs" />
     <Compile Include="DirectAccessPathExpr.cs" />
     <Compile Include="XQueryFuncs.cs" />
@@ -153,6 +155,7 @@
     <Compile Include="Parser\Tokenizer.cs" />
     <Compile Include="TreeComparer.cs" />
     <Compile Include="VarTable.cs" />
+    <Compile Include="XQueryItemBase.cs" />
     <Compile Include="XQueryMapping.cs" />
     <Compile Include="XQueryNavigatorWrapper.cs" />
     <Compile Include="XQueryParameter.cs" />

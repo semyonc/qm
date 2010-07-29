@@ -25,6 +25,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Text;
 using System.Globalization;
 
@@ -599,7 +600,7 @@ namespace DataEngine.CoreServices
 
         private Dictionary<Key, TypeProxy> _op1 = new Dictionary<Key, TypeProxy>();
         private Dictionary<Key, TypeProxy> _op2 = new Dictionary<Key, TypeProxy>();
-        private Key _key = new Key();
+        //private Key _key = new Key();
 
         public OperatorManager()
         {
@@ -607,6 +608,7 @@ namespace DataEngine.CoreServices
 
         private TypeProxy Get(object arg1, object arg2)
         {
+            Key _key = new Key();
             _key.type1 = arg1.GetType();
             _key.type2 = arg2.GetType();
             TypeProxy oper;

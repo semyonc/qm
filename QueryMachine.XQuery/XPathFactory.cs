@@ -47,7 +47,7 @@ namespace DataEngine.XQuery
             if (nav != null)
                 return nav.Clone();
             else
-                return ((XQueryItem)item).Clone();
+                return ((XQueryItemBase)item).Clone();
         }
 
         public static XQueryNodeIterator Query(this XPathNavigator node, string xquery, IXmlNamespaceResolver nsmgr)

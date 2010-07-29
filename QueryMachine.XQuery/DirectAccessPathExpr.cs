@@ -53,25 +53,40 @@ namespace DataEngine.XQuery
             _path = path;
         }
 
-        public override void Bind(Executive.Parameter[] parameters)
+        public override bool IsContextSensitive(Executive.Parameter[] parameters)
         {
-            _shadowXPath.Bind(parameters);
+            return _shadowXPath.IsContextSensitive(parameters);
         }
 
-        public override IEnumerable<SymbolLink> EnumDynamicFuncs()
+        public override void Bind(Executive.Parameter[] parameters, MemoryPool pool)
+        {
+            _shadowXPath.Bind(parameters, pool);
+        }
+
+        public override IEnumerable<FunctionLink> EnumDynamicFuncs()
         {
             return _shadowXPath.EnumDynamicFuncs();
         }
 
-        public override object Execute(IContextProvider provider, object[] args)
+        public override object Execute(IContextProvider provider, object[] args, MemoryPool pool)
         {
             XPathItem item = provider.Context;
+            if (item == null)
+                throw new XQueryException(Properties.Resources.XPDY0002);
             if (!item.IsNode)
                 throw new XQueryException(Properties.Resources.XPTY0019, provider.Context.Value);
             XQueryNavigator nav = item as XQueryNavigator;
             if (nav == null || (nav.NodeType != XPathNodeType.Root && nav.NodeType != XPathNodeType.Element))
-                return _shadowXPath.Execute(provider, args);
+                return _shadowXPath.Execute(provider, args, pool);
             return new NodeIterator(Iterator((XQueryNavigator)nav.Clone()));
+        }
+
+        public XQueryExprBase LastStep
+        {
+            get
+            {
+                return _shadowXPath.LastStep;
+            }
         }
 
         private IEnumerable<XPathItem> Iterator(XQueryNavigator src)
@@ -80,10 +95,14 @@ namespace DataEngine.XQuery
             int sup;
             int length = src.GetLength();
             DmNode node = src.DmNode;
-            NodeSet nset = node.GetNodeSet(this);
-            if (nset == null)
-                nset = node.CreateNodeSet(this, _path);
-            nset.GetBounds(out inf, out sup);
+            NodeSet nset;
+            lock (node)
+            {
+                nset = node.GetNodeSet(this);
+                if (nset == null)
+                    nset = node.CreateNodeSet(this, _path);
+                nset.GetBounds(out inf, out sup);
+            }
             int index;
             if (src.Position < inf)
             {
@@ -98,7 +117,9 @@ namespace DataEngine.XQuery
             int[] buffer = new int[PageFile.XQueryDirectAcessBufferSize];
             while (length > 0)
             {
+                src.Document.BeginRead();
                 int size = pf.Select(nset.hindex, ref index, ref length, buffer);
+                src.Document.EndRead();
                 for (int k = 0; k < size; k++)
                 {
                     res.Position = buffer[k];

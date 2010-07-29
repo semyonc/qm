@@ -7,6 +7,7 @@ using System.Xml.XPath;
 
 using DataEngine.CoreServices;
 using DataEngine.XQuery;
+using System.Xml.Schema;
 
 namespace SimpleTestConsole
 {
@@ -87,6 +88,22 @@ namespace SimpleTestConsole
                 time += wh.ElapsedTicks;
             }
             return TicksToMilliseconds(time, iter);
-        }    
+        }
+
+        [XQuerySignature("query-param", NamespaceUri = "urn:urn", Cardinality = XmlTypeCardinality.ZeroOrMore, Return = XmlTypeCode.String)]
+        public static object QueryParam(
+           [XQueryParameter(XmlTypeCode.String, Cardinality = XmlTypeCardinality.One)] string name)
+        {
+
+            List<XPathItem> items = new List<XPathItem>();
+
+            items.Add(new XQueryItem("1", XmlSchemaSimpleType.GetBuiltInSimpleType(XmlTypeCode.String)));
+            items.Add(new XQueryItem("2", XmlSchemaSimpleType.GetBuiltInSimpleType(XmlTypeCode.String)));
+            items.Add(new XQueryItem("3", XmlSchemaSimpleType.GetBuiltInSimpleType(XmlTypeCode.String)));
+
+            return new NodeIterator(items);
+        }
+
+
     }
 }

@@ -47,24 +47,33 @@ namespace DataEngine.XQuery
             m_convert = convert;
         }
 
-        public override void Bind(Executive.Parameter[] parameters)
+        public override void Bind(Executive.Parameter[] parameters, MemoryPool pool)
         {
-            m_valueExpr = new SymbolLink();
+            m_valueExpr = new FunctionLink();
             QueryContext.Engine.Compile(parameters, m_expr, m_valueExpr);
+            m_value.IsStatic = true;
+            SymbolLink[] depends = QueryContext.Engine.GetValueDependences(parameters, m_expr, m_valueExpr, false);
+            foreach (SymbolLink s in depends)
+                if (!s.IsStatic)
+                {
+                    m_value.IsStatic = false;
+                    break;
+                }
             object data = QueryContext.Resolver.GetCurrentStack();
+            pool.Bind(m_value);
             QueryContext.Resolver.SetValue(m_var, m_value);
             if (ConditionExpr != null)
             {
-                m_conditionExpr = new SymbolLink();
+                m_conditionExpr = new FunctionLink();
                 QueryContext.Engine.Compile(parameters, ConditionExpr, m_conditionExpr);
             }
-            m_bodyExpr.Bind(parameters);
+            m_bodyExpr.Bind(parameters, pool);
             QueryContext.Resolver.RevertToStack(data);
         }
 
-        public override object Execute(IContextProvider provider, object[] args)
+        public override object Execute(IContextProvider provider, object[] args, MemoryPool pool)
         {
-            object value = QueryContext.Engine.Apply(null, null, m_expr, args, m_valueExpr);
+            object value = QueryContext.Engine.Apply(null, null, m_expr, args, m_valueExpr, pool);
             if (value == null)
                 value = DataEngine.CoreServices.Generation.RuntimeOps.False;
             if (m_varType != XQuerySequenceType.Item && m_convert)
@@ -72,11 +81,11 @@ namespace DataEngine.XQuery
             XQueryNodeIterator iter = value as XQueryNodeIterator;
             if (iter != null)
                 value = iter.CreateBufferedIterator();
-            m_value.Value = value;
+            pool.SetData(m_value, value);
             if (m_conditionExpr != null &&
-                !Core.BooleanValue(QueryContext.Engine.Apply(null, null, ConditionExpr, args, m_conditionExpr)))
+                !Core.BooleanValue(QueryContext.Engine.Apply(null, null, ConditionExpr, args, m_conditionExpr, pool)))
                 return EmptyIterator.Shared;
-            return m_bodyExpr.Execute(provider, args);
+            return m_bodyExpr.Execute(provider, args, pool);
         }
 
 #if DEBUG

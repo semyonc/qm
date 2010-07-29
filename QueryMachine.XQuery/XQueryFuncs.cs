@@ -2356,7 +2356,7 @@ namespace DataEngine.XQuery
         public static bool NodeLang(IContextProvider provider,
             [XQueryParameter(XmlTypeCode.String, Cardinality = XmlTypeCardinality.ZeroOrOne)] object testLang)
         {
-            return NodeLang(testLang, provider.Context);
+            return NodeLang(testLang, Core.ContextNode(provider));
         }
 
         [XQuerySignature("lang")]

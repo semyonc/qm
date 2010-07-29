@@ -168,17 +168,24 @@ namespace DataEngine.XQuery
             }
         }
 
-        public override void Bind(DataEngine.CoreServices.Executive.Parameter[] parameters)
+        public override void Bind(Executive.Parameter[] parameters, MemoryPool pool)
         {
         }
 
-        public override IEnumerable<SymbolLink> EnumDynamicFuncs()
+        public override bool IsContextSensitive(Executive.Parameter[] parameters)
         {
-            return new SymbolLink[0];
+            return true;
         }
 
-        public override object Execute(IContextProvider provider, object[] args)
+        public override IEnumerable<FunctionLink> EnumDynamicFuncs()
         {
+            return new FunctionLink[0];
+        }
+
+        public override object Execute(IContextProvider provider, object[] args, MemoryPool pool)
+        {
+            if (provider.Context == null)
+                throw new XQueryException(Properties.Resources.XPDY0002);
             if (!provider.Context.IsNode)
                 throw new XQueryException(Properties.Resources.XPTY0019, provider.Context.Value);
             return new NodeIterator(m_iter(provider.Context));                

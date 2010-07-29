@@ -14,38 +14,38 @@ namespace DataEngine.XQuery.DTD
 {
    internal class DTDID
    {
-	    public static readonly object ElementDecl =  Lisp.Defatom("elementDecl");       
-	    public static readonly object AttlistDecl =  Lisp.Defatom("attrlistDecl");       
-	    public static readonly object GEDecl =  Lisp.Defatom("GEDecl");       
-	    public static readonly object PEDecl =  Lisp.Defatom("PEDecl");       
-	    public static readonly object NotationDecl =  Lisp.Defatom("notationDecl");     
-	    public static readonly object Comment =  Lisp.Defatom("comment");       
-	    public static readonly object PI =  Lisp.Defatom("pi");       
-	    public static readonly object EMPTY =  Lisp.Defatom("dtd:EMPTY");       
-	    public static readonly object ANY =  Lisp.Defatom("dtd:ANY");       
-	    public static readonly object MixedContent =  Lisp.Defatom("mixed");       
-	    public static readonly object PCDATA =  Lisp.Defatom("dtd:PCDATA");       
-	    public static readonly object ZeroOrOne = Lisp.Defatom("ZeroOrOne");       
-	    public static readonly object OneOrMore = Lisp.Defatom("OneOrMore");       
-	    public static readonly object ZeroOrMore = Lisp.Defatom("ZeroOrMore");       	    
-	    public static readonly object Choice = Lisp.Defatom("choice");       	    
-	    public static readonly object Seq = Lisp.Defatom("seq");    
-	    public static readonly object AttDef = Lisp.Defatom("attDef");    
-	    public static readonly object CDATA = Lisp.Defatom("dtd:CDATA");
-	    public static readonly object ID = Lisp.Defatom("dtd:ID");
-	    public static readonly object IDREF = Lisp.Defatom("dtd:IDREF");
-	    public static readonly object IDREFS = Lisp.Defatom("dtd:IDREFS");
-	    public static readonly object ENTITY = Lisp.Defatom("dtd:ENTITY");
-	    public static readonly object ENTITIES = Lisp.Defatom("dtd:ENTITIES");
-	    public static readonly object NMTOKEN = Lisp.Defatom("dtd:NMTOKEN");
-	    public static readonly object NMTOKENS = Lisp.Defatom("dtd:NMTOKENS");	
-	    public static readonly object Notation = Lisp.Defatom("notation");	       
-        public static readonly object REQUIRED = Lisp.Defatom("dtd:REQUIRED");	       
-	    public static readonly object IMPLIED = Lisp.Defatom("dtd:IMPLIED");	       
-        public static readonly object FIXED = Lisp.Defatom("dtd:FIXED");	       
-        public static readonly object PUBLIC = Lisp.Defatom("dtd:PUBLIC");
-        public static readonly object SYSTEM = Lisp.Defatom("dtd:SYSTEM");
-        public static readonly object NData = Lisp.Defatom("dtd:NData");
+	    public static readonly object ElementDecl =  ATOM.Create("elementDecl");       
+	    public static readonly object AttlistDecl =  ATOM.Create("attrlistDecl");       
+	    public static readonly object GEDecl =  ATOM.Create("GEDecl");       
+	    public static readonly object PEDecl =  ATOM.Create("PEDecl");       
+	    public static readonly object NotationDecl =  ATOM.Create("notationDecl");     
+	    public static readonly object Comment =  ATOM.Create("comment");       
+	    public static readonly object PI =  ATOM.Create("pi");       
+	    public static readonly object EMPTY =  ATOM.Create("dtd:EMPTY");       
+	    public static readonly object ANY =  ATOM.Create("dtd:ANY");       
+	    public static readonly object MixedContent =  ATOM.Create("mixed");       
+	    public static readonly object PCDATA =  ATOM.Create("dtd:PCDATA");       
+	    public static readonly object ZeroOrOne = ATOM.Create("ZeroOrOne");       
+	    public static readonly object OneOrMore = ATOM.Create("OneOrMore");       
+	    public static readonly object ZeroOrMore = ATOM.Create("ZeroOrMore");       	    
+	    public static readonly object Choice = ATOM.Create("choice");       	    
+	    public static readonly object Seq = ATOM.Create("seq");    
+	    public static readonly object AttDef = ATOM.Create("attDef");    
+	    public static readonly object CDATA = ATOM.Create("dtd:CDATA");
+	    public static readonly object ID = ATOM.Create("dtd:ID");
+	    public static readonly object IDREF = ATOM.Create("dtd:IDREF");
+	    public static readonly object IDREFS = ATOM.Create("dtd:IDREFS");
+	    public static readonly object ENTITY = ATOM.Create("dtd:ENTITY");
+	    public static readonly object ENTITIES = ATOM.Create("dtd:ENTITIES");
+	    public static readonly object NMTOKEN = ATOM.Create("dtd:NMTOKEN");
+	    public static readonly object NMTOKENS = ATOM.Create("dtd:NMTOKENS");	
+	    public static readonly object Notation = ATOM.Create("notation");	       
+        public static readonly object REQUIRED = ATOM.Create("dtd:REQUIRED");	       
+	    public static readonly object IMPLIED = ATOM.Create("dtd:IMPLIED");	       
+        public static readonly object FIXED = ATOM.Create("dtd:FIXED");	       
+        public static readonly object PUBLIC = ATOM.Create("dtd:PUBLIC");
+        public static readonly object SYSTEM = ATOM.Create("dtd:SYSTEM");
+        public static readonly object NData = ATOM.Create("dtd:NData");
    }
 
    internal class DTDParser

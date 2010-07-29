@@ -31,10 +31,6 @@ using DataEngine.CoreServices;
 
 namespace DataEngine.XQuery
 {
-    internal class EmptySequnceException: Exception
-    {
-    }
-
     public abstract class XQueryExprBase: IBindableObject
     {
         private XQueryContext _queryContext;
@@ -44,16 +40,16 @@ namespace DataEngine.XQuery
             _queryContext = queryContext;
         }
 
-        public abstract void Bind(Executive.Parameter[] parameters);
+        public abstract void Bind(Executive.Parameter[] parameters, MemoryPool pool);
 
-        public abstract IEnumerable<SymbolLink> EnumDynamicFuncs();
+        public abstract IEnumerable<FunctionLink> EnumDynamicFuncs();
 
         public virtual bool IsContextSensitive(Executive.Parameter[] parameters)
         {
             return false;
         }
 
-        public abstract object Execute(IContextProvider provider, object[] args);
+        public abstract object Execute(IContextProvider provider, object[] args, MemoryPool pool);
 
         public XQueryContext QueryContext
         {
@@ -69,7 +65,7 @@ namespace DataEngine.XQuery
             if (expr != null && expr.m_expr.Length == 1)
                 return expr.m_expr[0];
             else
-                return Lisp.List(ID.DynExecuteExpr, this, ID.Context, Lisp.ARGV);
+                return Lisp.List(ID.DynExecuteExpr, this, ID.Context, Lisp.ARGV, Lisp.MPOOL);
         }
     }
 }

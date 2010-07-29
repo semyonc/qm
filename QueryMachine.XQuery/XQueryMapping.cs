@@ -39,7 +39,7 @@ namespace DataEngine.XQuery
     {
         private bool m_root;
         private object m_expr;
-        private SymbolLink m_compiledExpr;
+        private FunctionLink m_compiledExpr;
         private XQueryExprBase m_bodyExpr;
 
         public XQueryMapping(XQueryContext context, object expr, XQueryExprBase bodyExpr, bool root)
@@ -50,33 +50,33 @@ namespace DataEngine.XQuery
             m_bodyExpr = bodyExpr;
         }
 
-        public override void Bind(Executive.Parameter[] parameters)
+        public override void Bind(Executive.Parameter[] parameters, MemoryPool pool)
         {
-            m_compiledExpr = new SymbolLink();
+            m_compiledExpr = new FunctionLink();
             QueryContext.Engine.Compile(parameters, m_expr, m_compiledExpr);
-            m_bodyExpr.Bind(parameters);
+            m_bodyExpr.Bind(parameters, pool);
         }
 
-        public override IEnumerable<SymbolLink> EnumDynamicFuncs()
+        public override IEnumerable<FunctionLink> EnumDynamicFuncs()
         {
-            List<SymbolLink> res = new List<SymbolLink>();
+            List<FunctionLink> res = new List<FunctionLink>();
             res.Add(m_compiledExpr);
             res.AddRange(m_bodyExpr.EnumDynamicFuncs());
             return res;
         }
 
-        public override object Execute(IContextProvider provider, object[] args)
+        public override object Execute(IContextProvider provider, object[] args, MemoryPool pool)
         {
             XQueryNodeIterator iter = XQueryNodeIterator.Create(
-                QueryContext.Engine.Apply(null, null, m_expr, args, m_compiledExpr));
+                QueryContext.Engine.Apply(null, null, m_expr, args, m_compiledExpr, pool));
             if (m_root)
-                return new XQueryMappingIterator(args, iter, m_bodyExpr);
+                return new XQueryMappingIterator(args, pool, iter, m_bodyExpr);
             else
             {
                 ContextProvider contextProvider = new ContextProvider(iter);
                 object res = Undefined.Value;
                 while (iter.MoveNext())
-                    res = m_bodyExpr.Execute(contextProvider, args);
+                    res = m_bodyExpr.Execute(contextProvider, args, pool);
                 return res;
             }
         }
@@ -85,12 +85,14 @@ namespace DataEngine.XQuery
         {
             private IContextProvider provider;
             private object[] args;
+            private MemoryPool pool;
             private XQueryNodeIterator baseIter;
             private XQueryExprBase bodyExpr;
 
-            public XQueryMappingIterator(object[] args, XQueryNodeIterator iter, XQueryExprBase bodyExpr)
+            public XQueryMappingIterator(object[] args, MemoryPool pool, XQueryNodeIterator iter, XQueryExprBase bodyExpr)
             {
                 this.args = args;
+                this.pool = pool;
                 this.baseIter = iter.Clone();
                 this.bodyExpr = bodyExpr;
                 provider = new ContextProvider(baseIter);
@@ -98,7 +100,7 @@ namespace DataEngine.XQuery
 
             public override XQueryNodeIterator Clone()
             {
-                return new XQueryMappingIterator(args, baseIter, bodyExpr);
+                return new XQueryMappingIterator(args, pool, baseIter, bodyExpr);
             }
 
             public override XQueryNodeIterator CreateBufferedIterator()
@@ -109,7 +111,7 @@ namespace DataEngine.XQuery
             protected override XPathItem NextItem()
             {
                 if (baseIter.MoveNext())
-                    return (XPathItem)bodyExpr.Execute(provider, args);
+                    return (XPathItem)bodyExpr.Execute(provider, args, pool);
                 return null;
             }
         }

@@ -35,50 +35,26 @@ using DataEngine.CoreServices;
 
 namespace DataEngine.XQuery
 {
-    internal class ContextProvider : IContextProvider
-    {
-        private XQueryNodeIterator m_iter;
-
-        public ContextProvider(XQueryNodeIterator iter)
-        {
-            m_iter = iter;
-        }
-
-        #region IContextProvider Members
-
-        public XPathItem Context
-        {
-            get
-            {
-                return m_iter.Current;
-            }
-        }
-
-        public int CurrentPosition
-        {
-            get
-            {
-                return m_iter.CurrentPosition + 1;
-            }
-        }
-
-        public int LastPosition
-        {
-            get
-            {
-                return m_iter.Count;
-            }
-        }
-
-        #endregion
-    }
-
     sealed class XQueryFilterExpr: XQueryExprBase
     {
         private XQueryExprBase[] m_filter;
         private bool m_contextSensitive;
+        private XQueryExprBase m_src;
         
-        public XQueryExprBase Source { get; set; }
+        public XQueryExprBase Source 
+        {
+            get
+            {
+                return m_src;
+            }
+            set
+            {
+                m_src = value;
+                XQueryPathExpr pathExpr = m_src as XQueryPathExpr;
+                if (pathExpr != null)
+                    pathExpr.EnableCaching = false;
+            }
+        }
         
         public XQueryFilterExpr(XQueryContext queryContext, XQueryExprBase[] filter)
             : base(queryContext)
@@ -86,14 +62,15 @@ namespace DataEngine.XQuery
             m_filter = filter;
         }
 
-        private IEnumerable<XPathItem> CreateEnumerator(object[] args,  
-            XQueryExpr expr, XQueryNodeIterator baseIter)
+        private IEnumerable<XPathItem> CreateEnumerator(object[] args,  MemoryPool pool,
+            XQueryExprBase expr, XQueryNodeIterator baseIter)
         {
             XQueryNodeIterator iter = baseIter.Clone();
-            if (expr != null && expr.m_expr.Length == 1 
-                && expr.m_expr[0] is Integer)
+            XQueryExpr numexpr = expr as XQueryExpr;
+            if (numexpr != null && numexpr.m_expr.Length == 1
+                && numexpr.m_expr[0] is Integer)
             {
-                Integer pos = (Integer)expr.m_expr[0];
+                Integer pos = (Integer)numexpr.m_expr[0];
                 foreach (XPathItem item in iter)
                 {
                     if (pos == 1)
@@ -112,7 +89,7 @@ namespace DataEngine.XQuery
                 while (iter.MoveNext())
                 {
                     if (m_contextSensitive || res == Undefined.Value)
-                        res = expr.Execute(provider, args);
+                        res = expr.Execute(provider, args, pool);
                     if (res == Undefined.Value)
                     {
                         if (!m_contextSensitive)
@@ -158,34 +135,39 @@ namespace DataEngine.XQuery
             }
         }
 
-        public override void Bind(Executive.Parameter[] parameters)
+        public override void Bind(Executive.Parameter[] parameters, MemoryPool pool)
         {
-            Source.Bind(parameters);
+            Source.Bind(parameters, pool);
             m_contextSensitive = false;
             foreach (XQueryExprBase expr in m_filter)
             {
-                expr.Bind(parameters);
+                expr.Bind(parameters, pool);
                 if (!m_contextSensitive)
                     m_contextSensitive = expr.IsContextSensitive(parameters);
             }
         }
 
-        public override IEnumerable<SymbolLink> EnumDynamicFuncs()
+        public override bool IsContextSensitive(Executive.Parameter[] parameters)
         {
-            List<SymbolLink> res = new List<SymbolLink>();
+            return Source.IsContextSensitive(parameters);
+        }
+
+        public override IEnumerable<FunctionLink> EnumDynamicFuncs()
+        {
+            List<FunctionLink> res = new List<FunctionLink>();
             res.AddRange(Source.EnumDynamicFuncs());
             foreach (XQueryExprBase expr in m_filter)
                 res.AddRange(expr.EnumDynamicFuncs());
             return res;
         }
 
-        public override object Execute(IContextProvider provider, object[] args)
+        public override object Execute(IContextProvider provider, object[] args, MemoryPool pool)
         {
             if (Source == null)
                 return EmptyIterator.Shared;
-            XQueryNodeIterator iter = XQueryNodeIterator.Create(Source.Execute(provider, args));
+            XQueryNodeIterator iter = XQueryNodeIterator.Create(Source.Execute(provider, args, pool));
             for (int k = 0; k < m_filter.Length; k++)
-                iter = new NodeIterator(CreateEnumerator(args, (XQueryExpr)m_filter[k], iter));
+                iter = new NodeIterator(CreateEnumerator(args, pool, m_filter[k], iter));
             return iter;
         }
 

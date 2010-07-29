@@ -92,7 +92,7 @@ namespace DataEngine.CoreServices
         private static object MakeValue(int token, object value)
         {
             if (token == LToken.ATOM)
-                return Lisp.Defatom(new string[]{(string)value});            
+                return ATOM.Create(null, new string[]{(string)value}, false);            
             return value;
         }
     }

@@ -48,11 +48,11 @@ namespace DataEngine.XQuery
             }
         }
 
-        public virtual void Load(PageFile pagefile)
+        public virtual void Load(XdmReader reader)
         {
         }
 
-        public virtual void Store(PageFile pagefile)
+        public virtual void Store(XdmWriter writer)
         {
         }
     }
@@ -63,11 +63,11 @@ namespace DataEngine.XQuery
         {
         }
 
-        public override void Load(PageFile pagefile)
+        public override void Load(XdmReader reader)
         {            
         }
 
-        public override void Store(PageFile pagefile)
+        public override void Store(XdmWriter writer)
         {            
         }
     }
@@ -90,16 +90,16 @@ namespace DataEngine.XQuery
             }
         }
 
-        public override void Load(PageFile pagefile)
+        public override void Load(XdmReader reader)
         {
-            _dm = pagefile.ReadAttributeInfo();
-            _value = pagefile.ReadString();
+            _dm = reader.ReadAttributeInfo();
+            _value = reader.ReadString();
         }
 
-        public override void Store(PageFile pagefile)
+        public override void Store(XdmWriter writer)
         {
-            pagefile.WriteAttributeInfo(_dm);
-            pagefile.WriteString(_value);
+            writer.WriteAttributeInfo(_dm);
+            writer.WriteString(_value);
         }
     }
 
@@ -121,18 +121,18 @@ namespace DataEngine.XQuery
             }
         }
 
-        public override void Load(PageFile pagefile)
+        public override void Load(XdmReader reader)
         {
-            base.Load(pagefile);
-            _name = pagefile.ReadString();
-            _value = pagefile.ReadString();
+            base.Load(reader);
+            _name = reader.ReadString();
+            _value = reader.ReadString();
         }
 
-        public override void Store(PageFile pagefile)
+        public override void Store(XdmWriter writer)
         {
-            base.Store(pagefile);
-            pagefile.WriteString(_name);
-            pagefile.WriteString(_value);
+            base.Store(writer);
+            writer.WriteString(_name);
+            writer.WriteString(_value);
         }
     }
 
@@ -154,16 +154,16 @@ namespace DataEngine.XQuery
             }
         }
 
-        public override void Load(PageFile pagefile)
+        public override void Load(XdmReader reader)
         {
-            base.Load(pagefile);
+            base.Load(reader);
             XdmNamespace ns = null;
             while (true)
             {
-                if (!pagefile.ReadBoolean())
+                if (!reader.ReadBoolean())
                     break;
                 XdmNamespace curr = new XdmNamespace();
-                curr.Load(pagefile);
+                curr.Load(reader);
                 if (ns == null)
                     _ns = ns = curr;
                 else
@@ -175,10 +175,10 @@ namespace DataEngine.XQuery
             XdmAttribute attr = null;
             while (true)
             {
-                if (!pagefile.ReadBoolean())
+                if (!reader.ReadBoolean())
                     break;
                 XdmAttribute curr = new XdmAttribute();
-                curr.Load(pagefile);
+                curr.Load(reader);
                 if (attr == null)
                     _attributes = attr = curr;
                 else
@@ -189,35 +189,35 @@ namespace DataEngine.XQuery
             }            
         }
 
-        public override void Store(PageFile pagefile)
+        public override void Store(XdmWriter writer)
         {
-            base.Store(pagefile);
+            base.Store(writer);
             XdmNamespace ns = _ns;
             while (ns != null)
             {
-                pagefile.WriteBoolean(true);
-                ns.Store(pagefile);
+                writer.WriteBoolean(true);
+                ns.Store(writer);
                 ns = ns._next;
             }
-            pagefile.WriteBoolean(false);
+            writer.WriteBoolean(false);
             XdmAttribute attr = _attributes;
             while (attr != null)
             {
-                pagefile.WriteBoolean(true);
-                attr.Store(pagefile);
+                writer.WriteBoolean(true);
+                attr.Store(writer);
                 attr = attr._next;
             }
-            pagefile.WriteBoolean(false);
+            writer.WriteBoolean(false);
         }
 
-        public void LoadTextValue(PageFile pagefile)
+        public void LoadTextValue(XdmReader reader)
         {
-            _value = pagefile.ReadString();
+            _value = reader.ReadString();
         }
 
-        public void StoreTextValue(PageFile pagefile)
+        public void StoreTextValue(XdmWriter writer)
         {
-            pagefile.WriteString(_value);
+            writer.WriteString(_value);
         }
     }
 
@@ -242,16 +242,16 @@ namespace DataEngine.XQuery
             }
         }
 
-        public override void Load(PageFile pagefile)
+        public override void Load(XdmReader reader)
         {
-            base.Load(pagefile);
-            _value = pagefile.ReadString();
+            base.Load(reader);
+            _value = reader.ReadString();
         }
 
-        public override void Store(PageFile pagefile)
+        public override void Store(XdmWriter writer)
         {
-            base.Store(pagefile);
-            pagefile.WriteString(_value);
+            base.Store(writer);
+            writer.WriteString(_value);
         }
     }
 
@@ -276,16 +276,16 @@ namespace DataEngine.XQuery
             }
         }
 
-        public override void Load(PageFile pagefile)
+        public override void Load(XdmReader reader)
         {
-            base.Load(pagefile);
-            _text = pagefile.ReadString();
+            base.Load(reader);
+            _text = reader.ReadString();
         }
 
-        public override void Store(PageFile pagefile)
+        public override void Store(XdmWriter writer)
         {
-            base.Store(pagefile);
-            pagefile.WriteString(_text);
+            base.Store(writer);
+            writer.WriteString(_text);
         }
     }
 
@@ -310,16 +310,16 @@ namespace DataEngine.XQuery
             }
         }
 
-        public override void Load(PageFile pagefile)
+        public override void Load(XdmReader reader)
         {
-            base.Load(pagefile);
-            _text = pagefile.ReadString();
+            base.Load(reader);
+            _text = reader.ReadString();
         }
 
-        public override void Store(PageFile pagefile)
+        public override void Store(XdmWriter writer)
         {
-            base.Store(pagefile);
-            pagefile.WriteString(_text);
+            base.Store(writer);
+            writer.WriteString(_text);
         }
     }
 
@@ -344,16 +344,16 @@ namespace DataEngine.XQuery
             }
         }
 
-        public override void Load(PageFile pagefile)
+        public override void Load(XdmReader reader)
         {
-            base.Load(pagefile);
-            _text = pagefile.ReadString();
+            base.Load(reader);
+            _text = reader.ReadString();
         }
 
-        public override void Store(PageFile pagefile)
+        public override void Store(XdmWriter writer)
         {
-            base.Store(pagefile);
-            pagefile.WriteString(_text);
+            base.Store(writer);
+            writer.WriteString(_text);
         }
     }
 }

@@ -584,6 +584,11 @@ namespace DataEngine.XQuery
 
         internal DmRoot DocumentRoot { get; private set; }
 
+        public XQueryDocument Document
+        {
+            get { return m_document; }
+        }
+
         public XmlNameTable NameTable { get; private set; }
 
         internal protected class ElementContext

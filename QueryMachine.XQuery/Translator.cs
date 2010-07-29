@@ -657,7 +657,9 @@ namespace DataEngine.XQuery
                 _context.AddExternalVariable(var, varType);
                 external = true;
             }
-            valueLink.Value = Undefined.Value;
+            valueLink.IsStatic = true;
+            _context.Engine.DefaultPool.Bind(valueLink);
+            _context.Engine.DefaultPool.SetData(valueLink, Undefined.Value);
             _context.Engine.Set(var, valueLink);
             _varTable.PushVar(var, varType, external);
         }
@@ -680,7 +682,7 @@ namespace DataEngine.XQuery
                 ns == XmlReservedNs.NsXs ||
                 ns == XmlReservedNs.NsXsi)
                 throw new XQueryException(Properties.Resources.XQST0045, identity.Name, identity.Namespace);
-            object f = Lisp.Defatom(ns, new string[] { identity.Name }, false);
+            object f = ATOM.Create(ns, new string[] { identity.Name }, false);
             FunctionParameter[] parameters = ProcessParamList(notation, rec.args[1]);
             if (_context.FunctionTable.IsRegistered(f, parameters.Length))
                 throw new XQueryException(Properties.Resources.XQST0034, identity.Name, identity.Namespace);            
@@ -726,7 +728,7 @@ namespace DataEngine.XQuery
                     throw new NotImplementedException();
                 else
                 {
-                    XQueryExpr expr = (XQueryExpr)ProcessExpr(notation, rec.args[3]);
+                    XQueryExprBase expr = (XQueryExprBase)ProcessExpr(notation, rec.args[3]);
                     object body = expr.ToLispFunction();
                     if (decl.returnType != XQuerySequenceType.Item)
                     {
@@ -744,12 +746,11 @@ namespace DataEngine.XQuery
                     throw new NotImplementedException();
                 else
                 {
-                    XQueryExpr expr = (XQueryExpr)ProcessExpr(notation, rec.args[2]);
+                    XQueryExprBase expr = (XQueryExprBase)ProcessExpr(notation, rec.args[2]);
                     LambdaExpr lambdaExpr = new LambdaExpr(decl.f, executiveParameters, typeof(System.Object),
                         expr.ToLispFunction());
                     _context.Engine.Defun(lambdaExpr);
                 }
-
             }
             _varTable.EndFrame(stack_pos);
         }
@@ -795,7 +796,7 @@ namespace DataEngine.XQuery
             object[] expr = new object[arr.Length];
             for (int k = 0; k < arr.Length; k++)
                 expr[k] = ProcessExprSingle(notation, arr[k]);
-            if (expr.Length == 1 && Lisp.IsFunctor(expr[0], ID.DynExecuteExpr, 1))
+            if (expr.Length == 1 && Lisp.IsFunctor(expr[0], ID.DynExecuteExpr, 4))
                 return (XQueryExprBase)Lisp.Arg1(expr[0]);
             return new XQueryExpr(_context, expr);
         }
@@ -915,7 +916,7 @@ namespace DataEngine.XQuery
                 }
             }
             XQueryOrderSpec[] orderSpec = null;
-            XQueryExprBase expr = new XQueryExpr(_context, 
+            XQueryExprBase expr = XQueryExpr.Create(_context,
                 new object[] { ProcessExprSingle(notation, rec.Arg3) });
             if (rec.Arg2 != null)
             {
@@ -923,6 +924,8 @@ namespace DataEngine.XQuery
                     Descriptor.OrderBy, Descriptor.StableOrderBy });
                 if (recs.Length > 0)
                 {
+                    if (!(expr is XQueryExpr))
+                        expr = new XQueryExpr(_context, new object[] { expr.ToLispFunction() });
                     stable = (recs[0].descriptor == Descriptor.StableOrderBy);
                     Symbol[] arr3 = Lisp.ToArray<Symbol>(recs[0].args[0]);
                     orderSpec = new XQueryOrderSpec[arr3.Length];
@@ -992,7 +995,7 @@ namespace DataEngine.XQuery
             _varTable.EndFrame(stack_pos);
             if (orderSpec != null)
                 expr = new XQuerySorter(_context, orderSpec, stable, expr);
-            return Lisp.List(ID.DynExecuteExpr, expr, ID.Context, Lisp.ARGV);
+            return Lisp.List(ID.DynExecuteExpr, expr, ID.Context, Lisp.ARGV, Lisp.MPOOL);
         }
 
         private object ProcessQuantifiedExpr(Notation notation, Notation.Record rec)
@@ -1061,7 +1064,7 @@ namespace DataEngine.XQuery
         {
             Symbol[] arr = Lisp.ToArray<Symbol>(rec.args[1]);
             object[] branch = new object[arr.Length + 1];
-            object x = Lisp.Defatom("_expr");
+            object x = ATOM.Create("_expr");
             for (int k = 0; k < arr.Length; k++)
             {
                 Notation.Record[] recs = notation.Select(arr[k], new Descriptor[] { Descriptor.Case });
@@ -1073,11 +1076,11 @@ namespace DataEngine.XQuery
                         XQuerySequenceType seqtype = ProcessTypeDecl(notation, recs[0].Arg1);
                         int stack_pos = _varTable.BeginFrame();
                         _varTable.PushVar(var, seqtype);
-                        XQueryExprBase expr = new XQueryExpr(_context, 
+                        XQueryExprBase expr = XQueryExpr.Create(_context, 
                             new object[] { ProcessExprSingle(notation, recs[0].Arg2) });
                         _varTable.EndFrame(stack_pos);
                         branch[k] = Lisp.List(Lisp.List(ID.InstanceOf, x, seqtype),
-                            Lisp.List(ID.DynExecuteExpr, new XQueryLET(_context, var, seqtype, x, expr, true), ID.Context, Lisp.ARGV));
+                            Lisp.List(ID.DynExecuteExpr, new XQueryLET(_context, var, seqtype, x, expr, true), ID.Context, Lisp.ARGV, Lisp.MPOOL));
                     }
                     else
                         branch[k] = Lisp.List(Lisp.List(ID.InstanceOf, x, ProcessTypeDecl(notation, recs[0].Arg0)),
@@ -1089,11 +1092,11 @@ namespace DataEngine.XQuery
                 object var = ProcessVarName((VarName)rec.Arg2);
                 int stack_pos = _varTable.BeginFrame();
                 _varTable.PushVar(var, XQuerySequenceType.Item);
-                XQueryExprBase expr = new XQueryExpr(_context, 
+                XQueryExprBase expr = XQueryExpr.Create(_context, 
                     new object[] { ProcessExprSingle(notation, rec.Arg3) });
                 _varTable.EndFrame(stack_pos);
                 branch[arr.Length] = Lisp.List(Lisp.T, Lisp.List(ID.DynExecuteExpr, 
-                    new XQueryLET(_context, var, XQuerySequenceType.Item, x, expr, true), ID.Context, Lisp.ARGV));
+                    new XQueryLET(_context, var, XQuerySequenceType.Item, x, expr, true), ID.Context, Lisp.ARGV, Lisp.MPOOL));
             }
             else
                 branch[arr.Length] = Lisp.List(Lisp.T, ProcessExprSingle(notation, rec.Arg2));
@@ -1469,7 +1472,7 @@ namespace DataEngine.XQuery
                 }
             }
             return Lisp.List(ID.Validate, Lisp.List(ID.DynExecuteExpr, 
-                ProcessExpr(notation, rec.args[1]), ID.Context, Lisp.ARGV), lax);
+                ProcessExpr(notation, rec.args[1]), ID.Context, Lisp.ARGV, Lisp.MPOOL), lax);
         }
 
         private object ProcessPathExpr(Notation notation, Symbol sym)
@@ -1506,10 +1509,8 @@ namespace DataEngine.XQuery
             else
             {
                 XQueryExprBase[] path = OptimizeXPath(steps);
-                if (path.Length == 1 && path[0] is DirectAccessPathExpr)
-                    return Lisp.List(ID.DynExecuteExpr, path[0], ID.Context, Lisp.ARGV);
                 return Lisp.List(ID.DynExecuteExpr,
-                    new XQueryPathExpr(_context, path, _context.IsOrdered), ID.Context, Lisp.ARGV);
+                    new XQueryPathExpr(_context, path, _context.IsOrdered), ID.Context, Lisp.ARGV, Lisp.MPOOL);
             }
         }
 
@@ -1708,12 +1709,12 @@ namespace DataEngine.XQuery
             if (recs.Length > 0)
             {
                 Symbol[] arr = Lisp.ToArray<Symbol>(recs[0].args[0]);
-                List<XQueryExpr> filter = new List<XQueryExpr>();
+                List<XQueryExprBase> filter = new List<XQueryExprBase>();
                 for (int k = 0; k < arr.Length; k++)
                 {
                     Notation.Record[] recs1 = notation.Select(arr[k], Descriptor.Predicate, 1);
                     if (recs1.Length > 0)
-                        filter.Add((XQueryExpr)ProcessExpr(notation, recs1[0].args[0]));
+                        filter.Add(ProcessExpr(notation, recs1[0].args[0]));
                 }
                 //XQueryStepExpr stepExpr = ancestor as XQueryStepExpr;
                 //if (stepExpr != null && filter.Count == 1)
@@ -1796,7 +1797,7 @@ namespace DataEngine.XQuery
         {
             if (rec.args[0] == null)
                 return Lisp.List(ID.DynExecuteExpr, 
-                    new XQueryExpr(_context, new object[0]), ID.Context, Lisp.ARGV);
+                    new XQueryExpr(_context, new object[0]), ID.Context, Lisp.ARGV, Lisp.MPOOL);
             else
                 return Lisp.List(ID.Par, ProcessExprList(notation, rec.args[0]));
         }
@@ -1818,7 +1819,7 @@ namespace DataEngine.XQuery
             try
             {
                 return Lisp.List(ID.DynExecuteExpr, ProcessExpr(notation, rec.args[0]),
-                    ID.Context, Lisp.ARGV);
+                    ID.Context, Lisp.ARGV, Lisp.MPOOL);
             }
             finally
             {
@@ -1838,7 +1839,7 @@ namespace DataEngine.XQuery
                 else
                     ns = _context.DefaultFunctionNS;
             }
-            object f = Lisp.Defatom(ns, new string[] { identity.Name }, false);
+            object f = ATOM.Create(ns, new string[] { identity.Name }, false);
             object[] arg;
             if (rec.args[1] == null)
                 arg = new object[1];
@@ -1893,7 +1894,7 @@ namespace DataEngine.XQuery
                     case Descriptor.DirElemConstructor:
                         {
                             bool mapping = false;                            
-                            object builder = Lisp.Defatom("b");
+                            object builder = ATOM.Create("b");
                             List<object> stmt = new List<object>();
                             stmt.Add(Funcs.Progn);
                             WriteDirElemConstructor(notation, recs[0], builder, stmt, ref mapping);
@@ -2528,12 +2529,12 @@ namespace DataEngine.XQuery
                 if (ns == null)
                     throw new XQueryException(Properties.Resources.XPST0081, varName.Prefix);
             }
-            return Lisp.Defatom(ns, new string[] { "$", varName.LocalName }, false);
+            return ATOM.Create(ns, new string[] { "$", varName.LocalName }, false);
         }
 
         internal static object GetVarName(string localName, string ns)
         {
-            return Lisp.Defatom(ns, new string[] { "$", localName }, false);
+            return ATOM.Create(ns, new string[] { "$", localName }, false);
         }
 
         private bool IsBooleanFunctor(object expr)
@@ -2595,7 +2596,8 @@ namespace DataEngine.XQuery
                 return new XQuerySequenceType(XmlTypeCode.Node);
             if (Lisp.IsFunctor(expr, ID.DynExecuteExpr))
             {
-                XQueryPathExpr pathExpr = Lisp.Arg1(expr) as XQueryPathExpr;
+                object exprBase = Lisp.Arg1(expr);
+                XQueryPathExpr pathExpr = exprBase as XQueryPathExpr;
                 if (pathExpr != null)
                 {
                     XQueryStepExpr lastStep = pathExpr.LastStep as XQueryStepExpr;
@@ -2796,7 +2798,7 @@ namespace DataEngine.XQuery
         private object ProcessExprList(Notation notation, object lval)
         {
             if (lval == null || Lisp.Length(lval) > 1)
-                return Lisp.List(ID.DynExecuteExpr, ProcessExpr(notation, lval), ID.Context, Lisp.ARGV);
+                return Lisp.List(ID.DynExecuteExpr, ProcessExpr(notation, lval), ID.Context, Lisp.ARGV, Lisp.MPOOL);
             else
                 return ProcessExprSingle(notation, (Symbol)Lisp.First(lval));
         }

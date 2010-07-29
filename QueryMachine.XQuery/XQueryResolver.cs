@@ -34,9 +34,13 @@ using DataEngine.CoreServices;
 
 namespace DataEngine.XQuery
 {
-    public class XQueryResolver: Resolver
+    public class XQueryResolver: Resolver, IContextProvider
     {
         private Dictionary<object, SymbolLink> m_values = new Dictionary<object, SymbolLink>();
+
+        public XQueryResolver()
+        {
+        }
 
         public void SetValue(object atom, SymbolLink link)
         {
@@ -53,7 +57,27 @@ namespace DataEngine.XQuery
             m_values = new Dictionary<object, SymbolLink>((IDictionary<object, SymbolLink>)state);
         }
 
+        public SymbolLink[] List()
+        {
+            SymbolLink[] res = new SymbolLink[m_values.Values.Count];
+            m_values.Values.CopyTo(res, 0);
+            return res;
+        }
+
         #region Resolver Members
+
+        public Resolver NewScope()
+        {
+            return new XQueryResolver();
+        }
+
+        public void Init(MemoryPool pool)
+        {
+            SymbolLink self = new SymbolLink(typeof(IContextProvider));
+            pool.Bind(self);
+            pool.SetData(self, this);
+            SetValue(ID.Context, self);
+        }
 
         public bool Get(object atom, out SymbolLink result)
         {
@@ -65,6 +89,34 @@ namespace DataEngine.XQuery
             }
             result = null;
             return false;
+        }
+
+        #endregion
+
+        #region IContextProvider Members
+
+        XPathItem IContextProvider.Context
+        {
+            get
+            {
+                return null;
+            }
+        }
+
+        int IContextProvider.CurrentPosition
+        {
+            get
+            {
+                throw new XQueryException(Properties.Resources.XPDY0002);
+            }
+        }
+
+        int IContextProvider.LastPosition
+        {
+            get
+            {
+                throw new XQueryException(Properties.Resources.XPDY0002);
+            }
         }
 
         #endregion

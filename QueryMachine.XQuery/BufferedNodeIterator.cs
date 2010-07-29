@@ -32,12 +32,15 @@ using System.Xml.Schema;
 using System.Xml.XPath;
 using System.Diagnostics;
 
+using DataEngine.XQuery.Collections;
+
 namespace DataEngine.XQuery
 {
     public sealed class BufferedNodeIterator: XQueryNodeIterator
     {
-        private XQueryNodeIterator iter;
-        private List<XPathItem> buffer;
+        private ItemList buffer;
+        private ItemList.Iterator iter;
+        private XQueryNodeIterator src;
 
         [DebuggerStepThrough]
         private BufferedNodeIterator()
@@ -45,10 +48,15 @@ namespace DataEngine.XQuery
         }
 
         public BufferedNodeIterator(XQueryNodeIterator src)
+            : this(src, true)
         {
-            iter = src.Clone();
-            buffer = new List<XPathItem>();
         }
+
+        public BufferedNodeIterator(XQueryNodeIterator src, bool clone)
+        {
+            this.src = clone ? src.Clone() : src;
+            buffer = new ItemList();
+        }        
 
         public override int Count
         {
@@ -86,23 +94,28 @@ namespace DataEngine.XQuery
         public override XQueryNodeIterator Clone()
         {
             BufferedNodeIterator clone = new BufferedNodeIterator();
-            clone.iter = iter;
+            clone.src = src;
             clone.buffer = buffer;
             return clone;
+        }
+
+        protected override void Init()
+        {
+            iter = buffer.CreateIterator();
         }
         
         protected override XPathItem NextItem()
         {
-            lock (iter)
+            lock (src)
             {
                 int index = CurrentPosition + 1;
                 if (index < buffer.Count)
-                    return buffer[index];
+                    return iter[index];
                 else
-                    if (iter.MoveNext())
+                    if (!src.IsFinished && src.MoveNext())
                     {
-                        buffer.Add(iter.Current.Clone());
-                        return iter.Current;
+                        buffer.Add(src.Current);
+                        return src.Current;
                     }
                 return null;
             }

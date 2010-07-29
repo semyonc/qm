@@ -61,7 +61,7 @@ namespace DataEngine.XQuery
             }
         }
 
-        public override void Init()
+        protected override void Init()
         {
             _index = _min;
         }
@@ -81,7 +81,15 @@ namespace DataEngine.XQuery
 
         public override XQueryNodeIterator CreateBufferedIterator()
         {
-            return this;
+            return Clone();
+        }
+
+        public override bool IsRange
+        {
+            get
+            {
+                return true;
+            }
         }
     }
 }

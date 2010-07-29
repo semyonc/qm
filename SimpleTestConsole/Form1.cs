@@ -79,7 +79,7 @@ namespace SimpleTestConsole
                     form.textBox1.Text = searchPath;
                 if (form.ShowDialog() == DialogResult.OK)
                 {
-                    using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\WMHelp Software\\DataEngine", true))
+                    using (RegistryKey key = Registry.CurrentUser.CreateSubKey("SOFTWARE\\WMHelp Software\\DataEngine"))
                     {
                         if (key != null)
                         {
@@ -150,6 +150,26 @@ namespace SimpleTestConsole
             else if (e.TabPage == tabPage1 && modified1)
                 e.Cancel = !ExecuteGridQuery();
         }
+
+//            XmlDocument doc = new XmlDocument();
+//            doc.Load("C:\\Work\\vsnet05\\XQuery\\W3CUseCases\\R\\items.xml");
+//            XmlNodeList res = XPathFactory.QueryNodes(doc,
+//                @"declare variable $current-date:= xs:date('1999-01-31'); 
+//                <result>
+//                  {
+//                    for $i in //item_tuple
+//                    where $i/start_date <= (:current-date():) $current-date
+//                      and $i/end_date >= (:current-date():) $current-date
+//                      and contains($i/description, 'Bicycle')
+//                    order by $i/itemno
+//                    return
+//                        $i
+//                  }
+//                </result>");
+//            foreach (XmlNode node in res)
+//            {
+//                Console.WriteLine(node.InnerXml);
+//            }            
 
         private bool ExecuteTextQuery()
         {

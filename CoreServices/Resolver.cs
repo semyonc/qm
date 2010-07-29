@@ -32,6 +32,10 @@ namespace DataEngine.CoreServices
 {
     public interface Resolver
     {
+        Resolver NewScope();
+
+        void Init(MemoryPool pool);
+
         bool Get(object atom, out SymbolLink result);
     }
 }
