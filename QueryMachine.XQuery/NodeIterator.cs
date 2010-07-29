@@ -55,7 +55,7 @@ namespace DataEngine.XQuery
             return new BufferedNodeIterator(this);
         }
 
-        public override void Init()
+        protected override void Init()
         {
             iterator = master.GetEnumerator();
         }

@@ -54,7 +54,7 @@ namespace DataEngine.CoreServices
         {
             LambdaExpr lambda = new LambdaExpr(null, locals.Parameters,
                 typeof(System.Object), Lisp.Arg1(form));
-            lambda.CompileBody = true;
+            lambda.Isolate = false;
             Type[] parameterTypes = new Type[locals.Parameters.Length];
             for (int k = 0; k < parameterTypes.Length; k++)
             {

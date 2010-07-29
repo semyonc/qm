@@ -30,6 +30,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 
 using DataEngine.CoreServices.Generation;
+using System.Diagnostics;
 
 namespace DataEngine.CoreServices
 {
@@ -38,9 +39,15 @@ namespace DataEngine.CoreServices
         internal Executive.Parameter[] _parameters;
         internal object _body;
         internal Type _retType;
-        internal SymbolLink _compiledBody;
+        internal FunctionLink _compiledBody;
+        internal bool _compiled;
 
-        public bool CompileBody { get; set; }
+        private static readonly MethodInfo _apply =
+            typeof(Executive).GetMethod("Apply", BindingFlags.Instance | BindingFlags.Public);
+        private static readonly MethodInfo _clonePool = 
+            typeof(MemoryPool).GetMethod("Clone", BindingFlags.Instance | BindingFlags.Public);
+
+        public bool Isolate { get; set; }
         
         public LambdaExpr(object id, string paramstr, Type returnType, string body)
             : this(id, Executive.CreateParameters(paramstr), returnType, LispParser.Parse(body))
@@ -53,13 +60,27 @@ namespace DataEngine.CoreServices
             _parameters = parameters;
             _retType = returnType;
             _body = body;
-            _compiledBody = new SymbolLink();
+            _compiledBody = new FunctionLink();
+            _compiled = false;
+            Isolate = true;
         }        
 
         public override Type Compile(Executive engine, ILGen il, LocalAccess locals, Type[] parameterTypes)
-        {
-            if (CompileBody && _compiledBody.Value == null)
+        {  
+            if (_compiledBody.Value == null && !_compiled)
+            {
+                _compiled = true;
+                Resolver resolver = null;
+                if (Isolate)
+                {
+                    resolver = engine.Resolver;
+                    if (resolver != null)
+                        engine.Enter(resolver.NewScope());
+                }
                 engine.Compile(_parameters, _body, _compiledBody);
+                if (resolver != null)
+                    engine.Leave();
+            }
             locals.AddDependence(this);
 
             LocalBuilder[] localVar = new LocalBuilder[parameterTypes.Length];
@@ -121,10 +142,17 @@ namespace DataEngine.CoreServices
             il.Emit(OpCodes.Ldarg_1);
             il.EmitInt(locals.DefineConstant(_compiledBody));
             il.Emit(OpCodes.Ldelem_Ref);
-            il.Emit(OpCodes.Isinst, typeof(SymbolLink));
-            
-            MethodInfo mi = engine.GetType().GetMethod("Apply");
-            il.Emit(OpCodes.Callvirt, mi);
+            il.Emit(OpCodes.Isinst, typeof(FunctionLink));            
+            if (Isolate)
+            {
+                il.Emit(OpCodes.Ldarg_1);
+                il.EmitInt(locals.DefineConstant(engine.DefaultPool));
+                il.Emit(OpCodes.Ldelem_Ref);
+                il.EmitCall(_clonePool);
+            }
+            else
+                il.Emit(OpCodes.Ldarg_3); // MemoryPool
+            il.EmitCall(_apply);
             return _retType;            
         }
     }

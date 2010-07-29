@@ -66,7 +66,7 @@ namespace DataEngine.CoreServices
                 engine.EnterMacro();
                 try
                 {
-                    return engine.Apply(null, _parameters, _body, lval, null);
+                    return engine.Apply(null, _parameters, _body, lval, null, engine.DefaultPool);
                 }
                 finally
                 {

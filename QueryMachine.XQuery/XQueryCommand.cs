@@ -51,8 +51,8 @@ namespace DataEngine.XQuery
         protected Dictionary<string,string> m_schemas;
         protected bool m_compiled;
         protected XQueryExprBase m_res;
-        protected SymbolLink[] m_vars;
-        protected bool m_disposed = false;
+        protected FunctionLink[] m_vars;
+        protected bool m_disposed = false;        
 
         protected class WorkContext : XQueryContext
         {
@@ -177,6 +177,11 @@ namespace DataEngine.XQuery
             if (SearchPath != null)
                 m_context.SearchPath = SearchPath;
             m_context.SchemaProcessing = SchemaProcessing;
+            m_context.Engine.Prepare();
+            SymbolLink contextLink = new SymbolLink(typeof(IContextProvider));
+            m_context.Engine.DefaultPool.Bind(contextLink);
+            m_context.Engine.DefaultPool.SetData(contextLink, this);
+            m_context.Resolver.SetValue(ID.Context, contextLink);
             Translator translator = new Translator(m_context);
             translator.PreProcess(notation);
             if (OnPreProcess != null) // Chance to process custom declare option statement
@@ -184,15 +189,15 @@ namespace DataEngine.XQuery
             m_res = translator.Process(notation);
             if (m_res == null)
                 throw new XQueryException("Can't run XQuery function module");
-            m_res.Bind(null);
+            m_res.Bind(null, m_context.Engine.DefaultPool);
             // Compile variables and check it for XQST0054
-            m_vars = new SymbolLink[m_context.variables.Count];
+            m_vars = new FunctionLink[m_context.variables.Count];
             Dictionary<SymbolLink, SymbolLink[]> dependences = new Dictionary<SymbolLink, SymbolLink[]>();
             for (int k = 0; k < m_context.variables.Count; k++)
             {
                 XQueryContext.VariableRecord rec = m_context.variables[k];
-                m_vars[k] = new SymbolLink();
-                dependences.Add(rec.link, m_context.Engine.GetValueDependences(null, rec.expr, m_vars[k]));
+                m_vars[k] = new FunctionLink();
+                dependences.Add(rec.link, m_context.Engine.GetValueDependences(null, rec.expr, m_vars[k], true));
             }
             int i = 0;
             foreach (KeyValuePair<SymbolLink, SymbolLink[]> kvp in dependences)
@@ -237,19 +242,20 @@ namespace DataEngine.XQuery
                     param.ID = Translator.GetVarName(param.LocalName, param.NamespaceUri);
                 m_context.SetExternalVariable(param.ID, param.Value);
             }
+            MemoryPool pool = m_context.Engine.DefaultPool;
             for (int k = 0; k < m_context.variables.Count; k++)
             {
                 XQueryContext.VariableRecord rec = m_context.variables[k];
-                object value = m_context.Engine.Apply(null, null, rec.expr, null, m_vars[k]);
+                object value = m_context.Engine.Apply(null, null, rec.expr, null, m_vars[k], pool);
                 if (rec.varType != XQuerySequenceType.Item)
                     value = Core.TreatAs(m_context.Engine, value, rec.varType);
                 XQueryNodeIterator iter = value as XQueryNodeIterator;
                 if (iter != null)
                     value = iter.CreateBufferedIterator();
-                rec.link.Value = value;
+                pool.SetData(rec.link, value);
             }            
-            m_context.CheckExternalVariables();     
-            XQueryNodeIterator res = XQueryNodeIterator.Create(m_res.Execute(this, null));
+            m_context.CheckExternalVariables();
+            XQueryNodeIterator res = XQueryNodeIterator.Create(m_res.Execute(this, null, pool));
             return res;
         }
 
@@ -332,7 +338,7 @@ namespace DataEngine.XQuery
             get 
             {
                 if (ContextItem == null)
-                    throw new XQueryException(Properties.Resources.XPDY0002);
+                    return null;
                 if (ContextItem is XQueryNavigator)
                     return ContextItem;
                 else

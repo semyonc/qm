@@ -32,6 +32,7 @@ using System.Xml.XPath;
 using System.Xml.Schema;
 
 using DataEngine.CoreServices;
+using System.Diagnostics;
 
 namespace DataEngine.XQuery
 {
@@ -42,8 +43,8 @@ namespace DataEngine.XQuery
         internal object m_expr;
         internal XQueryExprBase m_bodyExpr;
         
-        protected SymbolLink m_valueExpr;
-        protected SymbolLink m_conditionExpr;
+        protected FunctionLink m_valueExpr;
+        protected FunctionLink m_conditionExpr;
 
         public object ConditionExpr { get; set; }
 
@@ -56,11 +57,11 @@ namespace DataEngine.XQuery
             m_bodyExpr = bodyExpr;
         }
 
-        public override IEnumerable<SymbolLink> EnumDynamicFuncs()
+        public override IEnumerable<FunctionLink> EnumDynamicFuncs()
         {
             if (m_valueExpr == null)
                 throw new InvalidOperationException();
-            List<SymbolLink> res = new List<SymbolLink>();
+            List<FunctionLink> res = new List<FunctionLink>();
             res.Add(m_valueExpr);
             if (m_conditionExpr != null)
                 res.Add(m_conditionExpr);
@@ -91,30 +92,34 @@ namespace DataEngine.XQuery
             m_convert = convert;
         }
 
-        public override void Bind(Executive.Parameter[] parameters)
+        public override void Bind(Executive.Parameter[] parameters, MemoryPool pool)
         {
-            m_valueExpr = new SymbolLink();
+            m_valueExpr = new FunctionLink();
             QueryContext.Engine.Compile(parameters, m_expr, m_valueExpr);
             object data = QueryContext.Resolver.GetCurrentStack();
+            pool.Bind(m_value);
             QueryContext.Resolver.SetValue(m_var, m_value);
             if (m_pos != null)
+            {
+                pool.Bind(m_posValue);
                 QueryContext.Resolver.SetValue(m_pos, m_posValue);
+            }
             if (ConditionExpr != null)
             {
-                m_conditionExpr = new SymbolLink();
+                m_conditionExpr = new FunctionLink();
                 QueryContext.Engine.Compile(parameters, ConditionExpr, m_conditionExpr);
             }
-            m_bodyExpr.Bind(parameters);
+            m_bodyExpr.Bind(parameters, pool);
             QueryContext.Resolver.RevertToStack(data);
         }
 
-        public override object Execute(IContextProvider provider, Object[] args)
+        public override object Execute(IContextProvider provider, Object[] args, MemoryPool pool)
         {
-            return new XQueryFLWORIterator(this, provider, args, 
-                XQueryNodeIterator.Create(QueryContext.Engine.Apply(null, null, m_expr, args, m_valueExpr)));
+            return new XQueryFLWORIterator(this, provider, args, pool, XQueryNodeIterator.Create(
+                QueryContext.Engine.Apply(null, null, m_expr, args, m_valueExpr, pool)));
         }
 
-        private bool MoveNext(IContextProvider provider, object[] args, XPathItem curr, Integer index, out object res)
+        private bool MoveNext(IContextProvider provider, object[] args, MemoryPool pool, XPathItem curr, Integer index, out object res)
         {
             object value;
             if (curr.IsNode)
@@ -131,14 +136,14 @@ namespace DataEngine.XQuery
                     m_varType.Cardinality == XmlTypeCardinality.OneOrMore)
                     value = XQueryNodeIterator.Create(value);
             }
-            m_value.Value = value;
+            pool.SetData(m_value, value);
             if (m_pos != null)
-                m_posValue.Value = index;
+                pool.SetData(m_posValue, index);
             res = null;
             if (m_conditionExpr == null || 
-                Core.BooleanValue(QueryContext.Engine.Apply(null, null, ConditionExpr, args, m_conditionExpr)))
+                Core.BooleanValue(QueryContext.Engine.Apply(null, null, ConditionExpr, args, m_conditionExpr, pool)))
             {
-                res = m_bodyExpr.Execute(provider, args); 
+                res = m_bodyExpr.Execute(provider, args, pool); 
                 if (res != Undefined.Value)
                     return true;
             }
@@ -150,23 +155,26 @@ namespace DataEngine.XQuery
             private XQueryFLWOR owner;
             private IContextProvider provider;
             private object[] args;
+            private MemoryPool pool;
             private XQueryNodeIterator baseIter;
+            private XQueryNodeIterator iter;
             private XQueryNodeIterator childIter;
             private Integer index;
 
             private XQueryItem currItem = new XQueryItem();
 
-            public XQueryFLWORIterator(XQueryFLWOR owner, IContextProvider provider, object[] args, XQueryNodeIterator iter)
+            public XQueryFLWORIterator(XQueryFLWOR owner, IContextProvider provider, object[] args, MemoryPool pool, XQueryNodeIterator baseIter)
             {
                 this.owner = owner;
                 this.provider = provider;
                 this.args = args;
-                baseIter = iter.Clone();                
+                this.pool = pool;
+                this.baseIter = baseIter;                
             }
 
             public override XQueryNodeIterator Clone()
             {
-                return new XQueryFLWORIterator(owner, provider, args, baseIter);
+                return new XQueryFLWORIterator(owner, provider, args, pool, baseIter);
             }
 
             public override XQueryNodeIterator CreateBufferedIterator()
@@ -174,9 +182,10 @@ namespace DataEngine.XQuery
                 return new BufferedNodeIterator(this);
             }
 
-            public override void Init()
+            protected override void Init()
             {
                 index = 1;
+                iter = baseIter.Clone();
             }
 
             protected override XPathItem NextItem()
@@ -190,10 +199,10 @@ namespace DataEngine.XQuery
                         else
                             childIter = null;
                     }
-                    if (!baseIter.MoveNext())
+                    if (!iter.MoveNext())
                         return null;
                     object res;
-                    if (owner.MoveNext(provider, args, baseIter.Current, index++, out res))
+                    if (owner.MoveNext(provider, args, pool, iter.Current, index++, out res))
                     {
                         childIter = res as XQueryNodeIterator;
                         if (childIter == null)

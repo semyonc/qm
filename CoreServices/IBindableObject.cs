@@ -32,8 +32,8 @@ namespace DataEngine.CoreServices
 {
     public interface IBindableObject
     {
-        void Bind(Executive.Parameter[] parameter);
+        void Bind(Executive.Parameter[] parameter, MemoryPool pool);
 
-        IEnumerable<SymbolLink> EnumDynamicFuncs();
+        IEnumerable<FunctionLink> EnumDynamicFuncs();
     }
 }

@@ -28,12 +28,17 @@ using System.Collections.Generic;
 using System.Text;
 using System.Diagnostics;
 
+using System.Threading;
+using System.Threading.Tasks;
+using System.Collections.Concurrent;
+
 using System.Xml;
 using System.Xml.XPath;
 using System.Xml.Schema;
 
 using DataEngine.CoreServices;
 using DataEngine.XQuery.DocumentModel;
+using DataEngine.XQuery.Collections;
 
 namespace DataEngine.XQuery
 {
@@ -43,6 +48,10 @@ namespace DataEngine.XQuery
         
         private bool _isOrdered;
         private bool _isOrderedSet;
+        
+        private SymbolLink _cache;
+
+        public bool EnableCaching { get; set; }
 
         public XQueryExprBase LastStep
         {
@@ -52,6 +61,9 @@ namespace DataEngine.XQuery
                 XQueryFilterExpr filter = t as XQueryFilterExpr;
                 if (filter != null)
                     return filter.Source;
+                DirectAccessPathExpr directAccessPath = t as DirectAccessPathExpr;
+                if (directAccessPath != null)
+                    return directAccessPath.LastStep;
                 return t;
             }
         }
@@ -62,27 +74,54 @@ namespace DataEngine.XQuery
             _path = path;
             _isOrderedSet = IsOrderedSet();
             _isOrdered = isOrdered;
+            _cache = new SymbolLink();
+            EnableCaching = true;
         }
 
-        public override void Bind(Executive.Parameter[] parameters)
+        public override bool IsContextSensitive(Executive.Parameter[] parameters)
         {
+            return _path[0].IsContextSensitive(parameters);
+        }
+
+        public override void Bind(Executive.Parameter[] parameters, MemoryPool pool)
+        {
+            HashSet<SymbolLink> outerValues = new HashSet<SymbolLink>(QueryContext.Resolver.List());
             foreach (XQueryExprBase expr in _path)
-                expr.Bind(parameters);
+                expr.Bind(parameters, pool);
+            EnableCaching = EnableCaching && !IsContextSensitive(parameters);
+            pool.Bind(_cache);
+            if (EnableCaching)
+            {
+                foreach (FunctionLink dynFunc in EnumDynamicFuncs())
+                    foreach (SymbolLink value in QueryContext.Engine.GetValueDependences(parameters, null, dynFunc, false))
+                        if (!value.IsStatic && outerValues.Contains(value))
+                            value.OnChange += new ChangeValueAction(OnChangeValue);
+            }
         }
 
-        public override IEnumerable<SymbolLink> EnumDynamicFuncs()
+        public override IEnumerable<FunctionLink> EnumDynamicFuncs()
         {
-            List<SymbolLink> res = new List<SymbolLink>();
+            List<FunctionLink> res = new List<FunctionLink>();
             foreach (XQueryExprBase expr in _path)
                 res.AddRange(expr.EnumDynamicFuncs());
             return res;
         }
 
-        public override object Execute(IContextProvider provider, object[] args)
+        public override object Execute(IContextProvider provider, object[] args, MemoryPool pool)
         {
+            XQueryNodeIterator res = (XQueryNodeIterator)pool.GetData(_cache);
+            if (res != null)
+                return res.Clone();
             XQueryNodeIterator rootIter = 
-                XQueryNodeIterator.Create(_path[0].Execute(provider, args)).CreateBufferedIterator();
-            return new ResultIterator(this, provider, _isOrderedSet && rootIter.IsSingleIterator, rootIter, args);
+                XQueryNodeIterator.Create(_path[0].Execute(provider, args, pool)).CreateBufferedIterator();
+            bool orderedSet = _isOrderedSet && rootIter.IsSingleIterator;
+            res = new ResultIterator(this, provider, orderedSet, !orderedSet & QueryContext.EnableTPL, rootIter, args, pool);
+            if (EnableCaching)
+            {
+                res = res.CreateBufferedIterator();
+                pool.SetData(_cache, res.Clone());
+            }
+            return res;
         }
 
         private bool IsOrderedSet()
@@ -118,19 +157,24 @@ namespace DataEngine.XQuery
             return true;
         }
 
-        private bool MoveNext(object[] args, XQueryNodeIterator[] iter, int index)
+        private void OnChangeValue(SymbolLink line, MemoryPool pool)
+        {
+            pool.SetData(_cache, null);
+        }
+
+        private bool MoveNext(object[] args, MemoryPool pool, XQueryNodeIterator[] iter, int index)
         {
             if (iter[index] != null && iter[index].MoveNext())
                 return true;
             else
                 if (index > 0)
                 {
-                    while (MoveNext(args, iter, index - 1))
+                    while (MoveNext(args, pool, iter, index - 1))
                     {
                         ContextProvider provider = new ContextProvider(iter[index - 1]);
                         if (!provider.Context.IsNode)
                             throw new XQueryException(Properties.Resources.XPTY0019, provider.Context.Value);
-                        iter[index] = XQueryNodeIterator.Create(_path[index].Execute(provider, args));
+                        iter[index] = XQueryNodeIterator.Create(_path[index].Execute(provider, args, pool));
                         if (iter[index].MoveNext())
                             return true;
                     }
@@ -138,73 +182,68 @@ namespace DataEngine.XQuery
             return false;
         }
 
-        private IEnumerator<XPathItem> Iterator(ResultIterator res)
+        private IEnumerator<XPathItem> PushIterator(ResultIterator res)
         {
-            XQueryNodeIterator[] iter = new XQueryNodeIterator[_path.Length];
-            iter[0] = res.rootIter.Clone();
-            if (MoveNext(res.args, iter, _path.Length - 1))
-            {
-                bool isNode = iter[_path.Length - 1].Current.IsNode;
-                if (!isNode || res.orderedSet)
-                    do
+            if (!res.itemSet.Completed)
+            {                
+                XQueryNodeIterator[] iter = new XQueryNodeIterator[_path.Length];
+                iter[0] = res.rootIter.Clone();
+                if (MoveNext(res.args, res.pool, iter, _path.Length - 1))
+                {                    
+                    bool isNode = iter[_path.Length - 1].Current.IsNode;
+                    if (!isNode || res.orderedSet)
                     {
-                        XPathItem curr = iter[_path.Length - 1].Current;
-                        if (curr.IsNode != isNode)
-                            throw new XQueryException(Properties.Resources.XPTY0018, curr.Value);
-                        yield return curr;
-                    }
-                    while (MoveNext(res.args, iter, _path.Length - 1));
-                else
-                {
-                    if (_isOrdered)
-                    {
-                        bool needSort = false;
-                        XPathNavigator last_node;                        
-                        if (res.buffer == null)
-                        {
-                            last_node = null;                        
-                            res.buffer = new List<XPathItem>();
-                            do
-                            {
-                                XPathItem item = iter[_path.Length - 1].Current;
-                                if (!item.IsNode)
-                                    throw new XQueryException(Properties.Resources.XPTY0018, item.Value);
-                                XPathNavigator node = (XPathNavigator)item;
-                                if (!needSort)
-                                {
-                                    if (last_node != null)
-                                        needSort = last_node.ComparePosition(node) == XmlNodeOrder.Before;
-                                }
-                                last_node = node.Clone();
-                                res.buffer.Add(last_node);
-                            }
-                            while (MoveNext(res.args, iter, _path.Length - 1));
-                            if (needSort)
-                                res.buffer.Sort(new XPathComparer());
-                        }
-                        last_node = null;
-                        for (int k = 0; k < res.buffer.Count; k++)
-                        {
-                            XPathNavigator node = (XPathNavigator)res.buffer[k];
-                            if (last_node != null && last_node.IsSamePosition(node))
-                                continue;
-                            yield return node;
-                            last_node = node;
-                        }
-                    }
-                    else
-                    {
-                        HashSet<XPathItem> hs = new HashSet<XPathItem>(new XPathNavigatorEqualityComparer());
                         do
                         {
                             XPathItem curr = iter[_path.Length - 1].Current;
-                            if (!curr.IsNode)
+                            if (curr.IsNode != isNode)
                                 throw new XQueryException(Properties.Resources.XPTY0018, curr.Value);
-                            if (hs.Add(curr.Clone()))
-                                yield return curr;
+                            yield return curr;
                         }
-                        while (MoveNext(res.args, iter, _path.Length - 1));
+                        while (MoveNext(res.args, res.pool, iter, _path.Length - 1));            
                     }
+                    else
+                    {
+                        bool needSort = false;
+                        XPathNavigator last_node = null;
+                        do
+                        {
+                            XPathItem item = iter[_path.Length - 1].Current;
+                            if (!item.IsNode)
+                                throw new XQueryException(Properties.Resources.XPTY0018, item.Value);
+                            XPathNavigator node = (XPathNavigator)item;
+                            if (!needSort)
+                            {
+                                if (last_node != null)
+                                    needSort = last_node.ComparePosition(node) == XmlNodeOrder.Before;
+                            }
+                            last_node = node.Clone();
+                            res.itemSet.Add(last_node);
+                        }
+                        while (MoveNext(res.args, res.pool, iter, _path.Length - 1));
+                        if (needSort)
+                            res.itemSet.Sort();
+                        res.itemSet.Completed = true;
+                    }
+                }
+            }
+            if (res.itemSet.Completed)
+            {
+                XPathNavigator last_node = null;
+                foreach (XPathItem item in res.itemSet)
+                {
+                    XPathNavigator node = item as XPathNavigator;
+                    if (node != null)
+                    {
+                        if (last_node != null)
+                        {
+                            if (last_node.IsSamePosition(node))
+                                continue;
+                        }
+                        if (!res.orderedSet)
+                            last_node = node;
+                    }
+                    yield return item;
                 }
             }
         }
@@ -213,34 +252,39 @@ namespace DataEngine.XQuery
         {
             private XQueryPathExpr owner;
             
-            public List<XPathItem> buffer;
+            public ItemSet itemSet;
             public IContextProvider provider;
             public bool orderedSet;
+            public bool parallel;
             public XQueryNodeIterator rootIter;
             public object[] args;
+            public MemoryPool pool;
             public IEnumerator<XPathItem> iter;
 
-            public ResultIterator(XQueryPathExpr owner, IContextProvider provider, bool orderedSet, 
-                XQueryNodeIterator rootIter, object[] args)
+            public ResultIterator(XQueryPathExpr owner, IContextProvider provider, bool orderedSet, bool parallel,
+                XQueryNodeIterator rootIter, object[] args, MemoryPool pool)
             {
+                itemSet = new ItemSet();
                 this.owner = owner;
                 this.provider = provider;
                 this.orderedSet = orderedSet;
                 this.rootIter = rootIter;
                 this.args = args;
+                this.pool = pool;
+                this.parallel = parallel;
             }
 
             [DebuggerStepThrough]
             public override XQueryNodeIterator Clone()
             {
-                ResultIterator clone = new ResultIterator(owner, provider, orderedSet, rootIter, args);
-                clone.buffer = buffer;
+                ResultIterator clone = new ResultIterator(owner, provider, orderedSet, parallel, rootIter, args, pool);
+                clone.itemSet = itemSet;
                 return clone;
             }
 
-            public override void Init()
+            protected override void Init()
             {
-                iter = owner.Iterator(this);
+                iter = owner.PushIterator(this);
             }
 
             protected override XPathItem NextItem()
@@ -252,7 +296,7 @@ namespace DataEngine.XQuery
 
             public override XQueryNodeIterator CreateBufferedIterator()
             {
-                if (orderedSet)
+                if (!orderedSet)
                     return Clone();
                 return new BufferedNodeIterator(this);
             }
@@ -276,5 +320,33 @@ namespace DataEngine.XQuery
             
         }
 #endif
+       
+        private sealed class ItemContext : IContextProvider
+        {
+            private XQueryNodeIterator iter;
+
+            public ItemContext(XQueryNodeIterator iter)
+            {
+                this.iter = iter;
+                Context = iter.Current.Clone();
+                CurrentPosition = iter.CurrentPosition + 1;
+            }
+
+            #region IContextProvider Members
+
+            public XPathItem Context { get; private set; }
+
+            public int CurrentPosition { get; private set; }
+
+            public int LastPosition 
+            {
+                get
+                {
+                    return iter.Count;
+                }
+            }
+            
+            #endregion
+        }
     }
 }

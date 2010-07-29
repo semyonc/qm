@@ -39,7 +39,7 @@ using System.Diagnostics;
 namespace DataEngine.XQuery
 {
     [DebuggerDisplay("Atom|{Value},{ValueType}")]
-    public class XQueryItem: XPathItem, IConvertible
+    public class XQueryItem: XQueryItemBase, IConvertible
     {       
         private object _value;
         private XmlSchemaType _xmlType;
@@ -136,7 +136,7 @@ namespace DataEngine.XQuery
                 throw new ArgumentException("value");
         }
 
-        public virtual XPathItem Clone()
+        public override XPathItem Clone()
         {
             XQueryItem clone = new XQueryItem();
             clone._value = _value;

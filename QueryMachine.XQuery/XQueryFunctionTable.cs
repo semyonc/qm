@@ -214,7 +214,7 @@ namespace DataEngine.XQuery
                         if (pi.ParameterType != typeof(IContextProvider))
                         {
                             parameters[k] = new Executive.Parameter();
-                            parameters[k].ID = Lisp.Defatom(String.Format("p{0}", k + 1));
+                            parameters[k].ID = ATOM.Create(String.Format("p{0}", k + 1));
                             parameters[k].Type = typeof(System.Object);
                             parameters[k].VariableParam = false;
                             body[i++] = parameters[k].ID;
@@ -329,7 +329,7 @@ namespace DataEngine.XQuery
                 if (attrs.Length > 0)
                 {
                     XQuerySignatureAttribute sig = (XQuerySignatureAttribute)attrs[0];
-                    object id = Lisp.Defatom(sig.NamespaceUri, new string[] { sig.Name }, true);
+                    object id = ATOM.Create(sig.NamespaceUri, new string[] { sig.Name }, true);
                     shared.Register(id, method);
                 }
             }

@@ -1,4 +1,4 @@
-﻿//        Copyright (c) 2009, Semyon A. Chertkov (semyonc@gmail.com)
+﻿//        Copyright (c) 2009-2010, Semyon A. Chertkov (semyonc@gmail.com)
 //        All rights reserved.
 //
 //        Redistribution and use in source and binary forms, with or without
@@ -27,42 +27,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading;
 
 namespace DataEngine.CoreServices
 {
-    public delegate void ChangeValueAction(SymbolLink sender, MemoryPool pool);
-
-    public class SymbolLink
+    public class FunctionLink
     {
-        internal int index;
-        internal int pool_id = MemoryPool.UnkID;
-
-        public SymbolLink()
+        public FunctionLink()
         {
-            Type = typeof(System.Object);            
         }
 
-        public SymbolLink(object value)
-        {
-            Type = value.GetType();            
-        }
-
-        public SymbolLink(Type type)
-        {
-            Type = type;            
-        }
-
-        internal void ChangeValue(MemoryPool pool)
-        {
-            if (OnChange != null)
-                OnChange(this, pool);
-        }
-
-        public bool IsStatic { get; set; }
-        
-        public Type Type { get; private set; }
-
-        public event ChangeValueAction OnChange;
+        public CompiledLambda Value { get; set; }
     }
 }

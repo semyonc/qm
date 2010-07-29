@@ -37,12 +37,56 @@ using DataEngine.CoreServices;
 
 namespace DataEngine.XQuery
 {
+    public delegate void ChangeContextDelegate(XQueryNodeIterator iter);
+
     public interface IContextProvider
     {
-        XPathItem Context { get; }
+        XPathItem Context { get; }        
+        
         int CurrentPosition { get; }
-        int LastPosition { get; }
+        
+        int LastPosition { get; }        
+                
     }
+
+    internal sealed class ContextProvider : IContextProvider
+    {
+        private XQueryNodeIterator m_iter;
+
+        public ContextProvider(XQueryNodeIterator iter)
+        {
+            m_iter = iter;
+        }
+
+        #region IContextProvider Members
+
+        public XPathItem Context
+        {
+            get
+            {
+                return m_iter.Current;
+            }
+        }
+
+        public int CurrentPosition
+        {
+            get
+            {
+                return m_iter.CurrentPosition + 1;
+            }
+        }
+
+        public int LastPosition
+        {
+            get
+            {
+                return m_iter.Count;
+            }
+        }
+
+        #endregion
+    }
+
 
     [DebuggerDisplay("{curr}")]
     [DebuggerTypeProxy(typeof(XQueryNodeIteratorDebugView))]
@@ -53,6 +97,8 @@ namespace DataEngine.XQuery
         private int pos;
         private bool iteratorStarted;
         private bool iteratorFinished;
+
+        public event ChangeContextDelegate OnChange;
 
         public XQueryNodeIterator()
         {
@@ -82,6 +128,14 @@ namespace DataEngine.XQuery
                 XQueryNodeIterator iter = Clone();
                 if (iter.MoveNext() && !iter.MoveNext())
                     return true;
+                return false;
+            }
+        }
+
+        public virtual bool IsRange
+        {
+            get
+            {
                 return false;
             }
         }
@@ -131,6 +185,8 @@ namespace DataEngine.XQuery
             {
                 pos++;
                 curr = item;
+                if (OnChange != null)
+                    OnChange(this);
                 return true;
             }
             iteratorFinished = true;
@@ -146,10 +202,19 @@ namespace DataEngine.XQuery
                 CheckThread(null, EventArgs.Empty);
         }
 #endif
+        
+        public virtual List<XPathItem> ToList()
+        {
+            XQueryNodeIterator iter = Clone();
+            List<XPathItem> res = new List<XPathItem>();
+            while (iter.MoveNext())
+                res.Add(iter.Current.Clone());
+            return res;
+        }
 
         public abstract XQueryNodeIterator CreateBufferedIterator();
 
-        public virtual void Init()
+        protected virtual void Init()
         {
         }
 
@@ -158,7 +223,7 @@ namespace DataEngine.XQuery
             return NextItem();
         }
 
-        protected abstract XPathItem NextItem();
+        protected abstract XPathItem NextItem();        
 
         public static XQueryNodeIterator Create(object value)
         {
@@ -299,7 +364,7 @@ namespace DataEngine.XQuery
                 return Clone();
             }
         }
-                
+                       
         internal class XQueryNodeIteratorDebugView
         {
             private XQueryNodeIterator iter;

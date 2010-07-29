@@ -29,16 +29,17 @@ using System.Text;
 using System.IO;
 using System.Reflection;
 using System.Net;
+using System.Threading;
+using System.Diagnostics;
+using System.Globalization;
 
 using System.Xml;
 using System.Xml.Schema;
 using System.Xml.XPath;
 
 using DataEngine.CoreServices;
-using System.Diagnostics;
-using System.Globalization;
-
 using DataEngine.XQuery.Util;
+
 
 namespace DataEngine.XQuery
 {
@@ -75,7 +76,7 @@ namespace DataEngine.XQuery
         Preserve        
     }
 
-    public class XQueryContext: IContextProvider
+    public class XQueryContext
     {
         public class VariableRecord
         {
@@ -98,6 +99,13 @@ namespace DataEngine.XQuery
             public InnerExecutive(object owner)
                 : base(owner)
             {
+            }
+
+            public override void Prepare()
+            {
+                base.Prepare();
+                Set("node#type", typeof(XPathNavigator));
+                Enter(new XQueryResolver());
             }
 
             public override void HandleRuntimeException(Exception exception)
@@ -273,6 +281,8 @@ namespace DataEngine.XQuery
         internal Dictionary<XmlQualifiedName, string> option;
         internal Dictionary<object, object> extraProps;
         internal DateTime now;
+        internal CancellationTokenSource ctSource;
+        
 
         public XQueryContext(XmlNameTable nameTable)
         {
@@ -280,30 +290,24 @@ namespace DataEngine.XQuery
             EmptyOrderSpec = XQueryEmptyOrderSpec.Least;
             SearchPath = String.Empty;
             SchemaProcessing = SchemaProcessingMode.Default;
+            ctSource = new CancellationTokenSource();
 
             this.nameTable = nameTable;
             schemaSet = new XmlSchemaSet(nameTable);
             nsManager = new XmlNamespaceManager(nameTable);
             worklist = new List<XQueryDocument>();
             queryOrdering = new Stack<XQueryOrder>();  
-            Resolver = new XQueryResolver();
             moduleList = new List<string>();
             variables = new List<VariableRecord>();
             externalVars = new Dictionary<object, ExternalVariableRecord>();
             option = new Dictionary<XmlQualifiedName, string>();
             extraProps = new Dictionary<object, object>();
-            
+           
             Core.Init();
             FunctionTable = XQueryFunctionTable.CreateInstance();
 
             lispEngine = new InnerExecutive(this);
-            lispEngine.Set("node#type", typeof(XPathNavigator));
-            lispEngine.Enter(Resolver);
             
-            SymbolLink contextLink = new SymbolLink(typeof(IContextProvider));
-            contextLink.Value = this;
-            Resolver.SetValue(ID.Context, contextLink);
-
             //lispEngine.m_traceOutput = Console.Out;
             
             AddNamespace("xml", XmlReservedNs.NsXml);
@@ -335,9 +339,9 @@ namespace DataEngine.XQuery
 
             FunctionTable = XQueryFunctionTable.CreateInstance();
             lispEngine = master.lispEngine;
-            Resolver = master.Resolver;
+            ctSource = master.ctSource;
             
-            this.master = master;
+            this.master = master;            
             slave = true;
             this.moduleNamespace = moduleNamespace;
             this.uri = uri;            
@@ -490,7 +494,6 @@ namespace DataEngine.XQuery
         {
             if (!slave)
             {
-                lispEngine.Leave();
                 foreach (XQueryDocument doc in worklist)
                     doc.Close();
                 foreach (object prop in extraProps.Values)
@@ -597,14 +600,15 @@ namespace DataEngine.XQuery
         public void SetExternalVariable(object var, object value)
         {
             ExternalVariableRecord rec;
+            MemoryPool pool = Engine.DefaultPool;
             if (externalVars.TryGetValue(var, out rec))
             {
                 rec.initialized = true;
                 SymbolLink link = lispEngine.Get(var);
                 if (rec.varType == XQuerySequenceType.Item)
-                    link.Value = value;
+                    pool.SetData(link, value);
                 else
-                    link.Value = Core.CastTo(lispEngine, value, rec.varType, typeof(System.Object));                
+                    pool.SetData(link, Core.CastTo(lispEngine, value, rec.varType, typeof(System.Object)));
             }
         }
 
@@ -648,6 +652,8 @@ namespace DataEngine.XQuery
             }
         }
 
+        public virtual bool EnableTPL { get { return true; } }
+
         public String SearchPath { get; set; }
 
         public String DefaultCollation { get; set; }
@@ -672,7 +678,13 @@ namespace DataEngine.XQuery
 
         public XQueryFunctionTable FunctionTable { get; private set; }
 
-        public XQueryResolver Resolver { get; private set; }
+        public XQueryResolver Resolver
+        {
+            get
+            {
+                return (XQueryResolver)lispEngine.Resolver;
+            }
+        }
 
         public SchemaProcessingMode SchemaProcessing { get; set; }
 
@@ -731,34 +743,6 @@ namespace DataEngine.XQuery
             else
                 return SupportDirectAccess;
         }
-
-        #region IContextProvider Members
-
-        XPathItem IContextProvider.Context
-        {
-            get 
-            {
-                throw new XQueryException(Properties.Resources.XPDY0002);
-            }
-        }
-
-        int IContextProvider.CurrentPosition
-        {
-            get 
-            {
-                throw new XQueryException(Properties.Resources.XPDY0002);
-            }
-        }
-
-        int IContextProvider.LastPosition
-        {
-            get 
-            {
-                throw new XQueryException(Properties.Resources.XPDY0002);
-            }
-        }
-
-        #endregion
     }
 
     public class XPathContext : XQueryContext

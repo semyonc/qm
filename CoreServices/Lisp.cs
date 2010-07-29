@@ -50,126 +50,14 @@ namespace DataEngine.CoreServices
             }
         }
 
-        public class ATOM
-        {
-            public readonly string prefix;
-            public readonly string[] parts;
-            public readonly bool is_global;
-
-            public ATOM(string name)
-                : this(null, cvt(name), true)
-            {
-            }
-
-            public ATOM(string name, bool is_global)
-                : this(null, cvt(name), is_global)
-            {
-            }
-
-
-            public ATOM(string prefix, string[] parts)
-                : this(prefix, parts, true)
-            {
-            }
-
-            public ATOM(string prefix, string[] parts, bool is_global)
-            {
-                this.prefix = prefix;
-                this.parts = parts;
-                this.is_global = true;
-                string name = concate(prefix, parts);
-
-                if (is_global)
-                {
-                    if (_global_t.ContainsKey(name))
-                        throw new InvalidOperationException();
-                    _global_t.Add(name, this);
-                }
-                else
-                {
-                    if (_local_t.ContainsKey(name))
-                        throw new InvalidOperationException();
-                    _local_t.Add(name, this);
-                }
-            }
-
-            public override string ToString()
-            {
-                return concate(prefix, parts);
-            }
-
-            internal static readonly Hashtable _global_t = new Hashtable();
-            
-            internal static Hashtable _local_t;
-
-            public static void Prune()
-            {
-                if (_local_t != null)
-                    _local_t.Clear();
-            }
-
-            internal static string[] cvt(string s)
-            {
-                string[] p = new string[1];
-                p[0] = s;
-                return p;
-            }
-
-            internal static string concate(string prefix, string[] parts)
-            {
-                StringBuilder sb = new StringBuilder();
-                if (!String.IsNullOrEmpty(prefix))
-                {
-                    sb.Append(prefix);
-                    sb.Append(':');
-                }
-                for (int k = 0; k < parts.Length; k++)
-                {
-                    if (k > 0)
-                        sb.Append(".");
-                    sb.Append(parts[k]);
-                }
-                return sb.ToString();
-            }
-        }
-
-        static public object Defatom(string name)
-        {
-            return Defatom(null, new string[] { name }, true);
-        }
-
-        static public object Defatom(string[] parts)
-        {
-            return Defatom(null, parts, false);
-        }
-
-        static public object Defatom(string prefix, string[] parts, bool is_global)
-        {
-            object result;
-            string name = ATOM.concate(prefix, parts);
-            lock (ATOM._global_t.SyncRoot)
-            {
-                result = ATOM._global_t[name];
-                if (result != null)
-                    return result;
-
-                if (ATOM._local_t == null)
-                    ATOM._local_t = new Hashtable();
-
-                result = ATOM._local_t[name];
-                if (result == null)
-                    result = new Lisp.ATOM(prefix, parts, is_global);
-            }
-            return result;
-        }
-
-        public static readonly object T = new ATOM("t");
-        public static readonly object NIL = new ATOM("nil");
-        public static readonly object QUOTE = new ATOM("quote");
-        public static readonly object LAMBDA = new ATOM("lambda");
-        public static readonly object INST = new ATOM("__inst");
-        public static readonly object UNKNOWN = new ATOM("unknown");
-        public static readonly object ARGV = new ATOM("argv");
+        public static readonly object T = ATOM.Create("t");
+        public static readonly object NIL = ATOM.Create("nil");
+        public static readonly object QUOTE = ATOM.Create("quote");
+        public static readonly object LAMBDA = ATOM.Create("lambda");
+        public static readonly object INST = ATOM.Create("__inst");
+        public static readonly object UNKNOWN = ATOM.Create("unknown");
+        public static readonly object ARGV = ATOM.Create("argv");
+        public static readonly object MPOOL = ATOM.Create("memoryPool");
         
 		public static bool IsNode(object lval) 
 		{

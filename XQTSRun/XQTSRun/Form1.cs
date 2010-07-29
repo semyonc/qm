@@ -519,7 +519,6 @@ namespace XQTSRun
                     if (PerformTest(tw, curr))
                     {
                         tw.WriteLine("Passed.");
-                        //Console.Write(tw.ToString());
                         resFile.AddResult(id, "pass");
                         Interlocked.Increment(ref _passed);
                     }
@@ -529,6 +528,7 @@ namespace XQTSRun
                         resFile.AddResult(id, "fail");
                         _out.Write(tw.ToString());
                     }
+                    //Trace.WriteLine(tw.ToString());
                     Interlocked.Increment(ref _total);
                 }
             }

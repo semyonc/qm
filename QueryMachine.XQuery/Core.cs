@@ -41,88 +41,88 @@ namespace DataEngine.XQuery
 {
     public partial class ID
     {
-        public static readonly object DynExecuteExpr = Lisp.Defatom("dyn_execute");       
-        public static readonly object Doc = Lisp.Defatom(XmlReservedNs.NsXQueryFunc, new string[] { "doc" }, true);
-        public static readonly object Root = Lisp.Defatom(XmlReservedNs.NsXQueryFunc, new string[] { "root" }, true);        
-        public static readonly object Position = Lisp.Defatom(XmlReservedNs.NsXQueryFunc, new string[] { "position" }, true);
-        public static readonly object Last = Lisp.Defatom(XmlReservedNs.NsXQueryFunc, new string[] { "last" }, true);
-        public static readonly object ContextNode = Lisp.Defatom("context-node");
+        public static readonly object DynExecuteExpr = ATOM.Create("dyn_execute");       
+        public static readonly object Doc = ATOM.Create(XmlReservedNs.NsXQueryFunc, new string[] { "doc" }, true);
+        public static readonly object Root = ATOM.Create(XmlReservedNs.NsXQueryFunc, new string[] { "root" }, true);        
+        public static readonly object Position = ATOM.Create(XmlReservedNs.NsXQueryFunc, new string[] { "position" }, true);
+        public static readonly object Last = ATOM.Create(XmlReservedNs.NsXQueryFunc, new string[] { "last" }, true);
+        public static readonly object ContextNode = ATOM.Create("context-node");
 
-        public static readonly object BooleanValue = Lisp.Defatom(XmlReservedNs.NsXQueryFunc, new string[] { "boolean" }, true);
-        public static readonly object True = Lisp.Defatom(XmlReservedNs.NsXQueryFunc, new string[] { "true" }, true);
-        public static readonly object False = Lisp.Defatom(XmlReservedNs.NsXQueryFunc, new string[] { "false" }, true);
-        public static readonly object Not = Lisp.Defatom(XmlReservedNs.NsXQueryFunc, new string[] { "not" }, true);
+        public static readonly object BooleanValue = ATOM.Create(XmlReservedNs.NsXQueryFunc, new string[] { "boolean" }, true);
+        public static readonly object True = ATOM.Create(XmlReservedNs.NsXQueryFunc, new string[] { "true" }, true);
+        public static readonly object False = ATOM.Create(XmlReservedNs.NsXQueryFunc, new string[] { "false" }, true);
+        public static readonly object Not = ATOM.Create(XmlReservedNs.NsXQueryFunc, new string[] { "not" }, true);
 
-        public static readonly object String = Lisp.Defatom(XmlReservedNs.NsXQueryFunc, new string[] { "string" }, true);
-        public static readonly object Number = Lisp.Defatom(XmlReservedNs.NsXQueryFunc, new string[] { "number" }, true);
+        public static readonly object String = ATOM.Create(XmlReservedNs.NsXQueryFunc, new string[] { "string" }, true);
+        public static readonly object Number = ATOM.Create(XmlReservedNs.NsXQueryFunc, new string[] { "number" }, true);
 
-        public static readonly object DynCreateDocument = Lisp.Defatom("dyn_root");
-        public static readonly object DynCreateElement = Lisp.Defatom("dyn_element");
-        public static readonly object DynCreateAttribute = Lisp.Defatom("dyn_attribute");
-        public static readonly object DynCreateCData = Lisp.Defatom("dyn_cdata");
-        public static readonly object DynCreateText = Lisp.Defatom("dyn_text");
-        public static readonly object DynCreateComment = Lisp.Defatom("dyn_comment");
-        public static readonly object DynCreatePi = Lisp.Defatom("dyn_pi");
-        public static readonly object DynZeroOrOne = Lisp.Defatom("dyn_zero_or_one");
+        public static readonly object DynCreateDocument = ATOM.Create("dyn_root");
+        public static readonly object DynCreateElement = ATOM.Create("dyn_element");
+        public static readonly object DynCreateAttribute = ATOM.Create("dyn_attribute");
+        public static readonly object DynCreateCData = ATOM.Create("dyn_cdata");
+        public static readonly object DynCreateText = ATOM.Create("dyn_text");
+        public static readonly object DynCreateComment = ATOM.Create("dyn_comment");
+        public static readonly object DynCreatePi = ATOM.Create("dyn_pi");
+        public static readonly object DynZeroOrOne = ATOM.Create("dyn_zero_or_one");
         
-        public static readonly object CreateBuilder = Lisp.Defatom("create-builder");
-        public static readonly object CreateNavigator = Lisp.Defatom("create-navigator");
-        public static readonly object WriteBeginElement = Lisp.Defatom("begin-element");
-        public static readonly object WriteEndElement = Lisp.Defatom("end-element");
-        public static readonly object WriteBeginAttribute = Lisp.Defatom("begin-attribute");
-        public static readonly object WriteEndAttribute = Lisp.Defatom("end-attribute");
-        public static readonly object WriteRaw = Lisp.Defatom("write-raw");
-        public static readonly object WriteNode = Lisp.Defatom("write-node");
-        public static readonly object WriteComment = Lisp.Defatom("write-comment");
-        public static readonly object WritePi = Lisp.Defatom("write-pi");
-        public static readonly object WriteString = Lisp.Defatom("write-string");
-        public static readonly object WriteWhitespace = Lisp.Defatom("write-ws");
-        public static readonly object WriteCdata = Lisp.Defatom("write-cdata");
+        public static readonly object CreateBuilder = ATOM.Create("create-builder");
+        public static readonly object CreateNavigator = ATOM.Create("create-navigator");
+        public static readonly object WriteBeginElement = ATOM.Create("begin-element");
+        public static readonly object WriteEndElement = ATOM.Create("end-element");
+        public static readonly object WriteBeginAttribute = ATOM.Create("begin-attribute");
+        public static readonly object WriteEndAttribute = ATOM.Create("end-attribute");
+        public static readonly object WriteRaw = ATOM.Create("write-raw");
+        public static readonly object WriteNode = ATOM.Create("write-node");
+        public static readonly object WriteComment = ATOM.Create("write-comment");
+        public static readonly object WritePi = ATOM.Create("write-pi");
+        public static readonly object WriteString = ATOM.Create("write-string");
+        public static readonly object WriteWhitespace = ATOM.Create("write-ws");
+        public static readonly object WriteCdata = ATOM.Create("write-cdata");
                 
-        public static readonly object Atomize = Lisp.Defatom("atomize");
-        public static readonly object AtomizeX = Lisp.Defatom("atomize_x");
-        public static readonly object AtomizeBody = Lisp.Defatom("atomize#");
-        public static readonly object NodeValue = Lisp.Defatom("node");
-        public static readonly object NodeValueX = Lisp.Defatom("node_x");
-        public static readonly object NodeValueBody = Lisp.Defatom("node#");        
-        public static readonly object FormatValue = Lisp.Defatom("format-value");
+        public static readonly object Atomize = ATOM.Create("atomize");
+        public static readonly object AtomizeX = ATOM.Create("atomize_x");
+        public static readonly object AtomizeBody = ATOM.Create("atomize#");
+        public static readonly object NodeValue = ATOM.Create("node");
+        public static readonly object NodeValueX = ATOM.Create("node_x");
+        public static readonly object NodeValueBody = ATOM.Create("node#");        
+        public static readonly object FormatValue = ATOM.Create("format-value");
 
-        public static readonly object InstanceOf = Lisp.Defatom("instance-of");
-        public static readonly object CastTo = Lisp.Defatom("cast-to");
-        public static readonly object CastToItem = Lisp.Defatom("cast-to-item");
-        public static readonly object Castable = Lisp.Defatom("castable");
-        public static readonly object TreatAs = Lisp.Defatom("treat-as");
-        public static readonly object CastArg = Lisp.Defatom("cast-arg");
+        public static readonly object InstanceOf = ATOM.Create("instance-of");
+        public static readonly object CastTo = ATOM.Create("cast-to");
+        public static readonly object CastToItem = ATOM.Create("cast-to-item");
+        public static readonly object Castable = ATOM.Create("castable");
+        public static readonly object TreatAs = ATOM.Create("treat-as");
+        public static readonly object CastArg = ATOM.Create("cast-arg");
 
-        public static readonly object GeneralEQ = Lisp.Defatom("general-eq");
-        public static readonly object GeneralNE = Lisp.Defatom("general-ne");
-        public static readonly object GeneralLT = Lisp.Defatom("general-lt");
-        public static readonly object GeneralGT = Lisp.Defatom("general-gt");
-        public static readonly object GeneralGE = Lisp.Defatom("general-ge");
-        public static readonly object GeneralLE = Lisp.Defatom("general-le");
+        public static readonly object GeneralEQ = ATOM.Create("general-eq");
+        public static readonly object GeneralNE = ATOM.Create("general-ne");
+        public static readonly object GeneralLT = ATOM.Create("general-lt");
+        public static readonly object GeneralGT = ATOM.Create("general-gt");
+        public static readonly object GeneralGE = ATOM.Create("general-ge");
+        public static readonly object GeneralLE = ATOM.Create("general-le");
 
-        public static readonly object Some = Lisp.Defatom("some");
-        public static readonly object Every = Lisp.Defatom("every");
+        public static readonly object Some = ATOM.Create("some");
+        public static readonly object Every = ATOM.Create("every");
 
-        public static readonly object SameNode = Lisp.Defatom("is-same-node");
-        public static readonly object PrecedingNode = Lisp.Defatom("is-preceding-node");
-        public static readonly object FollowingNode = Lisp.Defatom("is-following-node");
+        public static readonly object SameNode = ATOM.Create("is-same-node");
+        public static readonly object PrecedingNode = ATOM.Create("is-preceding-node");
+        public static readonly object FollowingNode = ATOM.Create("is-following-node");
 
-        public static readonly object Range = Lisp.Defatom("range");
-        public static readonly object Except = Lisp.Defatom("except");
-        public static readonly object Intersect = Lisp.Defatom("intersect");
-        public static readonly object Union = Lisp.Defatom("union");
+        public static readonly object Range = ATOM.Create("range");
+        public static readonly object Except = ATOM.Create("except");
+        public static readonly object Intersect = ATOM.Create("intersect");
+        public static readonly object Union = ATOM.Create("union");
 
-        public static readonly object Context = Lisp.Defatom("$context");
-        public static readonly object Seq = Lisp.Defatom("$seq");
-        public static readonly object IsUnknown = Lisp.Defatom("is-unknown");
+        public static readonly object Context = ATOM.Create("$context");
+        public static readonly object Seq = ATOM.Create("$seq");
+        public static readonly object IsUnknown = ATOM.Create("is-unknown");
         
-        public static readonly object Par = Lisp.Defatom("par");
-        public static readonly object ExactlyOne = Lisp.Defatom("dyn-exactly-one");
-        public static readonly object RaiseUnknown = Lisp.Defatom("raise-unknown");
-        public static readonly object Validate = Lisp.Defatom("validate");
-        public static readonly object CastToNumber1 = Lisp.Defatom("cast-to-number1");
-        public static readonly object CastToNumber2 = Lisp.Defatom("cast-to-number2");
+        public static readonly object Par = ATOM.Create("par");
+        public static readonly object ExactlyOne = ATOM.Create("dyn-exactly-one");
+        public static readonly object RaiseUnknown = ATOM.Create("raise-unknown");
+        public static readonly object Validate = ATOM.Create("validate");
+        public static readonly object CastToNumber1 = ATOM.Create("cast-to-number1");
+        public static readonly object CastToNumber2 = ATOM.Create("cast-to-number2");
     }
     
     public static class Core
@@ -269,6 +269,8 @@ namespace DataEngine.XQuery
                 throw new XQueryException(ex.Message, ex);
             }
             IXPathNavigable doc = context.OpenDocument(fileName);
+            //if (doc is XQueryDocument && context.EnableTPL)
+            //    ((XQueryDocument)doc).Fill();
             return doc.CreateNavigator();
         }
 
@@ -277,15 +279,18 @@ namespace DataEngine.XQuery
             return XQueryNodeIterator.Create(value);
         }
 
-        public static object DynExecuteExpr(object obj, IContextProvider provider, object[] args)
+        public static object DynExecuteExpr(object obj, IContextProvider provider, object[] args, MemoryPool pool)
         {
             XQueryExprBase expr = (XQueryExprBase)obj;
-            return expr.Execute(provider, args);
+            return expr.Execute(provider, args, pool);
         }               
 
         public static XPathItem ContextNode(IContextProvider provider)
         {
-            return provider.Context;
+            XPathItem item = provider.Context;
+            if (item == null)
+                throw new XQueryException(Properties.Resources.XPDY0002);
+            return item;
         }
 
         public static int CurrentPosition(IContextProvider provider)
@@ -447,21 +452,25 @@ namespace DataEngine.XQuery
         public static object CreateNavigator(object o)
         {
             XQueryDocumentBuilder builder = GetBuilder(o);
-            return builder.m_document.CreateNavigator();
+            return builder.Document.CreateNavigator();
         }
 
         public static object BeginElement([Implict] Executive executive, object o, QNameValue name)
         {
             XQueryContext context = (XQueryContext)executive.Owner;
             XQueryDocumentBuilder builder = GetBuilder(o);
+            builder.Document.BeginWrite();
             builder.WriteStartElement(name.Prefix, name.LocalName, name.NamespaceUri);
+            builder.Document.EndWrite();
             return builder;
         }
 
         public static object EndElement(object o)
         {
             XQueryDocumentBuilder builder = GetBuilder(o);
+            builder.Document.BeginWrite();
             builder.WriteEndElement();
+            builder.Document.EndWrite();
             return builder;
         }
 
@@ -469,28 +478,36 @@ namespace DataEngine.XQuery
         {
             XQueryContext context = (XQueryContext)executive.Owner;
             XQueryDocumentBuilder builder = GetBuilder(o);
+            builder.Document.BeginWrite();
             builder.WriteStartAttribute(name.Prefix, name.LocalName, name.NamespaceUri);
+            builder.Document.EndWrite();
             return builder;
         }
 
         public static object EndAttribute(object o)
         {
             XQueryDocumentBuilder builder = GetBuilder(o);
+            builder.Document.BeginWrite();
             builder.WriteEndAttribute();
+            builder.Document.EndWrite();
             return builder;
         }
 
         public static object CreateComment(object o, string text)
         {
             XQueryDocumentBuilder builder = GetBuilder(o);
+            builder.Document.BeginWrite();
             builder.WriteComment(text);
+            builder.Document.EndWrite();
             return builder;
         }
 
         public static object CreatePi(object o, string name, string text)
         {
             XQueryDocumentBuilder builder = GetBuilder(o);
+            builder.Document.BeginWrite();
             builder.WriteProcessingInstruction(name, text);
+            builder.Document.EndWrite();
             return builder;
         }
 

@@ -37,7 +37,7 @@ namespace DataEngine.CoreServices
 {    
     public class CompiledLambda
     {
-        private delegate object InvokeLambda(CompiledLambda sender, object[] consts, object[] args);
+        private delegate object InvokeLambda(CompiledLambda sender, object[] consts, object[] args, MemoryPool pool);
 
         private DynamicMethod dynamicMethod;
         private InvokeLambda invoke;
@@ -48,7 +48,7 @@ namespace DataEngine.CoreServices
             Arity = parameters.Length;
             Parameters = parameters;
             dynamicMethod = new DynamicMethod("", typeof(System.Object),
-                new Type[] { typeof(CompiledLambda), typeof(object[]), typeof(object[]) }, GetType().Module);
+                new Type[] { typeof(CompiledLambda), typeof(object[]), typeof(object[]), typeof(MemoryPool) }, GetType().Module);
         }
 
         public Executive Engine { get; set; }
@@ -60,7 +60,7 @@ namespace DataEngine.CoreServices
         public Type ReturnType { get; set; }
 
         [SecurityCritical]
-        public object Invoke(object[] args)
+        public object Invoke(MemoryPool pool, object[] args)
         {
             if (invoke == null)
                 invoke = (InvokeLambda)dynamicMethod.CreateDelegate(typeof(InvokeLambda));
@@ -68,7 +68,7 @@ namespace DataEngine.CoreServices
             {
                 try
                 {                    
-                    return invoke(this, Consts, args);
+                    return invoke(this, Consts, args, pool);
                 }
                 catch (Exception ex)
                 {

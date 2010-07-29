@@ -61,6 +61,8 @@ namespace DataEngine.CoreServices
         private Stack<Resolver> m_resolvers = new Stack<Resolver>();
         private int m_resolvers_lock = 0;
         private OperatorManager m_oper;
+        private MethodInfo m_memoryPoolGetData;
+        private MemoryPool m_defaultPool;
 
         public Executive(object owner)
         {
@@ -73,7 +75,13 @@ namespace DataEngine.CoreServices
             m_macro = GlobalSymbols.Shared.CreateMacros();
             
             m_value = new Dictionary<object, SymbolLink>();
+            m_memoryPoolGetData = typeof(MemoryPool).GetMethod("GetData", BindingFlags.Instance | BindingFlags.Public);
+        }
 
+        public virtual void Prepare()
+        {
+            m_defaultPool = new MemoryPool();
+            m_value.Clear();
             Set(Lisp.T, Generation.RuntimeOps.True);
             Set(Lisp.NIL, null);
             Set(Lisp.UNKNOWN, Undefined.Value);
@@ -129,7 +137,7 @@ namespace DataEngine.CoreServices
 
         public SymbolLink Set(string Name, object value)
         {
-            return Set(Lisp.Defatom(new string[] {Name}), value);            
+            return Set(ATOM.Create(null, new string[] {Name}, false), value);            
         }
 
         public SymbolLink Set(object atom, object value)
@@ -140,9 +148,10 @@ namespace DataEngine.CoreServices
                 if (!Lisp.IsAtom(atom))
                     throw new ArgumentException();
                 link = new SymbolLink();
+                m_defaultPool.Bind(link);
                 m_value.Add(atom, link);
             }
-            link.Value = value;
+            m_defaultPool.SetData(link, value);
             return link;
         }
 
@@ -161,12 +170,23 @@ namespace DataEngine.CoreServices
 
         public void Enter(Resolver resolver)
         {
+            resolver.Init(m_defaultPool);
             m_resolvers.Push(resolver);
         }
 
         public void Leave()
         {
             m_resolvers.Pop();
+        }
+
+        public Resolver Resolver
+        {
+            get
+            {
+                if (m_resolvers.Count > 0)
+                    return m_resolvers.Peek();
+                return null;
+            }
         }
 
         internal void EnterMacro()
@@ -189,10 +209,8 @@ namespace DataEngine.CoreServices
             SymbolLink link;
             if (resolvers && m_resolvers_lock == 0)
             {
-                Resolver[] rls = m_resolvers.ToArray();
-                for (int k = 0; k < rls.Length; k++)
-                    if (rls[k].Get(atom, out link))
-                        return link;
+                if (m_resolvers.Peek().Get(atom, out link))
+                    return link;
             }
             if (bindings && m_value.TryGetValue(atom, out link))
                 return link;
@@ -209,7 +227,7 @@ namespace DataEngine.CoreServices
 
         public object GetValue(object atom)
         {
-            return Get(atom).Value;
+            return m_defaultPool.GetData(Get(atom));
         }
 
         public void DefineStaticOperator(object id, Type type, string name)
@@ -316,7 +334,7 @@ namespace DataEngine.CoreServices
             return Lisp.List(form);
         }
         
-        public Type Compile(Parameter[] parameters, object expr, SymbolLink dynamicFunc)
+        public Type Compile(Parameter[] parameters, object expr, FunctionLink dynamicFunc)
         {
             try
             {
@@ -338,7 +356,7 @@ namespace DataEngine.CoreServices
             return expr._retType;
         }
 
-        private void GetValueDependences(HashSet<LambdaExpr> hs, CompiledLambda compiledExpr, List<SymbolLink> res)
+        private void GetValueDependences(HashSet<LambdaExpr> hs, CompiledLambda compiledExpr, List<SymbolLink> res, bool reviewLambdaExpr)
         {
             foreach (SymbolLink value in compiledExpr.Values)
                 res.Add(value);
@@ -348,28 +366,43 @@ namespace DataEngine.CoreServices
                 {
                     IBindableObject bo = cn as IBindableObject;
                     if (bo != null)
-                        foreach (SymbolLink dynFunc in bo.EnumDynamicFuncs())
-                            GetValueDependences(hs, (CompiledLambda)dynFunc.Value, res);
+                        foreach (FunctionLink dynFunc in bo.EnumDynamicFuncs())
+                            GetValueDependences(hs, dynFunc.Value, res, reviewLambdaExpr);
                 }
             }
             foreach (LambdaExpr expr in compiledExpr.Dependences)
-            {
-                if (hs.Contains(expr))
-                    continue;
-                hs.Add(expr);
-                if (expr._compiledBody.Value == null)
-                    Compile(expr);
-                GetValueDependences(hs, (CompiledLambda)expr._compiledBody.Value, res);
-            }
+                if (reviewLambdaExpr || !expr.Isolate)
+                {
+                    if (hs.Contains(expr))
+                        continue;
+                    hs.Add(expr);
+                    if (expr._compiledBody.Value == null)
+                        Compile(expr);
+                    GetValueDependences(hs, expr._compiledBody.Value, res, reviewLambdaExpr);
+                }
         }
 
-        public SymbolLink[] GetValueDependences(Parameter[] parameters, object expr, SymbolLink dynamicFunc)
+        public SymbolLink[] GetValueDependences(Parameter[] parameters, object expr, FunctionLink dynamicFunc, bool reviewLambdaExpr)
         {
             HashSet<LambdaExpr> hs = new HashSet<LambdaExpr>();
             if (dynamicFunc.Value == null)
                 Compile(parameters, expr, dynamicFunc);
             List<SymbolLink> res = new List<SymbolLink>();
-            GetValueDependences(hs, (CompiledLambda)dynamicFunc.Value, res);
+            GetValueDependences(hs, dynamicFunc.Value, res, reviewLambdaExpr);
+            return res.ToArray();
+        }
+
+        public IBindableObject[] GetBindableObjects(Parameter[] parameters, object expr, FunctionLink dynamicFunc)
+        {
+            List<IBindableObject> res = new List<IBindableObject>();
+            if (dynamicFunc.Value == null)
+                Compile(parameters, expr, dynamicFunc);
+            foreach (object cn in dynamicFunc.Value.Consts)
+            {
+                IBindableObject bo = cn as IBindableObject;
+                if (bo != null)
+                    res.Add(bo);
+            }
             return res.ToArray();
         }
 
@@ -428,6 +461,16 @@ namespace DataEngine.CoreServices
                 if (lambda.ReturnType.IsValueType)
                     il.EmitBoxing(lambda.ReturnType);
                 il.Emit(OpCodes.Ret);
+                if (lambda.Consts != null)
+                {
+                    foreach (object obj in lambda.Consts)
+                    {
+                        // Notify object about compile
+                        IBindableObject cs = obj as IBindableObject;
+                        if (cs != null)
+                            cs.Bind(parameters, m_defaultPool);
+                    }
+                }
                 return lambda;            
 #if DEBUG
             }
@@ -473,7 +516,7 @@ namespace DataEngine.CoreServices
         {
             if (Lisp.IsNode(lval))
             {
-                if (Lisp.IsAtom(lval) && lval != Lisp.NIL && lval != Lisp.T && lval != Lisp.INST && lval != Lisp.ARGV)
+                if (Lisp.IsAtom(lval) && lval != Lisp.NIL && lval != Lisp.T && lval != Lisp.INST && lval != Lisp.ARGV && lval != Lisp.MPOOL)
                     locals.Bind(this, lval);
             }
             else if (Lisp.IsFunctor(lval))
@@ -557,10 +600,11 @@ namespace DataEngine.CoreServices
                     int k = 0;
                     foreach (LocalAccess.LocalBinding b in locals)
                     {
+                        il.Emit(OpCodes.Ldarg_3);                        
                         il.Emit(OpCodes.Ldloc, values);
                         il.EmitInt(k++);
                         il.Emit(OpCodes.Ldelem_Ref);
-                        il.EmitPropertyGet(typeof(SymbolLink), "Value");
+                        il.EmitCall(m_memoryPoolGetData);
                         if (b.Local.LocalType.IsValueType)
                         {
                             il.Emit(OpCodes.Isinst, b.Local.LocalType);
@@ -621,6 +665,11 @@ namespace DataEngine.CoreServices
                     il.Emit(OpCodes.Ldarg_2);
                     st.Push(typeof(object[]));
                 }
+                else if (lval == Lisp.MPOOL)
+                {
+                    il.Emit(OpCodes.Ldarg_3);
+                    st.Push(typeof(MemoryPool));
+                }
                 else
                 {
                     LocalBuilder localVar = locals.GetLocal(lval);
@@ -635,7 +684,7 @@ namespace DataEngine.CoreServices
                         if (type == typeof(Integer))
                         {
                             il.EmitDecimal((Decimal)((Integer)lval));
-                            il.EmitNew(typeof(Integer).GetConstructor(BindingFlags.Instance | BindingFlags.NonPublic, null, 
+                            il.EmitNew(typeof(Integer).GetConstructor(BindingFlags.Instance | BindingFlags.NonPublic, null,
                                 new Type[] { typeof(Decimal) }, null));
                         }
                         else if (!il.TryEmitConstant(lval, type))
@@ -645,10 +694,6 @@ namespace DataEngine.CoreServices
                             il.Emit(OpCodes.Ldelem_Ref);
                             if (type.IsValueType)
                                 il.EmitUnbox(type);
-                            // Notify object about compile
-                            IBindableObject cs = lval as IBindableObject;
-                            if (cs != null)
-                                cs.Bind(locals.Parameters);
                         }
                         st.Push(type);
                     }
@@ -797,20 +842,15 @@ namespace DataEngine.CoreServices
             }
             return parameters.ToArray();
         }
-
-        public object Eval(object lval)
-        {
-            return Apply(null, null, lval, null, null);
-        }
         
         [SecuritySafeCritical]
-        public object Apply(object id, Parameter[] parameters, object lval, object[] args, SymbolLink dynamicFunc)
+        public object Apply(object id, Parameter[] parameters, object lval, object[] args, FunctionLink dynamicFunc, MemoryPool pool)
         {
             object res = Undefined.Value;
             if (dynamicFunc != null && dynamicFunc.Value != null)
             {
-                CompiledLambda lambda = (CompiledLambda)dynamicFunc.Value;
-                res = lambda.Invoke(args);
+                CompiledLambda lambda = dynamicFunc.Value;
+                res = lambda.Invoke(pool, args);
                 return res;
             }
             else
@@ -818,7 +858,7 @@ namespace DataEngine.CoreServices
                 CompiledLambda lambda = Compile(parameters, lval);
                 if (dynamicFunc != null)
                     dynamicFunc.Value = lambda;
-                res = lambda.Invoke(args);
+                res = lambda.Invoke(pool, args);
             }
             return res;
         }
@@ -861,6 +901,11 @@ namespace DataEngine.CoreServices
         public OperatorManager DynamicOperators
         {
             get { return m_oper; }
+        }
+
+        public MemoryPool DefaultPool
+        {
+            get { return m_defaultPool; }
         }
     }
 }
