@@ -98,7 +98,7 @@ namespace DataEngine.XQuery.Collections
             public abstract object this[int index] { get; }
         }
 
-        private class ElementsSegment : ItemSegment
+        private sealed class ElementsSegment : ItemSegment
         {
             private List<int> _indexes = new List<int>();
 
@@ -129,7 +129,7 @@ namespace DataEngine.XQuery.Collections
             }
         }
 
-        private class DataSegment : ItemSegment
+        private sealed class DataSegment : ItemSegment
         {
             private List<XPathItem> _items = new List<XPathItem>();
 
