@@ -156,7 +156,6 @@ namespace DataEngine.XQuery
         private int max_decrement;
         private int count;
         private int lastcount;
-        private int blockcount;
         private double workset;
         private long hit_count;
         private long miss_count;
@@ -165,8 +164,7 @@ namespace DataEngine.XQuery
 
         private XdmNode lastnode;
         private Page lastpage;
-        private Page[] lastblock;
-        private List<Page[]> pagelist;
+        private List<Page> pagelist;
         private List<DmNode> heads;
 
         private int partSize;
@@ -195,7 +193,6 @@ namespace DataEngine.XQuery
 
         #endregion
                                                    
-        public const int XQueryBlockSize = 1000;
         public const int XQueryDirectAcessBufferSize = 500;    
         
         public PageFile(bool large)
@@ -218,7 +215,7 @@ namespace DataEngine.XQuery
                 min_increment = 150;
                 max_decrement = 100;
             }
-            pagelist = new List<Page[]>();
+            pagelist = new List<Page>();
             heads = new List<DmNode>();
             workset = min_workset;
             cacheLock = new SpinLock();
@@ -296,8 +293,7 @@ namespace DataEngine.XQuery
             if (index < 0 || index >= count)
                 throw new ArgumentException("index");
             int pagenum = index / pagesize;
-            Page[] block = pagelist[pagenum / XQueryBlockSize];
-            Page page = block[pagenum % XQueryBlockSize];
+            Page page = pagelist[pagenum];
             int k = index % pagesize;
             if (load)
             {
@@ -330,8 +326,7 @@ namespace DataEngine.XQuery
             if (index < 0 || index >= count)
                 throw new ArgumentException("index");
             int pagenum = index / pagesize;
-            Page[] block = pagelist[pagenum / XQueryBlockSize];
-            Page page = block[pagenum % XQueryBlockSize];
+            Page page = pagelist[pagenum];
             return page.hindex[index % pagesize];
         }
 
@@ -357,18 +352,14 @@ namespace DataEngine.XQuery
             {
                 if (index < 0 || index >= count)
                     throw new ArgumentException("index");
-                int pagenum = index / pagesize;
-                Page[] block = pagelist[pagenum / XQueryBlockSize];
-                Page page = block[pagenum % XQueryBlockSize];
+                Page page = pagelist[index / pagesize];
                 return page.next[index % pagesize];
             }
             set
             {
                 if (index < 0 || index >= count)
                     throw new ArgumentException("index");
-                int pagenum = index / pagesize;
-                Page[] block = pagelist[pagenum / XQueryBlockSize];
-                Page page = block[pagenum % XQueryBlockSize];
+                Page page = pagelist[index / pagesize];
                 page.next[index % pagesize] = value;
             }
         }
@@ -377,25 +368,23 @@ namespace DataEngine.XQuery
         {
             int count = 0;
             int size = buffer.Length;
-            int pagenum = index / pagesize;
-            int blocknum = pagenum / XQueryBlockSize;
-            Page[] block = pagelist[blocknum];
-            Page curr = block[pagenum % XQueryBlockSize];
+            Page curr = pagelist[index / pagesize];
             int k = index % pagesize;
             while (length > 0 && count < size)
             {
                 if (targets == null || Array.BinarySearch(targets, curr.hindex[k]) >= 0)
                     buffer[count++] = index;
+                length--;
                 index++;
-                k++;
+                k++;                
                 if (k == pagesize)
                 {
-                    pagenum = index / pagesize;
-                    block = pagelist[pagenum / XQueryBlockSize];
-                    curr = block[pagenum % XQueryBlockSize];
+                    int pagenum = index / pagesize;
+                    if (pagenum == pagelist.Count)
+                        break;
+                    curr = pagelist[pagenum];
                     k = 0;
                 }
-                length--;
             }
             return count;
         }
@@ -536,15 +525,8 @@ namespace DataEngine.XQuery
                 lastpage.partid = (short)(pagecount % partSize); 
                 lastpage.pin = 1;
                 lastpage.num = pagecount++;
-                if (lastblock == null ||
-                    blockcount == lastblock.Length)
-                {
-                    lastblock = new Page[XQueryBlockSize];
-                    blockcount = 0;
-                    pagelist.Add(lastblock);
-                }
-                lastblock[blockcount++] = lastpage;
                 lastcount = 0;
+                pagelist.Add(lastpage);
             }
             count++;
             if (head == null)
@@ -573,7 +555,7 @@ namespace DataEngine.XQuery
             }
         }
 
-        private class Page
+        private sealed class Page
         {
             internal short partid;
             internal int num;
@@ -605,7 +587,7 @@ namespace DataEngine.XQuery
             public XdmReader fileReader;
         }
 
-        private class PageFileOptimizer
+        private sealed class PageFileOptimizer
         {
             private object syncRoot;
             private Timer timer;
