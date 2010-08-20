@@ -117,9 +117,7 @@ namespace DataEngine.XQuery
             int[] buffer = new int[PageFile.XQueryDirectAcessBufferSize];
             while (length > 0)
             {
-                src.Document.BeginRead();
                 int size = pf.Select(nset.hindex, ref index, ref length, buffer);
-                src.Document.EndRead();
                 for (int k = 0; k < size; k++)
                 {
                     res.Position = buffer[k];

@@ -652,7 +652,7 @@ namespace DataEngine.XQuery
             }
         }
 
-        public virtual bool EnableTPL { get { return true; } }
+        public virtual bool EnableHPC { get { return true; } }
 
         public String SearchPath { get; set; }
 
@@ -778,6 +778,14 @@ namespace DataEngine.XQuery
         }
 
         public override bool SupportDirectAccess
+        {
+            get
+            {
+                return false;
+            }
+        }
+
+        public override bool EnableHPC
         {
             get
             {

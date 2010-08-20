@@ -52,7 +52,7 @@ namespace DataEngine.XQuery
             m_valueExpr = new FunctionLink();
             QueryContext.Engine.Compile(parameters, m_expr, m_valueExpr);
             m_value.IsStatic = true;
-            SymbolLink[] depends = QueryContext.Engine.GetValueDependences(parameters, m_expr, m_valueExpr, false);
+            SymbolLink[] depends = QueryContext.Engine.GetValueDependences(null, parameters, m_expr, m_valueExpr, false);
             foreach (SymbolLink s in depends)
                 if (!s.IsStatic)
                 {

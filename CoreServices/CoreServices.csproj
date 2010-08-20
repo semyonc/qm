@@ -142,6 +142,7 @@
     <Compile Include="ControlOrForm.cs" />
     <Compile Include="ControlQuoteForm.cs" />
     <Compile Include="OperatorManager.cs" />
+    <Compile Include="PerfMonitor.cs" />
     <Compile Include="Resolver.cs" />
     <Compile Include="Runtime.cs" />
     <Compile Include="TypeConverter.cs" />

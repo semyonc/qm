@@ -39,6 +39,7 @@ using System.Xml.Schema;
 using DataEngine.CoreServices;
 using DataEngine.XQuery.DocumentModel;
 using DataEngine.XQuery.Collections;
+using DataEngine.XQuery.Util;
 
 namespace DataEngine.XQuery
 {
@@ -92,11 +93,19 @@ namespace DataEngine.XQuery
             pool.Bind(_cache);
             if (EnableCaching)
             {
-                foreach (FunctionLink dynFunc in EnumDynamicFuncs())
-                    foreach (SymbolLink value in QueryContext.Engine.GetValueDependences(parameters, null, dynFunc, false))
-                        if (!value.IsStatic && outerValues.Contains(value))
-                            value.OnChange += new ChangeValueAction(OnChangeValue);
+                foreach (XQueryExprBase expr in _path)
+                    expr.GetValueDependences(null, parameters, false, (SymbolLink value) =>
+                        {
+                            if (!value.IsStatic && outerValues.Contains(value))
+                                value.OnChange += new ChangeValueAction(OnChangeValue);
+                        });
             }
+        }
+
+        public override void GetValueDependences(HashSet<object> hs, Executive.Parameter[] parameters, bool reviewLambdaExpr, Action<SymbolLink> callback)
+        {
+            foreach (XQueryExprBase expr in _path)
+                expr.GetValueDependences(hs, parameters, reviewLambdaExpr, callback);
         }
 
         public override IEnumerable<FunctionLink> EnumDynamicFuncs()
@@ -112,15 +121,21 @@ namespace DataEngine.XQuery
             XQueryNodeIterator res = (XQueryNodeIterator)pool.GetData(_cache);
             if (res != null)
                 return res.Clone();
+#if PF
+            PerfMonitor.Global.Begin(this);
+#endif
             XQueryNodeIterator rootIter = 
                 XQueryNodeIterator.Create(_path[0].Execute(provider, args, pool)).CreateBufferedIterator();
             bool orderedSet = _isOrderedSet && rootIter.IsSingleIterator;
-            res = new ResultIterator(this, provider, orderedSet, !orderedSet & QueryContext.EnableTPL, rootIter, args, pool);
+            res = new ResultIterator(this, provider, orderedSet, !orderedSet & QueryContext.EnableHPC, rootIter, args, pool);
             if (EnableCaching)
             {
                 res = res.CreateBufferedIterator();
                 pool.SetData(_cache, res.Clone());
             }
+#if PF
+            PerfMonitor.Global.End(this);
+#endif
             return res;
         }
 
@@ -289,9 +304,21 @@ namespace DataEngine.XQuery
 
             protected override XPathItem NextItem()
             {
-                if (iter.MoveNext())
-                    return iter.Current;
-                return null;
+#if PF
+                try
+                {
+                    PerfMonitor.Global.Begin(owner);
+#endif
+                    if (iter.MoveNext())
+                        return iter.Current;
+                    return null;
+#if PF
+                }
+                finally
+                {
+                    PerfMonitor.Global.End(owner);
+                }
+#endif
             }
 
             public override XQueryNodeIterator CreateBufferedIterator()

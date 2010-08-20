@@ -49,6 +49,13 @@ namespace DataEngine.XQuery
             return false;
         }
 
+        public virtual void GetValueDependences(HashSet<Object> hs, Executive.Parameter[] parameters, bool reviewLambdaExpr, Action<SymbolLink> callback)
+        {
+            foreach (FunctionLink dynFunc in EnumDynamicFuncs())
+                foreach (SymbolLink value in QueryContext.Engine.GetValueDependences(hs, parameters, null, dynFunc, reviewLambdaExpr))
+                    callback(value);
+        }
+
         public abstract object Execute(IContextProvider provider, object[] args, MemoryPool pool);
 
         public XQueryContext QueryContext
@@ -59,13 +66,9 @@ namespace DataEngine.XQuery
             }
         }
 
-        public object ToLispFunction()
+        public virtual object ToLispFunction()
         {
-            XQueryExpr expr = this as XQueryExpr;
-            if (expr != null && expr.m_expr.Length == 1)
-                return expr.m_expr[0];
-            else
-                return Lisp.List(ID.DynExecuteExpr, this, ID.Context, Lisp.ARGV, Lisp.MPOOL);
+            return Lisp.List(ID.DynExecuteExpr, this, ID.Context, Lisp.ARGV, Lisp.MPOOL);
         }
     }
 }

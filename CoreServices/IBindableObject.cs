@@ -35,5 +35,8 @@ namespace DataEngine.CoreServices
         void Bind(Executive.Parameter[] parameter, MemoryPool pool);
 
         IEnumerable<FunctionLink> EnumDynamicFuncs();
+
+        void GetValueDependences(HashSet<Object> hs, Executive.Parameter[] parameters, 
+            bool reviewLambdaExpr, Action<SymbolLink> callback);
     }
 }

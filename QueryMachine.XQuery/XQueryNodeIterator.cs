@@ -41,8 +41,8 @@ namespace DataEngine.XQuery
 
     public interface IContextProvider
     {
-        XPathItem Context { get; }        
-        
+        XPathItem Context { get; }
+       
         int CurrentPosition { get; }
         
         int LastPosition { get; }        

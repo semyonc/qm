@@ -103,7 +103,7 @@ namespace DataEngine.XQuery
         {
             for (int k = 0; k < m_expr.Length; k++)
             {
-                SymbolLink[] dps = QueryContext.Engine.GetValueDependences(parameters,
+                SymbolLink[] dps = QueryContext.Engine.GetValueDependences(null, parameters,
                     m_expr[k], m_compiledBody[k], false);
                 foreach (SymbolLink s in dps)
                     if (s == m_context)
@@ -113,7 +113,7 @@ namespace DataEngine.XQuery
             {
                 for (int k = 0; k < Annotation.Length; k++)
                 {
-                    SymbolLink[] dps = QueryContext.Engine.GetValueDependences(parameters,
+                    SymbolLink[] dps = QueryContext.Engine.GetValueDependences(null, parameters,
                        Annotation[k], m_compiledAnnotation[k], false);
                     foreach (SymbolLink s in dps)
                         if (s == m_context)
@@ -144,6 +144,13 @@ namespace DataEngine.XQuery
             if (m_expr.Length == 1)
                 return QueryContext.Engine.Apply(null, null, m_expr[0], args, m_compiledBody[0], pool);
             return new XQueryExprIterator(this, args, null, pool);
+        }
+
+        public override object ToLispFunction()
+        {
+            if (m_expr.Length == 1)
+                return m_expr[0];
+            return base.ToLispFunction();
         }
 
         private sealed class XQueryExprIterator : XQueryNodeIterator
@@ -249,7 +256,7 @@ namespace DataEngine.XQuery
         public static XQueryExprBase Create(XQueryContext context, object[] expr)
         {
             if (expr.Length == 1 && Lisp.IsFunctor(expr[0], ID.DynExecuteExpr, 4))
-                return (XQueryExprBase)Lisp.Arg1(expr[0]);
+              return (XQueryExprBase)Lisp.Arg1(expr[0]);
             return new XQueryExpr(context, expr);
         }
     }

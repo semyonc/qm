@@ -48,7 +48,6 @@ namespace DataEngine.XQuery
 
         internal XQueryDocumentBuilder builder = null;
         internal string baseUri = String.Empty;
-        //internal ReaderWriterLockSlim rw = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         
         internal Dictionary<string, string> elemIdTable = null;
         internal Dictionary<string, int> IdTable = null;
@@ -59,9 +58,6 @@ namespace DataEngine.XQuery
         internal static int s_docNumberSequence = 0;
 
         public static long LargeFileLength = 154533888;
-
-        //[ThreadStatic]
-        //private bool readLockHeald;
 
         public bool IsIndexed
         {
@@ -180,11 +176,9 @@ namespace DataEngine.XQuery
 
         public void Close()
         {
-            BeginWrite();
             if (input != null)
                 input.Close();
             pagefile.Close();
-            EndWrite();
         }
 
         private void Read()
@@ -324,39 +318,37 @@ namespace DataEngine.XQuery
             }
         }
 
-        internal void BeginRead()
-        {
-            //rw.EnterReadLock();
-        }
+        //internal void BeginRead()
+        //{
+        //    //rw.EnterReadLock();
+        //}
 
-        internal void EndRead()
-        {
-            //rw.ExitReadLock();
-        }
+        //internal void EndRead()
+        //{
+        //    //rw.ExitReadLock();
+        //}
 
-        internal void BeginWrite()
-        {
-            //readLockHeald = rw.IsReadLockHeld;
-            //if (readLockHeald)
-            //    rw.ExitReadLock();
-            //rw.EnterWriteLock();
-        }
+        //internal void BeginWrite()
+        //{
+        //    //readLockHeald = rw.IsReadLockHeld;
+        //    //if (readLockHeald)
+        //    //    rw.ExitReadLock();
+        //    //rw.EnterWriteLock();
+        //}
 
-        internal void EndWrite()
-        {
-            //rw.ExitWriteLock();
-            //if (readLockHeald)
-            //    rw.EnterReadLock();
-        }
+        //internal void EndWrite()
+        //{
+        //    //rw.ExitWriteLock();
+        //    //if (readLockHeald)
+        //    //    rw.EnterReadLock();
+        //}
 
         internal void ExpandPageFile(int pos)
         {
             if (pos >= pagefile.Count && input != null)
             {
-                BeginWrite();
                 while (pos >= pagefile.Count && input != null)
                     Read();
-                EndWrite();
             }
         }
 
@@ -364,19 +356,15 @@ namespace DataEngine.XQuery
         {
             if (input != null && pos != builder.LastElementEnd)
             {
-                BeginWrite();
                 while (input != null && pos != builder.LastElementEnd)
                     Read();
-                EndWrite();
             }
         }
 
         public void Fill()
         {
-            BeginWrite(); 
             while (input != null)
                 Read();
-            EndWrite();
         }
 
         private void CreateIdTable(object documentType)
