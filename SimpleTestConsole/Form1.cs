@@ -17,6 +17,7 @@ using System.Xml.XPath;
 using DataEngine.CoreServices;
 using DataEngine.XQuery;
 using DataEngine.XQuery.OpenXML;
+using DataEngine.XQuery.Util;
 using WmHelp.XmlGrid;
 
 namespace SimpleTestConsole
@@ -181,7 +182,7 @@ namespace SimpleTestConsole
                     return true;
                 StringWriter sw = new StringWriter();
                 try
-                {
+                {                    
                     Stopwatch stopwatch = new Stopwatch();
                     stopwatch.Start();
                     XQueryCommand command;
@@ -210,6 +211,8 @@ namespace SimpleTestConsole
                     }
                     stopwatch.Stop();
                     sw.WriteLine("Proceeded: {0} ms", stopwatch.ElapsedMilliseconds);
+                    PerfMonitor.Global.TraceStats();
+                    PerfMonitor.Global.Clear();
                 }
                 catch (XQueryException ex)
                 {

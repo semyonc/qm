@@ -140,10 +140,10 @@ namespace DataEngine.XQuery
             if (m_pos != null)
                 pool.SetData(m_posValue, index);
             res = null;
-            if (m_conditionExpr == null || 
+            if (m_conditionExpr == null ||
                 Core.BooleanValue(QueryContext.Engine.Apply(null, null, ConditionExpr, args, m_conditionExpr, pool)))
             {
-                res = m_bodyExpr.Execute(provider, args, pool); 
+                res = m_bodyExpr.Execute(provider, args, pool);
                 if (res != Undefined.Value)
                     return true;
             }

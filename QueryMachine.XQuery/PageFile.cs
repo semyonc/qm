@@ -32,11 +32,13 @@ using System.IO;
 using System.Xml;
 using System.Xml.Schema;
 using System.Diagnostics;
-using System.Threading;
-
-using DataEngine.XQuery.DocumentModel;
 using System.Runtime;
+using System.Threading;
 using System.Threading.Tasks;
+
+using DataEngine.CoreServices;
+using DataEngine.XQuery.DocumentModel;
+
 
 namespace DataEngine.XQuery
 {
@@ -171,7 +173,7 @@ namespace DataEngine.XQuery
         private volatile int cacheCount;
         private PageFilePart[] parts;
         private SpinLock cacheLock;
-        private HashSet<Page> cache;
+        private readonly HashSet<Page> cache;
 
         #region IDisposable Members
 
@@ -391,28 +393,40 @@ namespace DataEngine.XQuery
 
         private XdmNode[] ReadPage(Page page)
         {
-            XdmNode[] nodes = new XdmNode[pagesize];
-            PageFilePart part = parts[page.partid];
-            lock (part.fileStream)
+#if PF
+            try
             {
-                part.fileStream.Seek(page.offset, SeekOrigin.Begin);
-                for (int k = 0; k < pagesize; k++)
+                PerfMonitor.Global.Begin("PageFile.ReadPage()");
+#endif
+                XdmNode[] nodes = new XdmNode[pagesize];
+                PageFilePart part = parts[page.partid];
+                lock (part.fileStream)
                 {
-                    int hindex = page.hindex[k];
-                    if (hindex != -1)
+                    part.fileStream.Seek(page.offset, SeekOrigin.Begin);
+                    for (int k = 0; k < pagesize; k++)
                     {
-                        XdmNode node = heads[hindex].CreateNode();
-                        node.Load(part.fileReader);
-                        if (page.next[k] == MixedLeaf)
-                            ((XdmElement)node).LoadTextValue(part.fileReader);
-                        nodes[k] = node;
+                        int hindex = page.hindex[k];
+                        if (hindex != -1)
+                        {
+                            XdmNode node = heads[hindex].CreateNode();
+                            node.Load(part.fileReader);
+                            if (page.next[k] == MixedLeaf)
+                                ((XdmElement)node).LoadTextValue(part.fileReader);
+                            nodes[k] = node;
+                        }
                     }
+                    page.nodes = nodes;
+                    AddCache(page);
                 }
-                page.nodes = nodes;
-                AddCache(page);
+                Interlocked.Increment(ref miss_count);
+                return nodes;
+#if PF
             }
-            Interlocked.Increment(ref miss_count);
-            return nodes;
+            finally
+            {
+                PerfMonitor.Global.End("PageFile.ReadPage()");
+            }
+#endif
         }
 
         private void WritePage(Page page)

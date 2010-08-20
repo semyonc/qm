@@ -41,7 +41,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;_NET_4_0</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;_NET_4_0;PF</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
@@ -132,6 +132,7 @@
     <Compile Include="Collections\SimpleLinkedList.cs" />
     <Compile Include="Util\StringTokenizer.cs" />
     <Compile Include="DirectAccessPathExpr.cs" />
+    <Compile Include="XQueryCachedExpr.cs" />
     <Compile Include="XQueryFuncs.cs" />
     <Compile Include="Util\Base64BinaryValue.cs" />
     <Compile Include="Util\DateTimeValue.cs" />
@@ -162,6 +163,7 @@
     <Compile Include="XQueryParameterCollection.cs" />
     <Compile Include="XQueryPathExpr.cs" />
     <Compile Include="XQueryStepExpr.cs" />
+    <Compile Include="XQueryValueExpr.cs" />
     <Compile Include="XQueryWrappedValue.cs" />
     <Compile Include="XQueryCommand.cs" />
     <Compile Include="XQueryFunctionTable.cs" />

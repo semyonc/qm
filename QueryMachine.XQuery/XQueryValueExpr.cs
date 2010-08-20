@@ -25,103 +25,84 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections;
 using System.Text;
+
 using System.Xml;
 using System.Xml.Schema;
 using System.Xml.XPath;
-using System.Diagnostics;
 
 using DataEngine.CoreServices;
-using DataEngine.XQuery.Collections;
 
 namespace DataEngine.XQuery
 {
-    public sealed class BufferedNodeIterator: XQueryNodeIterator
+    sealed class XQueryValueExpr: XQueryExprBase
     {
-        private ItemList buffer;
-        private ItemList.Iterator iter;
-        private XQueryNodeIterator src;
+        private object name;
+        private int arg_index;
+        private SymbolLink value;
 
-        [DebuggerStepThrough]
-        private BufferedNodeIterator()
+        public XQueryValueExpr(XQueryContext queryContext, object name)
+            : base(queryContext)
         {
+            this.name = name;
         }
 
-        public BufferedNodeIterator(XQueryNodeIterator src)
-            : this(src, true)
+        public override void Bind(Executive.Parameter[] parameters, MemoryPool pool)
         {
-        }
-
-        public BufferedNodeIterator(XQueryNodeIterator src, bool clone)
-        {
-            this.src = clone ? src.Clone() : src;
-            buffer = new ItemList();
-        }        
-
-        public override int Count
-        {
-            get
+            value = QueryContext.Engine.TryGet(name, false, true);
+            if (value == null)
             {
-                if (IsFinished)
-                    return buffer.Count;
-                return base.Count;
+                if (parameters != null)
+                {
+                    arg_index = 0;
+                    foreach (Executive.Parameter p in parameters)
+                    {
+                        if (p.ID == name)
+                            return;
+                        arg_index++;
+                    }
+                }
+                value = QueryContext.Engine.TryGet(name, true, false);
+                if (value == null)
+                    throw new ValueNotDefined(name.ToString());
             }
         }
 
-        public override bool IsSingleIterator
+        public override IEnumerable<FunctionLink> EnumDynamicFuncs()
         {
-            get
-            {
-                if (buffer.Count > 1)
-                    return false;
-                else
-                {
-                    if (IsFinished && buffer.Count == 1)
-                        return true;
-                    return base.IsSingleIterator;
-                }
-            }
+            return new FunctionLink[0];
         }
 
-        public void Fill()
+        public override void GetValueDependences(HashSet<Object> hs, Executive.Parameter[] parameters, 
+            bool reviewLambdaExpr, Action<SymbolLink> callback)
         {
-            XQueryNodeIterator iter = Clone();
-            while (iter.MoveNext())
-                ;
+            if (value != null)
+                callback(value);
         }
 
-        [DebuggerStepThrough]
-        public override XQueryNodeIterator Clone()
+        public override object Execute(IContextProvider provider, object[] args, MemoryPool pool)
         {
-            BufferedNodeIterator clone = new BufferedNodeIterator();
-            clone.src = src;
-            clone.buffer = buffer;
-            return clone;
+            if (value == null)
+                return args[arg_index];
+            return pool.GetData(value);
         }
 
-        protected override void Init()
+        public override object ToLispFunction()
         {
-            iter = buffer.CreateIterator();
+            return name;
         }
 
-        protected override XPathItem NextItem()
+#if DEBUG
+        public override string ToString()
         {
-            int index = CurrentPosition + 1;
-            if (index < buffer.Count)
-                return iter[index];
-            else
-                if (!src.IsFinished && src.MoveNext())
-                {
-                    buffer.Add(src.Current);
-                    return src.Current;
-                }
-            return null;
+            StringBuilder sb = new StringBuilder();
+            sb.Append("[");
+            sb.Append(base.ToString());
+            sb.Append(": ");
+            sb.Append(name.ToString());
+            sb.Append("]");
+            return sb.ToString();
         }
-        
-        public override XQueryNodeIterator CreateBufferedIterator()
-        {
-            return Clone();
-        }
+#endif
     }
 }

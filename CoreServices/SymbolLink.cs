@@ -64,5 +64,10 @@ namespace DataEngine.CoreServices
         public Type Type { get; private set; }
 
         public event ChangeValueAction OnChange;
+
+        public override string ToString()
+        {
+            return String.Format("{0}@{1}", Type, index);
+        }
     }
 }

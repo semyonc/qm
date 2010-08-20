@@ -356,7 +356,8 @@ namespace DataEngine.CoreServices
             return expr._retType;
         }
 
-        private void GetValueDependences(HashSet<LambdaExpr> hs, CompiledLambda compiledExpr, List<SymbolLink> res, bool reviewLambdaExpr)
+        private void GetValueDependences(HashSet<Object> hs, Parameter[] parameters, 
+            CompiledLambda compiledExpr, List<SymbolLink> res, bool reviewLambdaExpr)
         {
             foreach (SymbolLink value in compiledExpr.Values)
                 res.Add(value);
@@ -366,29 +367,34 @@ namespace DataEngine.CoreServices
                 {
                     IBindableObject bo = cn as IBindableObject;
                     if (bo != null)
-                        foreach (FunctionLink dynFunc in bo.EnumDynamicFuncs())
-                            GetValueDependences(hs, dynFunc.Value, res, reviewLambdaExpr);
+                        bo.GetValueDependences(hs, parameters, reviewLambdaExpr, 
+                            (SymbolLink value) => res.Add(value));
+                        //foreach (FunctionLink dynFunc in bo.EnumDynamicFuncs())
+                        //    GetValueDependences(hs, dynFunc.Value, res, reviewLambdaExpr);
                 }
             }
             foreach (LambdaExpr expr in compiledExpr.Dependences)
                 if (reviewLambdaExpr || !expr.Isolate)
                 {
-                    if (hs.Contains(expr))
-                        continue;
-                    hs.Add(expr);
+                    if (hs != null)
+                    {
+                        if (hs.Contains(expr))
+                            continue;
+                        hs.Add(expr);
+                    }
                     if (expr._compiledBody.Value == null)
                         Compile(expr);
-                    GetValueDependences(hs, expr._compiledBody.Value, res, reviewLambdaExpr);
+                    GetValueDependences(hs, expr._parameters, expr._compiledBody.Value, res, reviewLambdaExpr);
                 }
         }
 
-        public SymbolLink[] GetValueDependences(Parameter[] parameters, object expr, FunctionLink dynamicFunc, bool reviewLambdaExpr)
+        public SymbolLink[] GetValueDependences(HashSet<Object> hs, Parameter[] parameters, object expr, 
+            FunctionLink dynamicFunc, bool reviewLambdaExpr)
         {
-            HashSet<LambdaExpr> hs = new HashSet<LambdaExpr>();
             if (dynamicFunc.Value == null)
                 Compile(parameters, expr, dynamicFunc);
             List<SymbolLink> res = new List<SymbolLink>();
-            GetValueDependences(hs, dynamicFunc.Value, res, reviewLambdaExpr);
+            GetValueDependences(hs, parameters, dynamicFunc.Value, res, reviewLambdaExpr);
             return res.ToArray();
         }
 
@@ -846,7 +852,7 @@ namespace DataEngine.CoreServices
         [SecuritySafeCritical]
         public object Apply(object id, Parameter[] parameters, object lval, object[] args, FunctionLink dynamicFunc, MemoryPool pool)
         {
-            object res = Undefined.Value;
+            object res = Undefined.Value;            
             if (dynamicFunc != null && dynamicFunc.Value != null)
             {
                 CompiledLambda lambda = dynamicFunc.Value;
@@ -859,7 +865,7 @@ namespace DataEngine.CoreServices
                 if (dynamicFunc != null)
                     dynamicFunc.Value = lambda;
                 res = lambda.Invoke(pool, args);
-            }
+            }            
             return res;
         }
 

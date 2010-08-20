@@ -66,6 +66,17 @@ namespace DataEngine.XQuery
             return Query(node, xquery, null);
         }
 
+        internal static object CloneObject(this Object src)
+        {
+            XPathItem item = src as XPathItem;
+            if (item != null)
+                return item.Clone();
+            XQueryNodeIterator iter = src as XQueryNodeIterator;
+            if (iter != null)
+                return iter.Clone();
+            return src;
+        }
+
         private class NodeList : XmlNodeList
         {
             private List<XmlNode> _list;

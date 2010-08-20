@@ -123,6 +123,7 @@ namespace DataEngine.XQuery
         public static readonly object Validate = ATOM.Create("validate");
         public static readonly object CastToNumber1 = ATOM.Create("cast-to-number1");
         public static readonly object CastToNumber2 = ATOM.Create("cast-to-number2");
+        public static readonly object CastToNumber3 = ATOM.Create("cast-to-number3");
     }
     
     public static class Core
@@ -187,6 +188,7 @@ namespace DataEngine.XQuery
             GlobalSymbols.DefineStaticOperator(ID.Validate, typeof(Core), "Validate");
             GlobalSymbols.DefineStaticOperator(ID.CastToNumber1, typeof(Core), "CastToNumber1");
             GlobalSymbols.DefineStaticOperator(ID.CastToNumber2, typeof(Core), "CastToNumber2");
+            GlobalSymbols.DefineStaticOperator(ID.CastToNumber3, typeof(Core), "CastToNumber3");
 
             XQueryFunctionTable.Register(ID.Position, typeof(Core), "CurrentPosition");
             XQueryFunctionTable.Register(ID.Last, typeof(Core), "LastPosition");
@@ -459,18 +461,14 @@ namespace DataEngine.XQuery
         {
             XQueryContext context = (XQueryContext)executive.Owner;
             XQueryDocumentBuilder builder = GetBuilder(o);
-            builder.Document.BeginWrite();
             builder.WriteStartElement(name.Prefix, name.LocalName, name.NamespaceUri);
-            builder.Document.EndWrite();
             return builder;
         }
 
         public static object EndElement(object o)
         {
             XQueryDocumentBuilder builder = GetBuilder(o);
-            builder.Document.BeginWrite();
             builder.WriteEndElement();
-            builder.Document.EndWrite();
             return builder;
         }
 
@@ -478,36 +476,28 @@ namespace DataEngine.XQuery
         {
             XQueryContext context = (XQueryContext)executive.Owner;
             XQueryDocumentBuilder builder = GetBuilder(o);
-            builder.Document.BeginWrite();
             builder.WriteStartAttribute(name.Prefix, name.LocalName, name.NamespaceUri);
-            builder.Document.EndWrite();
             return builder;
         }
 
         public static object EndAttribute(object o)
         {
             XQueryDocumentBuilder builder = GetBuilder(o);
-            builder.Document.BeginWrite();
             builder.WriteEndAttribute();
-            builder.Document.EndWrite();
             return builder;
         }
 
         public static object CreateComment(object o, string text)
         {
             XQueryDocumentBuilder builder = GetBuilder(o);
-            builder.Document.BeginWrite();
             builder.WriteComment(text);
-            builder.Document.EndWrite();
             return builder;
         }
 
         public static object CreatePi(object o, string name, string text)
         {
             XQueryDocumentBuilder builder = GetBuilder(o);
-            builder.Document.BeginWrite();
             builder.WriteProcessingInstruction(name, text);
-            builder.Document.EndWrite();
             return builder;
         }
 
@@ -729,9 +719,9 @@ namespace DataEngine.XQuery
                         builder.WriteString(value);
                 }
             return builder;
-        }        
-        
-        public static bool BooleanValue([XQueryParameter(XmlTypeCode.Item, Cardinality=XmlTypeCardinality.ZeroOrMore)] object value)        
+        }
+
+        public static bool BooleanValue([XQueryParameter(XmlTypeCode.Item, Cardinality = XmlTypeCardinality.ZeroOrMore)] object value)
         {
             if (value == null ||
                 value == DataEngine.CoreServices.Generation.RuntimeOps.False ||
@@ -761,11 +751,11 @@ namespace DataEngine.XQuery
                     case XmlTypeCode.String:
                     case XmlTypeCode.AnyUri:
                     case XmlTypeCode.UntypedAtomic:
-                        return item.Value != String.Empty;                    
+                        return item.Value != String.Empty;
 
                     case XmlTypeCode.Float:
                     case XmlTypeCode.Double:
-                         return !Double.IsNaN(item.ValueAsDouble) && item.ValueAsDouble != 0.0;
+                        return !Double.IsNaN(item.ValueAsDouble) && item.ValueAsDouble != 0.0;
 
                     case XmlTypeCode.Decimal:
                     case XmlTypeCode.Integer:
@@ -800,7 +790,7 @@ namespace DataEngine.XQuery
                 {
                     case TypeCode.Boolean:
                         return Convert.ToBoolean(value, CultureInfo.InvariantCulture);
-                    
+
                     case TypeCode.String:
                         return Convert.ToString(value, CultureInfo.InvariantCulture) != String.Empty;
 
@@ -818,7 +808,7 @@ namespace DataEngine.XQuery
                                 new XQuerySequenceType(value.GetType(), XmlTypeCardinality.One));
                         }
                 }
-            }            
+            }
         }
 
         public static object Atomize(object value)
@@ -1231,6 +1221,11 @@ namespace DataEngine.XQuery
 
         public static bool GeneralGT([Implict] Executive executive, object a, object b)
         {
+#if PF
+            try
+            {
+            PerfMonitor.Global.Begin("GeneralGT");
+#endif
             XQueryContext context = (XQueryContext)executive.Owner;
             XQueryNodeIterator iter1 = XQueryNodeIterator.Create(a);
             XQueryNodeIterator iter2 = XQueryNodeIterator.Create(b);
@@ -1247,6 +1242,13 @@ namespace DataEngine.XQuery
                 }
             }
             return false;
+#if PF
+            }
+            finally
+            {
+                PerfMonitor.Global.End("GeneralGT");
+            }
+#endif 
         }
 
         public static bool GeneralNE([Implict] Executive executive, object a, object b)
@@ -1483,6 +1485,23 @@ namespace DataEngine.XQuery
                 if (!(value is UntypedAtomic))
                     throw new XQueryException(Properties.Resources.XPTY0004,
                         new XQuerySequenceType(value.GetType(), XmlTypeCardinality.One), "xs:untypedAtomic?");
+                return Convert.ToDouble(value, context.DefaultCulture);
+            }
+            catch (FormatException)
+            {
+                throw new XQueryException(Properties.Resources.FORG0001, value, "xs:double?");
+            }
+            catch (InvalidCastException)
+            {
+                throw new XQueryException(Properties.Resources.FORG0001, value, "xs:double?");
+            }
+        }
+
+        public static double CastToNumber3([Implict] Executive engine, object value)
+        {
+            XQueryContext context = (XQueryContext)engine.Owner;
+            try
+            {
                 return Convert.ToDouble(value, context.DefaultCulture);
             }
             catch (FormatException)

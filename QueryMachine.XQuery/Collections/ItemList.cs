@@ -30,6 +30,7 @@ using System.Xml;
 using System.Xml.XPath;
 
 using DataEngine.XQuery;
+using DataEngine.XQuery.Util;
 
 namespace DataEngine.XQuery.Collections
 {
@@ -168,6 +169,7 @@ namespace DataEngine.XQuery.Collections
             private int index;
             private int offset;
             private ItemSegment current;
+            private XQueryNavigator nav;
 
             internal Iterator(ItemList list)
             {
@@ -192,16 +194,18 @@ namespace DataEngine.XQuery.Collections
                         if (owner.segments.Count == 0)
                             return null;
                         current = owner.segments[0];
+                        nav = null;
                     }
                     while (pos < i)
                     {
-                        if (offset == current.Count -1)
+                        if (offset == current.Count - 1)
                         {
                             index++;
                             if (index == owner.segments.Count)
                                 return null;
                             current = owner.segments[index];
                             offset = 0;
+                            nav = null;
                         }
                         else
                             offset++;
@@ -211,7 +215,8 @@ namespace DataEngine.XQuery.Collections
                     XPathItem item = packedItem as XPathItem;
                     if (item != null)
                         return item;
-                    XQueryNavigator nav = current.document.CreateNavigator();
+                    if (nav == null)
+                        nav = current.document.CreateNavigator();
                     nav.Position = (int)packedItem;
                     return nav;
                 }

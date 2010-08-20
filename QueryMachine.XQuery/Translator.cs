@@ -1446,9 +1446,19 @@ namespace DataEngine.XQuery
                 {                    
                     QNameValue qn = QNameValue.Parse(((Qname)recs[0].Arg0).Name, _context.NamespaceManager, "");
                     if (qn.Prefix == "")
-                        throw new XQueryException(Properties.Resources.ExpectedQNamePrefix, "pragma", qn.ToString());
-                    // ???
+                        throw new XQueryException(Properties.Resources.ExpectedQNamePrefix, "pragma", qn.ToString());                    
                     Literal lit = (Literal)recs[0].Arg1;
+                    if (qn.NamespaceUri == XmlReservedNs.NsWmhExt)
+                    {
+                        if (qn.LocalName == "cache")
+                        {
+                            XQueryExprBase expr = ProcessExpr(notation, rec.args[1]);
+                            if (expr is XQueryExpr)
+                                return new XQueryCachedExpr(_context, (XQueryExpr)expr).ToLispFunction();
+                            else
+                                return expr.ToLispFunction();
+                        }
+                    }
                 }
             }            
             return ProcessExpr(notation, rec.args[1]).ToLispFunction();            
@@ -1501,9 +1511,9 @@ namespace DataEngine.XQuery
             }
             else
                 ProcessRelativePathExpr(notation, sym, steps);
-            if (steps.Count == 1 && steps[0] is XQueryExpr)
+            if (steps.Count == 1 && steps[0] is XQueryExprBase)
             {
-                XQueryExpr expr = (XQueryExpr)steps[0];
+                XQueryExprBase expr = (XQueryExprBase)steps[0];
                 return expr.ToLispFunction();
             }
             else
@@ -1716,15 +1726,6 @@ namespace DataEngine.XQuery
                     if (recs1.Length > 0)
                         filter.Add(ProcessExpr(notation, recs1[0].args[0]));
                 }
-                //XQueryStepExpr stepExpr = ancestor as XQueryStepExpr;
-                //if (stepExpr != null && filter.Count == 1)
-                //    stepExpr.Filter = filter[0];
-                //else
-                //{
-                //    XQueryFilterExpr filterExpr = new XQueryFilterExpr(_context, filter.ToArray());
-                //    filterExpr.SourceExpr = ancestor;
-                //    return filterExpr;
-                //}
                 XQueryFilterExpr filterExpr = new XQueryFilterExpr(_context, filter.ToArray());
                 filterExpr.Source = ancestor;
                 return filterExpr;
@@ -1734,8 +1735,13 @@ namespace DataEngine.XQuery
         
         private XQueryExprBase ProcessFilterExpr(Notation notation, Notation.Record rec)
         {
-            return ProcessPredicateList(notation, rec.Arg0, 
-                new XQueryExpr(_context, new object[] { ProcessPrimaryExpr(notation, rec.Arg0) }));
+            object prim = ProcessPrimaryExpr(notation, rec.Arg0);
+            if (Lisp.IsAtom(prim))
+                return ProcessPredicateList(notation, rec.Arg0,
+                    new XQueryValueExpr(_context, prim));
+            else
+                return ProcessPredicateList(notation, rec.Arg0, 
+                    new XQueryExpr(_context, new object[] { prim }));
         }
 
         private object ProcessPrimaryExpr(Notation notation, Symbol sym)
@@ -2756,6 +2762,7 @@ namespace DataEngine.XQuery
                     IsBooleanFunctor(expr) ||
                     Lisp.IsFunctor(expr, ID.CastToNumber1) ||
                     Lisp.IsFunctor(expr, ID.CastToNumber2) ||
+                    Lisp.IsFunctor(expr, ID.CastToNumber3) ||
                     Lisp.IsFunctor(expr, ID.Number))
                     return expr;
                 if (Lisp.IsFunctor(expr, ID.Par))
@@ -2894,7 +2901,8 @@ namespace DataEngine.XQuery
                         return new XQuerySequenceType((Type)arg, XmlTypeCardinality.One);
                 }
                 else if (Lisp.IsFunctor(expr, ID.Number) ||
-                    Lisp.IsFunctor(expr, ID.CastToNumber2))
+                    Lisp.IsFunctor(expr, ID.CastToNumber2) ||
+                    Lisp.IsFunctor(expr, ID.CastToNumber3))
                     return new XQuerySequenceType(XmlTypeCode.Double);
                 else if (Lisp.IsFunctor(expr, ID.CastToNumber1))
                     return EvalExprType(Lisp.Second(expr));

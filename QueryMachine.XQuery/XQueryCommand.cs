@@ -197,7 +197,8 @@ namespace DataEngine.XQuery
             {
                 XQueryContext.VariableRecord rec = m_context.variables[k];
                 m_vars[k] = new FunctionLink();
-                dependences.Add(rec.link, m_context.Engine.GetValueDependences(null, rec.expr, m_vars[k], true));
+                HashSet<Object> hs = new HashSet<object>();
+                dependences.Add(rec.link, m_context.Engine.GetValueDependences(hs, null, rec.expr, m_vars[k], true));
             }
             int i = 0;
             foreach (KeyValuePair<SymbolLink, SymbolLink[]> kvp in dependences)
