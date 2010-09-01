@@ -36,16 +36,12 @@ namespace DataEngine.XQuery
 {
     public class TreeComparer
     {
-        private Executive _engine;
-
-        public TreeComparer(Executive engine)
+        public TreeComparer()
         {
-            _engine = engine;
         }
 
-        public TreeComparer(Executive engine, CultureInfo culture)
+        public TreeComparer(CultureInfo culture)
         {
-            _engine = engine;
         }
 
         public bool IgnoreWhitespace { get; set; }
@@ -76,7 +72,7 @@ namespace DataEngine.XQuery
                 y = Double.NaN;
             if (x.Equals(y))
                 return true;
-            if (_engine.DynamicOperators.Eq(x, y, out res))
+            if (ValueProxy.Eq(x, y, out res))
             {
                 if (res != null)
                     return true;

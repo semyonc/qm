@@ -171,6 +171,7 @@ namespace SimpleTestConsole
 //            {
 //                Console.WriteLine(node.InnerXml);
 //            }            
+            
 
         private bool ExecuteTextQuery()
         {

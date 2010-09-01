@@ -39,6 +39,7 @@ using System.IO;
 using DataEngine.XQuery.Util;
 using DataEngine.XQuery.DocumentModel;
 using System.Diagnostics;
+using DataEngine.CoreServices.Proxy;
 
 namespace DataEngine.XQuery
 {
@@ -1515,7 +1516,7 @@ namespace DataEngine.XQuery
             return new NodeIterator(ReverseIterator(list));
         }
 
-        private static IEnumerable<XPathItem> IndexOfIterator(Executive engine, XQueryNodeIterator iter, object value, CultureInfo collation)
+        private static IEnumerable<XPathItem> IndexOfIterator(XQueryNodeIterator iter, object value, CultureInfo collation)
         {
             Integer pos = 1;
             if (value is UntypedAtomic || value is AnyUriValue)
@@ -1526,18 +1527,18 @@ namespace DataEngine.XQuery
                 object curr = iter.Current.TypedValue;
                 if (curr is UntypedAtomic || curr is AnyUriValue)
                     curr = curr.ToString();
-                if (engine.DynamicOperators.Eq(curr, value, out res) && res != null)
+                if (ValueProxy.Eq(curr, value, out res) && res != null)
                     yield return new XQueryItem(pos);
                 pos++;
             }
         }
 
         [XQuerySignature("index-of", Return = XmlTypeCode.Integer, Cardinality = XmlTypeCardinality.ZeroOrMore)]
-        public static XQueryNodeIterator IndexOfSequence([Implict] Executive engine,
+        public static XQueryNodeIterator IndexOfSequence(
             [XQueryParameter(XmlTypeCode.AnyAtomicType, Cardinality = XmlTypeCardinality.ZeroOrMore)] XQueryNodeIterator iter,
             [XQueryParameter(XmlTypeCode.AnyAtomicType)] object value)
         {
-            return new NodeIterator(IndexOfIterator(engine, iter, value, null));
+            return new NodeIterator(IndexOfIterator(iter, value, null));
         }
 
         [XQuerySignature("index-of", Return = XmlTypeCode.Integer, Cardinality = XmlTypeCardinality.ZeroOrMore)]
@@ -1546,8 +1547,7 @@ namespace DataEngine.XQuery
             [XQueryParameter(XmlTypeCode.AnyAtomicType)] object value, string collation)
         {
             XQueryContext context = (XQueryContext)engine.Owner;
-            return new NodeIterator(IndexOfIterator(engine, iter, value,
-                context.GetCulture(collation)));
+            return new NodeIterator(IndexOfIterator(iter, value, context.GetCulture(collation)));
         }
 
         private static IEnumerable<XPathItem> RemoveIterator(XQueryNodeIterator iter, int index)
@@ -1686,11 +1686,8 @@ namespace DataEngine.XQuery
 
         private class DistinctComparer : IComparer<object>
         {
-            private Executive _engine;
-
-            public DistinctComparer(Executive engine)
+            public DistinctComparer()
             {
-                _engine = engine;
             }
 
             #region IComparer<XPathItem> Members
@@ -1710,9 +1707,9 @@ namespace DataEngine.XQuery
                     b = Double.NaN;
                 if (a.Equals(b))
                     return 0;
-                if (_engine.DynamicOperators.Eq(a, b, out res) && res != null)
+                if (ValueProxy.Eq(a, b, out res) && res != null)
                     return 0;
-                if (_engine.DynamicOperators.Gt(a, b, out res) && res != null)
+                if (ValueProxy.Gt(a, b, out res) && res != null)
                     return 1;
                 return -1;
             }
@@ -1720,10 +1717,10 @@ namespace DataEngine.XQuery
             #endregion
         }
 
-        private static IEnumerable<XPathItem> DistinctIterator(Executive engine, XQueryNodeIterator iter, CultureInfo cultute)
+        private static IEnumerable<XPathItem> DistinctIterator(XQueryNodeIterator iter, CultureInfo cultute)
         {
             SortedDictionary<object, object> dict =
-                new SortedDictionary<object, object>(new DistinctComparer(engine));
+                new SortedDictionary<object, object>(new DistinctComparer());
             iter = iter.Clone();
             while (iter.MoveNext())
             {
@@ -1741,10 +1738,10 @@ namespace DataEngine.XQuery
         }
 
         [XQuerySignature("distinct-values", Return = XmlTypeCode.AnyAtomicType, Cardinality = XmlTypeCardinality.ZeroOrMore)]
-        public static XQueryNodeIterator DistinctValues([Implict] Executive engine,
+        public static XQueryNodeIterator DistinctValues(
             [XQueryParameter(XmlTypeCode.AnyAtomicType, Cardinality = XmlTypeCardinality.ZeroOrMore)] XQueryNodeIterator iter)
         {
-            return new NodeIterator(DistinctIterator(engine, iter, null));
+            return new NodeIterator(DistinctIterator(iter, null));
         }
 
         [XQuerySignature("distinct-values", Return = XmlTypeCode.AnyAtomicType, Cardinality = XmlTypeCardinality.ZeroOrMore)]
@@ -1752,13 +1749,13 @@ namespace DataEngine.XQuery
             [XQueryParameter(XmlTypeCode.AnyAtomicType, Cardinality = XmlTypeCardinality.ZeroOrMore)] XQueryNodeIterator iter, string collation)
         {
             XQueryContext context = (XQueryContext)engine.Owner;
-            return new NodeIterator(DistinctIterator(engine, iter, context.GetCulture(collation)));
+            return new NodeIterator(DistinctIterator(iter, context.GetCulture(collation)));
         }
 
         [XQuerySignature("deep-equal")]
-        public static bool DeepEqual([Implict] Executive engine, XQueryNodeIterator iter1, XQueryNodeIterator iter2)
+        public static bool DeepEqual(XQueryNodeIterator iter1, XQueryNodeIterator iter2)
         {
-            TreeComparer comparer = new TreeComparer(engine);
+            TreeComparer comparer = new TreeComparer();
             return comparer.DeepEqual(iter1, iter2);
         }
 
@@ -1766,7 +1763,7 @@ namespace DataEngine.XQuery
         public static bool DeepEqual([Implict] Executive engine, XQueryNodeIterator iter1, XQueryNodeIterator iter2, string collation)
         {
             XQueryContext context = (XQueryContext)engine.Owner;
-            TreeComparer comparer = new TreeComparer(engine, context.GetCulture(collation));
+            TreeComparer comparer = new TreeComparer(context.GetCulture(collation));
             return comparer.DeepEqual(iter1, iter2);
         }
 
@@ -1777,19 +1774,13 @@ namespace DataEngine.XQuery
             return iter.Count;
         }
 
-        private static bool IsNaN(object curr)
-        {
-            return (curr is Single && Single.IsNaN((float)curr)) ||
-                (curr is Double && Double.IsNaN((double)curr));
-        }
-
         [XQuerySignature("max", Return = XmlTypeCode.AnyAtomicType, Cardinality = XmlTypeCardinality.ZeroOrOne)]
         public static object MaxValue([Implict] Executive engine,
             [XQueryParameter(XmlTypeCode.AnyAtomicType, Cardinality = XmlTypeCardinality.ZeroOrMore)] XQueryNodeIterator iter, string collation)
         {
             XQueryContext context = (XQueryContext)engine.Owner;
             CultureInfo culture = context.GetCulture(collation);
-            object value = null;
+            ValueProxy acc = null;
             iter = iter.Clone();
             while (iter.MoveNext())
             {
@@ -1798,14 +1789,10 @@ namespace DataEngine.XQuery
                     curr = curr.ToString();
                 try
                 {
-                    if (value == null)
-                        value = engine.DynamicOperators.Promote(curr, curr);
+                    if (acc == null)
+                        acc = ValueProxy.New(curr);
                     else
-                    {
-                        value = engine.DynamicOperators.Promote(value, curr);
-                        if (IsNaN(curr) || engine.OperatorGt(curr, value) != null)
-                            value = engine.DynamicOperators.Promote(curr, value);
-                    }
+                        acc = ValueProxy.Max(acc, ValueProxy.New(curr));
                 }
                 catch (InvalidCastException)
                 {
@@ -1813,9 +1800,9 @@ namespace DataEngine.XQuery
                         new XQuerySequenceType(curr.GetType(), XmlTypeCardinality.One));
                 }
             }
-            if (value == null)
+            if (acc == null)
                 return Undefined.Value;
-            return value;
+            return acc.Value;
         }
 
         [XQuerySignature("max", Return = XmlTypeCode.AnyAtomicType, Cardinality = XmlTypeCardinality.ZeroOrOne)]
@@ -1831,7 +1818,7 @@ namespace DataEngine.XQuery
         {
             XQueryContext context = (XQueryContext)engine.Owner;
             CultureInfo culture = context.GetCulture(collation);
-            object value = null;
+            ValueProxy acc = null;
             iter = iter.Clone();
             while (iter.MoveNext())
             {
@@ -1840,14 +1827,10 @@ namespace DataEngine.XQuery
                     curr = curr.ToString();
                 try
                 {
-                    if (value == null)
-                        value = engine.DynamicOperators.Promote(curr, curr);
+                    if (acc == null)
+                        acc = ValueProxy.New(curr);
                     else
-                    {
-                        value = engine.DynamicOperators.Promote(value, curr);
-                        if (IsNaN(curr) || engine.OperatorGt(value, curr) != null)
-                            value = engine.DynamicOperators.Promote(curr, value);
-                    }
+                        acc = ValueProxy.Min(acc, ValueProxy.New(curr));
                 }
                 catch (InvalidCastException)
                 {
@@ -1855,9 +1838,9 @@ namespace DataEngine.XQuery
                         new XQuerySequenceType(curr.GetType(), XmlTypeCardinality.One));
                 }
             }
-            if (value == null)
+            if (acc == null)
                 return Undefined.Value;
-            return value;
+            return acc.Value;
         }
 
         [XQuerySignature("min", Return = XmlTypeCode.AnyAtomicType, Cardinality = XmlTypeCardinality.ZeroOrOne)]
@@ -1880,50 +1863,67 @@ namespace DataEngine.XQuery
             [XQueryParameter(XmlTypeCode.AnyAtomicType, Cardinality = XmlTypeCardinality.ZeroOrOne)] object zero)
         {
             XQueryContext context = (XQueryContext)engine.Owner;
-            iter = iter.Clone();
-            object value = null;
-            while (iter.MoveNext())
+            ValueProxy acc = null;
+            foreach (XPathItem item in iter)
             {
-                if (value == null)
+                ValueProxy arg;
+                try
                 {
-                    value = Core.CastToNumber1(engine, iter.Current.TypedValue);
-                    if (!(TypeConverter.IsNumberType(value.GetType()) ||
-                        value is YearMonthDurationValue || value is DayTimeDurationValue))
+                    arg = ValueProxy.New(Core.CastToNumber1(engine, item.TypedValue));
+                    if (!(arg.IsNumeric() ||
+                            arg.Value is YearMonthDurationValue || arg.Value is DayTimeDurationValue))
                         throw new XQueryException(Properties.Resources.FORG0006, "fn:sum()",
-                            new XQuerySequenceType(value.GetType(), XmlTypeCardinality.One));
+                            new XQuerySequenceType(item.TypedValue.GetType(), XmlTypeCardinality.One));
+                    if (Integer.IsDerivedSubtype(arg.Value))
+                        arg = (Integer)Convert.ToDecimal(arg);
                 }
+                catch (InvalidCastException)
+                {
+                    throw new XQueryException(Properties.Resources.FORG0006, "fn:sum()",
+                        new XQuerySequenceType(item.TypedValue.GetType(), XmlTypeCardinality.One));
+                }
+                if (acc == null)
+                    acc = arg;
                 else
-                    value = engine.DynamicOperators.Add(value,
-                        Core.CastToNumber1(engine, iter.Current.TypedValue));
+                    acc = acc + arg;
             }
-            return value != null ? value : zero;
+            return acc != null ? acc.Value : zero;
         }
 
         [XQuerySignature("avg", Return = XmlTypeCode.AnyAtomicType, Cardinality = XmlTypeCardinality.ZeroOrOne)]
         public static object AvgValue([Implict] Executive engine,
             [XQueryParameter(XmlTypeCode.AnyAtomicType, Cardinality = XmlTypeCardinality.ZeroOrMore)] XQueryNodeIterator iter)
         {
-            object value = null;
+            ValueProxy acc = null;
             int count = 0;
             XQueryContext context = (XQueryContext)engine.Owner;
             foreach (XPathItem item in iter)
             {
-                if (value == null)
+                ValueProxy arg;
+                try
                 {
-                    value = Core.CastToNumber1(engine, item.TypedValue);
-                    if (!(TypeConverter.IsNumberType(value.GetType()) ||
-                        value is YearMonthDurationValue || value is DayTimeDurationValue))
+                    arg = ValueProxy.New(Core.CastToNumber1(engine, item.TypedValue));
+                    if (!(arg.IsNumeric() ||
+                            arg.Value is YearMonthDurationValue || arg.Value is DayTimeDurationValue))
                         throw new XQueryException(Properties.Resources.FORG0006, "fn:avg()",
-                            new XQuerySequenceType(value.GetType(), XmlTypeCardinality.One));
+                            new XQuerySequenceType(item.TypedValue.GetType(), XmlTypeCardinality.One));
+                    if (Integer.IsDerivedSubtype(arg.Value))
+                        arg = (Integer)Convert.ToDecimal(arg);
                 }
+                catch (InvalidCastException)
+                {
+                    throw new XQueryException(Properties.Resources.FORG0006, "fn:avg()",
+                        new XQuerySequenceType(item.TypedValue.GetType(), XmlTypeCardinality.One));
+                }
+                if (acc == null)
+                    acc = arg;
                 else
-                    value = engine.DynamicOperators.Add(value,
-                        Core.CastToNumber1(engine, item.TypedValue));
+                    acc = acc + arg;
                 count = count + 1;
             }
-            if (value == null)
+            if (acc == null)
                 return Undefined.Value;
-            return engine.DynamicOperators.Div(value, count);
+            return (acc / count).Value;
         }
 
         [XQuerySignature("collection")]

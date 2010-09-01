@@ -753,7 +753,7 @@ namespace XQTSRun
         {
             IXPathNavigable doc = context.OpenDocument(sourceFile);
             XQueryNodeIterator src = new NodeIterator(new XPathItem[] { doc.CreateNavigator() });
-            TreeComparer comparer = new TreeComparer(context.Engine);
+            TreeComparer comparer = new TreeComparer();
             comparer.IgnoreWhitespace = true;
             return comparer.DeepEqual(src, new NodeIterator(DocumentIterator(context, iter)));
         }
@@ -780,7 +780,7 @@ namespace XQTSRun
             builder.WriteEndElement();
             XQueryNodeIterator iter1 = new NodeIterator(new XPathItem[] { doc1.CreateNavigator() });
             XQueryNodeIterator iter2 = new NodeIterator(new XPathItem[] { doc2.CreateNavigator() });
-            TreeComparer comparer = new TreeComparer(context.Engine);
+            TreeComparer comparer = new TreeComparer();
             comparer.IgnoreWhitespace = true;
             bool res = comparer.DeepEqual(iter1, iter2);
             return res;

@@ -36,6 +36,8 @@ namespace DataEngine.XQuery.Util
 {
     public class DurationValue: IXmlConvertable
     {
+        public const int ProxyValueCode = 15;
+
         public DurationValue(TimeSpan hi, TimeSpan low)
         {
             HighPartValue = hi;
@@ -347,5 +349,108 @@ namespace DataEngine.XQuery.Util
         }
 
         #endregion
+
+        internal class ProxyFactory : ValueProxyFactory
+        {
+
+            public override ValueProxy Create(object value)
+            {
+                return new Proxy((DurationValue)value);
+            }
+
+            public override int GetValueCode()
+            {
+                return ProxyValueCode;
+            }
+
+            public override Type GetValueType()
+            {
+                return typeof(DurationValue);
+            }
+
+            public override bool IsNumeric
+            {
+                get { return false; }
+            }
+
+            public override int Compare(ValueProxyFactory other)
+            {
+                return 0;
+            }
+        }
+
+        internal class Proxy : ValueProxy
+        {
+            private DurationValue _value;
+
+            public Proxy(DurationValue value)
+            {
+                _value = value;
+            }
+
+            public override int GetValueCode()
+            {
+                return ProxyValueCode;
+            }
+
+            public override object Value
+            {
+                get 
+                {
+                    return _value;
+                }
+            }
+
+            protected override bool Eq(ValueProxy val)
+            {
+                return _value.Equals(val.Value);
+            }
+
+            protected override bool Gt(ValueProxy val)
+            {
+                throw new OperatorMismatchException(Funcs.Gt, _value, val.Value);
+            }
+
+            protected override ValueProxy Promote(ValueProxy val)
+            {
+                throw new NotImplementedException();
+            }
+
+            protected override ValueProxy Neg()
+            {
+                throw new OperatorMismatchException(Funcs.Neg, _value, null);
+            }
+
+            protected override ValueProxy Add(ValueProxy val)
+            {
+                throw new OperatorMismatchException(Funcs.Add, _value, val.Value);
+            }
+
+            protected override ValueProxy Sub(ValueProxy val)
+            {
+                throw new OperatorMismatchException(Funcs.Sub, _value, val.Value);
+            }
+
+            protected override ValueProxy Mul(ValueProxy val)
+            {
+                throw new OperatorMismatchException(Funcs.Mul, _value, val.Value);
+            }
+
+            protected override ValueProxy Div(ValueProxy val)
+            {
+                throw new OperatorMismatchException(Funcs.Div, _value, val.Value);
+            }
+
+            protected override Integer IDiv(ValueProxy val)
+            {
+                throw new OperatorMismatchException(Funcs.IDiv, _value, val.Value);
+            }
+
+            protected override ValueProxy Mod(ValueProxy val)
+            {
+                throw new OperatorMismatchException(Funcs.Mod, _value, val.Value);
+            }
+        }
+
     }
 }

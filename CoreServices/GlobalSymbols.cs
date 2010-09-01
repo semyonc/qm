@@ -43,7 +43,7 @@ namespace DataEngine.CoreServices
         internal Dictionary<object, MacroFuncDef> m_macro;
         
         internal Dictionary<object, ControlFormBase> m_control;
-        internal List<ValueConverter> m_converter;
+        internal Dictionary<Executive.ConverterKey, ValueConverter> m_converter;
 
         static GlobalSymbols()
         {
@@ -161,13 +161,45 @@ namespace DataEngine.CoreServices
             DefineConverter(new Type[] { typeof(Integer) }, typeof(System.String),
                 typeof(Integer), "ToString");
 
+            DefineConverter(new Type[] { 
+                typeof(SByte), typeof(Byte), typeof(Int16), typeof(UInt16), 
+                typeof(Int32), typeof(UInt32), typeof(Int64), typeof(UInt64),
+                typeof(Integer), typeof(Decimal), typeof(Single), typeof(Double) },
+                typeof(ValueProxy), typeof(ValueProxy), "op_Implicit");
+
+            DefineConverter(new Type[] { typeof(ValueProxy) }, typeof(SByte),
+                typeof(ValueProxy), "op_Explicit");
+            DefineConverter(new Type[] { typeof(ValueProxy) }, typeof(Byte),
+                typeof(ValueProxy), "op_Explicit");
+            DefineConverter(new Type[] { typeof(ValueProxy) }, typeof(Int16),
+                typeof(ValueProxy), "op_Explicit");
+            DefineConverter(new Type[] { typeof(ValueProxy) }, typeof(UInt16),
+                typeof(ValueProxy), "op_Explicit");
+            DefineConverter(new Type[] { typeof(ValueProxy) }, typeof(Int32),
+                typeof(ValueProxy), "op_Explicit");
+            DefineConverter(new Type[] { typeof(ValueProxy) }, typeof(UInt32),
+                typeof(ValueProxy), "op_Explicit");
+            DefineConverter(new Type[] { typeof(ValueProxy) }, typeof(Int64),
+                typeof(ValueProxy), "op_Explicit");
+            DefineConverter(new Type[] { typeof(ValueProxy) }, typeof(UInt64),
+                typeof(ValueProxy), "op_Explicit");
+            DefineConverter(new Type[] { typeof(ValueProxy) }, typeof(Integer),
+                typeof(ValueProxy), "op_Explicit");
+            DefineConverter(new Type[] { typeof(ValueProxy) }, typeof(Decimal),
+                typeof(ValueProxy), "op_Explicit");
+            DefineConverter(new Type[] { typeof(ValueProxy) }, typeof(Single),
+                typeof(ValueProxy), "op_Explicit");
+            DefineConverter(new Type[] { typeof(ValueProxy) }, typeof(Double),
+                typeof(ValueProxy), "op_Explicit");
+            
+            DefineConverter(new Type[] { typeof(System.Object) }, typeof(ValueProxy),
+                typeof(ValueProxy), "New");
+
             //DefineConverter(new Type[] { typeof(System.Object) }, typeof(System.Double),
             //    typeof(Runtime), "ConvertToDouble");
             //DefineConverter(new Type[] { typeof(System.String) },
             //    typeof(DateTime), typeof(Convert), "ToDateTime");
 
-            //DefineUnaryOperator(Funcs.Neg, typeof(System.SByte), OpCodes.Neg);
-            //DefineUnaryOperator(Funcs.Neg, typeof(System.Int16), OpCodes.Neg);
             DefineUnaryOperator(Funcs.Neg, typeof(System.Int32), OpCodes.Neg);
             DefineUnaryOperator(Funcs.Neg, typeof(System.Int64), OpCodes.Neg);
             DefineUnaryOperator(Funcs.Neg, typeof(System.Single), OpCodes.Neg);
@@ -175,84 +207,61 @@ namespace DataEngine.CoreServices
             DefineUnaryOperator(Funcs.Neg, typeof(Integer), "op_UnaryNegation");
             //DefineUnaryOperator(Funcs.Neg, typeof(System.Decimal), "op_UnaryNegation");
             DefineUnaryOperator(Funcs.Neg, typeof(System.Decimal), typeof(Runtime), "op_UnaryNegation");
+            DefineUnaryOperator(Funcs.Neg, typeof(ValueProxy), "op_UnaryNegation");
 
-            DefineBinaryOperator(Funcs.Add, typeof(System.SByte), OpCodes.Add);
             DefineBinaryOperator(Funcs.Add, typeof(System.Int16), OpCodes.Add);
             DefineBinaryOperator(Funcs.Add, typeof(System.Int32), OpCodes.Add);
             DefineBinaryOperator(Funcs.Add, typeof(System.Int64), OpCodes.Add);
-            DefineBinaryOperator(Funcs.Add, typeof(System.Byte), OpCodes.Add);
-            DefineBinaryOperator(Funcs.Add, typeof(System.UInt16), OpCodes.Add);
-            DefineBinaryOperator(Funcs.Add, typeof(System.UInt32), OpCodes.Add);
-            DefineBinaryOperator(Funcs.Add, typeof(System.UInt64), OpCodes.Add);
             DefineBinaryOperator(Funcs.Add, typeof(System.Single), OpCodes.Add);
             DefineBinaryOperator(Funcs.Add, typeof(System.Double), OpCodes.Add);
             DefineBinaryOperator(Funcs.Add, typeof(System.Decimal), "op_Addition");
             DefineBinaryOperator(Funcs.Add, typeof(Integer), "op_Addition");
+            DefineBinaryOperator(Funcs.Add, typeof(ValueProxy), "op_Addition");
 
-            DefineBinaryOperator(Funcs.Sub, typeof(System.SByte), OpCodes.Sub);
             DefineBinaryOperator(Funcs.Sub, typeof(System.Int16), OpCodes.Sub);
             DefineBinaryOperator(Funcs.Sub, typeof(System.Int32), OpCodes.Sub);
             DefineBinaryOperator(Funcs.Sub, typeof(System.Int64), OpCodes.Sub);
-            DefineBinaryOperator(Funcs.Sub, typeof(System.Byte), OpCodes.Sub);
-            DefineBinaryOperator(Funcs.Sub, typeof(System.UInt16), OpCodes.Sub);
-            DefineBinaryOperator(Funcs.Sub, typeof(System.UInt32), OpCodes.Sub);
-            DefineBinaryOperator(Funcs.Sub, typeof(System.UInt64), OpCodes.Sub);
             DefineBinaryOperator(Funcs.Sub, typeof(System.Single), OpCodes.Sub);
             DefineBinaryOperator(Funcs.Sub, typeof(System.Double), OpCodes.Sub);
             DefineBinaryOperator(Funcs.Sub, typeof(System.Decimal), "op_Subtraction");
-            DefineBinaryOperator(Funcs.Sub, typeof(Integer), "op_Subtraction");            
+            DefineBinaryOperator(Funcs.Sub, typeof(Integer), "op_Subtraction");
+            DefineBinaryOperator(Funcs.Sub, typeof(ValueProxy), "op_Subtraction");            
 
-            DefineBinaryOperator(Funcs.Mul, typeof(System.SByte), OpCodes.Mul);
             DefineBinaryOperator(Funcs.Mul, typeof(System.Int16), OpCodes.Mul);
             DefineBinaryOperator(Funcs.Mul, typeof(System.Int32), OpCodes.Mul);
             DefineBinaryOperator(Funcs.Mul, typeof(System.Int64), OpCodes.Mul);
-            DefineBinaryOperator(Funcs.Mul, typeof(System.Byte), OpCodes.Mul);
-            DefineBinaryOperator(Funcs.Mul, typeof(System.UInt16), OpCodes.Mul);
-            DefineBinaryOperator(Funcs.Mul, typeof(System.UInt32), OpCodes.Mul);
-            DefineBinaryOperator(Funcs.Mul, typeof(System.UInt64), OpCodes.Mul);
             DefineBinaryOperator(Funcs.Mul, typeof(System.Single), OpCodes.Mul);
             DefineBinaryOperator(Funcs.Mul, typeof(System.Double), OpCodes.Mul);
             DefineBinaryOperator(Funcs.Mul, typeof(System.Decimal), "op_Multiply");
             DefineBinaryOperator(Funcs.Mul, typeof(Integer), "op_Multiply");
+            DefineBinaryOperator(Funcs.Mul, typeof(ValueProxy), "op_Multiply");
 
-            DefineBinaryOperator(Funcs.Div, typeof(System.SByte), typeof(Runtime), "op_Divide", typeof(System.Decimal));
             DefineBinaryOperator(Funcs.Div, typeof(System.Int16), typeof(Runtime), "op_Divide", typeof(System.Decimal));
             DefineBinaryOperator(Funcs.Div, typeof(System.Int32), typeof(Runtime), "op_Divide", typeof(System.Decimal));
             DefineBinaryOperator(Funcs.Div, typeof(System.Int64), typeof(Runtime), "op_Divide", typeof(System.Decimal));
-            DefineBinaryOperator(Funcs.Div, typeof(System.Byte), typeof(Runtime), "op_Divide", typeof(System.Decimal));
-            DefineBinaryOperator(Funcs.Div, typeof(System.UInt16), typeof(Runtime), "op_Divide", typeof(System.Decimal));
-            DefineBinaryOperator(Funcs.Div, typeof(System.UInt32), typeof(Runtime), "op_Divide", typeof(System.Decimal));
-            DefineBinaryOperator(Funcs.Div, typeof(System.UInt64), typeof(Runtime), "op_Divide", typeof(System.Decimal));
             DefineBinaryOperator(Funcs.Div, typeof(Integer), typeof(Runtime), "op_Divide", typeof(System.Decimal));
             DefineBinaryOperator(Funcs.Div, typeof(System.Single), OpCodes.Div);
             DefineBinaryOperator(Funcs.Div, typeof(System.Double), OpCodes.Div);
             DefineBinaryOperator(Funcs.Div, typeof(System.Decimal), "op_Division");
+            DefineBinaryOperator(Funcs.Div, typeof(ValueProxy), "op_Division");
 
-            DefineBinaryOperator(Funcs.Mod, typeof(System.SByte), OpCodes.Rem);
             DefineBinaryOperator(Funcs.Mod, typeof(System.Int16), OpCodes.Rem);
             DefineBinaryOperator(Funcs.Mod, typeof(System.Int32), OpCodes.Rem);
             DefineBinaryOperator(Funcs.Mod, typeof(System.Int64), OpCodes.Rem);
-            DefineBinaryOperator(Funcs.Mod, typeof(System.Byte), OpCodes.Rem);
-            DefineBinaryOperator(Funcs.Mod, typeof(System.UInt16), OpCodes.Rem);
-            DefineBinaryOperator(Funcs.Mod, typeof(System.UInt32), OpCodes.Rem);
-            DefineBinaryOperator(Funcs.Mod, typeof(System.UInt64), OpCodes.Rem);
             DefineBinaryOperator(Funcs.Mod, typeof(System.Single), OpCodes.Rem);
             DefineBinaryOperator(Funcs.Mod, typeof(System.Double), OpCodes.Rem);
             DefineBinaryOperator(Funcs.Mod, typeof(System.Decimal), "op_Modulus");
             DefineBinaryOperator(Funcs.Mod, typeof(Integer), "op_Modulus");
+            DefineBinaryOperator(Funcs.Mod, typeof(ValueProxy), "op_Modulus");
 
-            DefineBinaryOperator(Funcs.IDiv, typeof(System.SByte), typeof(Runtime), "op_IntegerDivide", typeof(Integer));
             DefineBinaryOperator(Funcs.IDiv, typeof(System.Int16), typeof(Runtime), "op_IntegerDivide", typeof(Integer));
             DefineBinaryOperator(Funcs.IDiv, typeof(System.Int32), typeof(Runtime), "op_IntegerDivide", typeof(Integer));
             DefineBinaryOperator(Funcs.IDiv, typeof(System.Int64), typeof(Runtime), "op_IntegerDivide", typeof(Integer));
-            DefineBinaryOperator(Funcs.IDiv, typeof(System.Byte), typeof(Runtime), "op_IntegerDivide", typeof(Integer));
-            DefineBinaryOperator(Funcs.IDiv, typeof(System.UInt16), typeof(Runtime), "op_IntegerDivide", typeof(Integer));
-            DefineBinaryOperator(Funcs.IDiv, typeof(System.UInt32), typeof(Runtime), "op_IntegerDivide", typeof(Integer));
-            DefineBinaryOperator(Funcs.IDiv, typeof(System.UInt64), typeof(Runtime), "op_IntegerDivide", typeof(Integer));
             DefineBinaryOperator(Funcs.IDiv, typeof(System.Single), typeof(Runtime), "op_IntegerDivide", typeof(Integer));
             DefineBinaryOperator(Funcs.IDiv, typeof(System.Double), typeof(Runtime), "op_IntegerDivide", typeof(Integer));
             DefineBinaryOperator(Funcs.IDiv, typeof(System.Decimal), typeof(Runtime), "op_IntegerDivide", typeof(Integer));
             DefineBinaryOperator(Funcs.IDiv, typeof(Integer), "op_Division");
+            DefineBinaryOperator(Funcs.IDiv, typeof(ValueProxy), "op_IntegerDivide");
 
             DefineStaticOperator(Funcs.Neg, typeof(Runtime), "DynamicNeg");
             DefineStaticOperator(Funcs.Add, typeof(Runtime), "DynamicAdd");
@@ -264,31 +273,41 @@ namespace DataEngine.CoreServices
             DefineStaticOperator(Funcs.Eq, typeof(Runtime), "DynamicEq");
             DefineStaticOperator(Funcs.Gt, typeof(Runtime), "DynamicGt");
 
-            DefineBinaryBoolOperator(Funcs.Eq, typeof(System.SByte), OpCodes.Ceq);
             DefineBinaryBoolOperator(Funcs.Eq, typeof(System.Int16), OpCodes.Ceq);
             DefineBinaryBoolOperator(Funcs.Eq, typeof(System.Int32), OpCodes.Ceq);
             DefineBinaryBoolOperator(Funcs.Eq, typeof(System.Int64), OpCodes.Ceq);
-            DefineBinaryBoolOperator(Funcs.Eq, typeof(System.Byte), OpCodes.Ceq);
-            DefineBinaryBoolOperator(Funcs.Eq, typeof(System.UInt16), OpCodes.Ceq);
-            DefineBinaryBoolOperator(Funcs.Eq, typeof(System.UInt32), OpCodes.Ceq);
-            DefineBinaryBoolOperator(Funcs.Eq, typeof(System.UInt64), OpCodes.Ceq);
             DefineBinaryBoolOperator(Funcs.Eq, typeof(System.Single), OpCodes.Ceq);
             DefineBinaryBoolOperator(Funcs.Eq, typeof(System.Double), OpCodes.Ceq);
             DefineBinaryOperator(Funcs.Eq, typeof(System.Decimal), "op_Equality", typeof(System.Boolean));
             DefineBinaryOperator(Funcs.Eq, typeof(Integer), "op_Equality", typeof(System.Boolean));
+            DefineBinaryOperator(Funcs.Eq, typeof(ValueProxy), "Equals", typeof(System.Boolean));
 
-            DefineBinaryBoolOperator(Funcs.Gt, typeof(System.SByte), OpCodes.Cgt);
             DefineBinaryBoolOperator(Funcs.Gt, typeof(System.Int16), OpCodes.Cgt);
             DefineBinaryBoolOperator(Funcs.Gt, typeof(System.Int32), OpCodes.Cgt);
             DefineBinaryBoolOperator(Funcs.Gt, typeof(System.Int64), OpCodes.Cgt);
-            DefineBinaryBoolOperator(Funcs.Gt, typeof(System.Byte), OpCodes.Cgt);
-            DefineBinaryBoolOperator(Funcs.Gt, typeof(System.UInt16), OpCodes.Cgt);
-            DefineBinaryBoolOperator(Funcs.Gt, typeof(System.UInt32), OpCodes.Cgt);
-            DefineBinaryBoolOperator(Funcs.Gt, typeof(System.UInt64), OpCodes.Cgt);
             DefineBinaryBoolOperator(Funcs.Gt, typeof(System.Single), OpCodes.Cgt);
             DefineBinaryBoolOperator(Funcs.Gt, typeof(System.Double), OpCodes.Cgt);
             DefineBinaryOperator(Funcs.Gt, typeof(System.Decimal), "op_GreaterThan", typeof(System.Boolean));
             DefineBinaryOperator(Funcs.Gt, typeof(Integer), "op_GreaterThan", typeof(System.Boolean));
+            DefineBinaryOperator(Funcs.Gt, typeof(ValueProxy), "op_GreaterThan", typeof(System.Boolean));
+
+            ValueProxy.AddFactory(
+                new ValueProxyFactory[] { 
+                    new Proxy.ShortFactory(),
+                    new Proxy.IntFactory(),
+                    new Proxy.LongFactory(),
+                    new Proxy.IntegerProxyFactory(),
+                    new Proxy.DecimalProxyFactory(),
+                    new Proxy.FloatFactory(),
+                    new Proxy.DoubleProxyFactory(),
+                    new Proxy.StringProxyFactory(),
+                    new Proxy.SByteProxyFactory(),
+                    new Proxy.ByteProxyFactory(),
+                    new Proxy.UShortFactory(),
+                    new Proxy.UIntFactory(),
+                    new Proxy.ULongFactory(),
+                    new Proxy.BoolFactory()
+            });
 
             Shared.Defun(new NotOperator());
 
@@ -337,7 +356,7 @@ namespace DataEngine.CoreServices
             m_func = new Dictionary<object, FuncDef>();
             m_macro = new Dictionary<object, MacroFuncDef>();
             m_control = new Dictionary<object, ControlFormBase>();
-            m_converter = new List<ValueConverter>();
+            m_converter = new Dictionary<Executive.ConverterKey, ValueConverter>();
         }
 
         internal static void DefineControlOperator(ControlFormBase func)
@@ -347,7 +366,8 @@ namespace DataEngine.CoreServices
 
         public static void DefineConverter(ValueConverter converter)
         {
-            Shared.m_converter.Add(converter);
+            foreach (Type source in converter.Source)
+                Shared.m_converter.Add(new Executive.ConverterKey(source, converter.Destination), converter);
         }
 
         public static void DefineConverter(Type[] source, Type destination, OpCode opcode)
@@ -402,9 +422,8 @@ namespace DataEngine.CoreServices
         public static void DefineBinaryOperator(object id, Type type, string name, Type returnType)
         {
             Shared.Defun(new BinaryFunc(new FuncName(id, new Type[] { type, type }),
-                type, name, returnType));
+                type, name, new Type[] { type, type }, returnType));
         }
-        
 
         public static void DefineStaticOperator(string fname, Type type, string name)
         {
@@ -515,7 +534,7 @@ namespace DataEngine.CoreServices
             return m_control;
         }
 
-        internal List<ValueConverter> CreateConverters()
+        internal Dictionary<Executive.ConverterKey, ValueConverter> CreateConverters()
         {
             return m_converter;
         }

@@ -41,23 +41,29 @@ namespace DataEngine.CoreServices
 
         public void Begin(Object key)
         {
-            long t = Stopwatch.GetTimestamp();
-            Slot slot;
-            if (!stats.TryGetValue(key, out slot))
+            lock (stats)
             {
-                slot = new Slot();
-                stats.Add(key, slot);
+                long t = Stopwatch.GetTimestamp();
+                Slot slot;
+                if (!stats.TryGetValue(key, out slot))
+                {
+                    slot = new Slot();
+                    stats.Add(key, slot);
+                }
+                slot.ts.Push(t);
             }
-            slot.ts.Push(t);
         }
 
 
         public void End(Object key)
         {
-            long t = Stopwatch.GetTimestamp();
-            Slot slot = stats[key];
-            slot.ticks += t - slot.ts.Pop();
-            slot.count++;
+            lock (stats)
+            {
+                long t = Stopwatch.GetTimestamp();
+                Slot slot = stats[key];
+                slot.ticks += t - slot.ts.Pop();
+                slot.count++;
+            }
         }
 
         public void Clear()

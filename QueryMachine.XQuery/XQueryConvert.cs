@@ -8,6 +8,7 @@ using System.Text;
 using System.Globalization;
 using System.Xml;
 using System.Xml.Schema;
+using System.Numerics;
 
 using DataEngine.CoreServices;
 using DataEngine.XQuery.Util;
@@ -222,7 +223,7 @@ namespace DataEngine.XQuery
             BigInteger Mminus = new BigInteger(1) << Math.Max(e - p, 0);
 
             //long Mplus = Mminus;
-            BigInteger Mplus = new BigInteger(Mminus);
+            BigInteger Mplus = Mminus;
 
             bool initial = true;
 
@@ -266,7 +267,7 @@ namespace DataEngine.XQuery
             {
                 k--;
                 BigInteger R10 = R * 10;
-                U = (R10 / S).IntValue();
+                U = (int)(R10 / S);
                 R = R10 - (U * S);    // = R*10 % S, but faster - saves a division
                 Mminus = Mminus * 10;
                 Mplus = Mplus * 10;
@@ -310,7 +311,7 @@ namespace DataEngine.XQuery
             BigInteger Mminus = new BigInteger(1) << Math.Max(e - p, 0);
 
             //long Mplus = Mminus;
-            BigInteger Mplus = new BigInteger (Mminus);
+            BigInteger Mplus = Mminus;
 
             bool initial = true;
             bool doneDot = false;
@@ -347,7 +348,7 @@ namespace DataEngine.XQuery
             {
                 k--;
                 BigInteger R10 = R * 10;
-                U = (R10 / S).IntValue();
+                U = (int)(R10 / S);
                 R = R10 % S;
                 Mminus *= 10;
                 Mplus *= 10;

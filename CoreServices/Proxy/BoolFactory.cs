@@ -1,4 +1,4 @@
-﻿//        Copyright (c) 2009, Semyon A. Chertkov (semyonc@gmail.com)
+﻿//        Copyright (c) 2009-2010, Semyon A. Chertkov (semyonc@gmail.com)
 //        All rights reserved.
 //
 //        Redistribution and use in source and binary forms, with or without
@@ -24,60 +24,38 @@
 //        SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 
-using DataEngine.CoreServices;
-using DataEngine.XQuery.Parser;
-using System.Globalization;
-
-namespace DataEngine.XQuery
+namespace DataEngine.CoreServices.Proxy
 {
-    public class XQueryWriter: XQueryAbstractWriter
+    public class BoolFactory: ValueProxyFactory
     {
-        public XQueryWriter(Notation notation)
-            : base(notation)
+        public const int Code = 21;
+
+        public override ValueProxy Create(object value)
         {
-            sb = new StringBuilder();
-            newLineFlag = false;
+            return new Bool((bool)value);
         }
 
-        public override string ToString()
+        public override int GetValueCode()
         {
-            return sb.ToString();
+            return Code;
         }
 
-        #region Text formatting billet
-
-        private StringBuilder sb;
-        private bool newLineFlag;
-
-        protected override void SmartNewLine()
+        public override Type GetValueType()
         {
-            if (!newLineFlag)
-            {
-                sb.AppendLine();
-                newLineFlag = true;
-            }
+            return typeof(System.Boolean);
         }
 
-        protected override void WriteText(char c)
+        public override bool IsNumeric
         {
-            sb.Append(c);
-            newLineFlag = false;
+            get { return false; }
         }
 
-        protected override void WriteText(string s)
+        public override int Compare(ValueProxyFactory other)
         {
-            sb.Append(s);
-            newLineFlag = false;
+            if (other.GetValueCode() == Code)
+                return 0;
+            return -2;
         }
-
-        protected override void WriteTextFormat(string s, params object[] args)
-        {
-            WriteText(String.Format(s, args));
-        }
-
-        #endregion
     }
 }

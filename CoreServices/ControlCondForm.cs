@@ -117,8 +117,13 @@ namespace DataEngine.CoreServices
                 il.MarkLabel(b.handler);
                 il.Emit(OpCodes.Ldloc, b.localVar);
                 il.FreeLocal(b.localVar);
-                if (resType != b.type && b.type.IsValueType)
-                    il.Emit(OpCodes.Box, b.type);
+                if (resType != b.type)
+                {
+                    if (ValueProxy.IsProxyType(b.type))
+                        il.EmitPropertyGet(typeof(ValueProxy), "Value");
+                    else if (b.type.IsValueType)
+                        il.Emit(OpCodes.Box, b.type);
+                }
                 if (k < branches.Count -1)
                     il.Emit(OpCodes.Br, end);                
             }

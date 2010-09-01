@@ -34,6 +34,8 @@ namespace DataEngine.XQuery.Util
 {
     public class YearMonthDurationValue: DurationValue, IComparable
     {
+        new public const int ProxyValueCode = 11;
+
         public YearMonthDurationValue(TimeSpan value)
             : base(value, TimeSpan.Zero)
         {
@@ -66,11 +68,10 @@ namespace DataEngine.XQuery.Util
             return month / 12 * 365 + month % 12 * 30;
         }
 
-        private static YearMonthDurationValue Multiply(YearMonthDurationValue a, double b)
+        public static YearMonthDurationValue Multiply(YearMonthDurationValue a, double b)
         {
             if (Double.IsNaN(b) || Double.IsNegativeInfinity(b) || Double.IsPositiveInfinity(b))
                 throw new XQueryException(Properties.Resources.FOCA0005);
-            //int month = (int)Math.Round(DaysToMonth(a.Value.Days) * b, MidpointRounding.AwayFromZero);
             int month = (int)Math.Floor(0.5 + DaysToMonth(a.HighPartValue.Days) * b);
             return new YearMonthDurationValue(new TimeSpan(MonthToDays(month), 0, 0, 0));
         }
@@ -81,7 +82,6 @@ namespace DataEngine.XQuery.Util
                 throw new XQueryException(Properties.Resources.FOAR0001);
             if (Double.IsNaN(b))
                 throw new XQueryException(Properties.Resources.FOCA0005);
-            //int month = (int)Math.Round(DaysToMonth(a.Value.Days) / b, MidpointRounding.AwayFromZero);
             int month = (int)Math.Floor(0.5 + DaysToMonth(a.HighPartValue.Days) / b);
             return new YearMonthDurationValue(new TimeSpan(MonthToDays(month), 0, 0, 0));
         }
@@ -100,82 +100,148 @@ namespace DataEngine.XQuery.Util
             return new YearMonthDurationValue(-d.HighPartValue);
         }
 
-        internal class Proxy : TypeProxy
+        new internal class ProxyFactory : ValueProxyFactory
         {
-            public override bool Eq(object arg1, object arg2)
+            public override ValueProxy Create(object value)
             {
-                return arg1.Equals(arg2);
+                return new Proxy((YearMonthDurationValue)value);
             }
 
-            public override bool Gt(object arg1, object arg2)
+            public override int GetValueCode()
             {
-                return ((IComparable)arg1).CompareTo(arg2) > 0;
+                return ProxyValueCode;
             }
 
-            public override object Promote(object arg1)
+            public override Type GetValueType()
             {
-                DurationValue duration = arg1 as DurationValue;
-                if (duration == null)
-                    throw new InvalidCastException();
-                return new YearMonthDurationValue(duration.HighPartValue);
+                return typeof(YearMonthDurationValue);
             }
 
-            public override object Neg(object arg1)
+            public override bool IsNumeric
             {
-                throw new OperatorMismatchException(Funcs.Neg, arg1, null);
+                get { return false; }
             }
 
-            public override object Add(object arg1, object arg2)
+            public override int Compare(ValueProxyFactory other)
             {
-                if (arg1 is YearMonthDurationValue)
+                if (other.IsNumeric)
+                    return 1;
+                return 0;
+            }
+        }
+
+        new internal class Proxy : ValueProxy
+        {
+            private YearMonthDurationValue _value;
+
+            public Proxy(YearMonthDurationValue value)
+            {
+                _value = value;
+            }
+
+            public override int GetValueCode()
+            {
+                return ProxyValueCode;
+            }
+
+            public override object Value
+            {
+                get 
                 {
-                    if (arg2 is YearMonthDurationValue)
-                        return new YearMonthDurationValue(((YearMonthDurationValue)arg1).HighPartValue + ((YearMonthDurationValue)arg2).HighPartValue);
-                    if (arg2 is DateTimeValue)
-                        return DateTimeValue.Add((DateTimeValue)arg2, (YearMonthDurationValue)arg1);
-                    if (arg2 is DateValue)
-                        return DateValue.Add((DateValue)arg2, (YearMonthDurationValue)arg1);
+                    return _value;
                 }
-                throw new OperatorMismatchException(Funcs.Add, arg1, arg2);
             }
 
-            public override object Sub(object arg1, object arg2)
+            protected override bool Eq(ValueProxy val)
             {
-                if (arg1 is YearMonthDurationValue && arg2 is YearMonthDurationValue)
-                    return new YearMonthDurationValue(((YearMonthDurationValue)arg1).HighPartValue - ((YearMonthDurationValue)arg2).HighPartValue);
+                return _value.Equals(val.Value);
+            }
+
+            protected override bool Gt(ValueProxy val)
+            {
+                return ((IComparable)_value).CompareTo(val.Value) > 0;
+            }
+
+            protected override bool TryGt(ValueProxy val, out bool res)
+            {
+                res = false;
+                if (val.GetValueCode() != YearMonthDurationValue.ProxyValueCode)
+                    return false;
+                res = ((IComparable)_value).CompareTo(val.Value) > 0;
+                return true;
+            }
+
+            protected override ValueProxy Promote(ValueProxy val)
+            {
+                if (val.IsNumeric())
+                    return new ShadowProxy(val);
+                if (val.GetValueCode() == DurationValue.ProxyValueCode)
+                {
+                    DurationValue duration = (DurationValue)val.Value;
+                    return new Proxy(new YearMonthDurationValue(duration.HighPartValue));
+                }
+                throw new InvalidCastException();
+            }
+
+            protected override ValueProxy Neg()
+            {
+                throw new OperatorMismatchException(Funcs.Neg, _value, null);
+            }
+
+            protected override ValueProxy Add(ValueProxy value)
+            {
+                switch (value.GetValueCode())
+                {
+                    case YearMonthDurationValue.ProxyValueCode:
+                        return new Proxy(new YearMonthDurationValue(_value.HighPartValue + ((YearMonthDurationValue)value.Value).HighPartValue));
+                    case DateTimeValue.ProxyValueCode:
+                        return new DateTimeValue.Proxy(DateTimeValue.Add((DateTimeValue)value.Value, _value));
+                    case DateValue.ProxyValueCode:
+                        return new DateValue.Proxy(DateValue.Add((DateValue)value.Value, _value));
+                    default:
+                        throw new OperatorMismatchException(Funcs.Add, _value, value.Value);
+                }
+            }
+
+            protected override ValueProxy Sub(ValueProxy value)
+            {
+                switch (value.GetValueCode())
+                {
+                    case YearMonthDurationValue.ProxyValueCode:
+                        return new Proxy(new YearMonthDurationValue(_value.HighPartValue - ((YearMonthDurationValue)value.Value).HighPartValue));
+                    default:
+                        throw new OperatorMismatchException(Funcs.Sub, _value, value.Value);
+                }
+            }
+
+            protected override ValueProxy Mul(ValueProxy value)
+            {
+                if (value.IsNumeric())
+                    return new Proxy (YearMonthDurationValue.Multiply(_value, Convert.ToDouble(value)));
+                throw new OperatorMismatchException(Funcs.Mul, _value, value.Value);
+            }
+
+            protected override ValueProxy Div(ValueProxy value)
+            {
+                if (value.IsNumeric())
+                    return new Proxy(YearMonthDurationValue.Divide(_value, Convert.ToDouble(value)));
+                else if (value.GetValueCode() == YearMonthDurationValue.ProxyValueCode)
+                    return new DataEngine.CoreServices.Proxy.DecimalProxy(
+                        YearMonthDurationValue.Divide(_value, (YearMonthDurationValue)value.Value));
                 else
-                    throw new OperatorMismatchException(Funcs.Sub, arg1, arg2);
+                    throw new OperatorMismatchException(Funcs.Div, _value, value.Value);
             }
 
-            public override object Mul(object arg1, object arg2)
+            protected override Integer IDiv(ValueProxy value)
             {
-                if (arg1 is YearMonthDurationValue && TypeConverter.IsNumberType(arg2.GetType()))
-                    return YearMonthDurationValue.Multiply((YearMonthDurationValue)arg1, Convert.ToDouble(arg2));
-                else if (TypeConverter.IsNumberType(arg1.GetType()) && arg2 is YearMonthDurationValue)
-                    return YearMonthDurationValue.Multiply((YearMonthDurationValue)arg2, Convert.ToDouble(arg1));
-                else
-                    throw new OperatorMismatchException(Funcs.Mul, arg1, arg2);
+                throw new OperatorMismatchException(Funcs.IDiv, _value, value.Value);
             }
 
-            public override object Div(object arg1, object arg2)
+            protected override ValueProxy Mod(ValueProxy value)
             {
-                if (arg1 is YearMonthDurationValue && TypeConverter.IsNumberType(arg2.GetType()))
-                    return YearMonthDurationValue.Divide((YearMonthDurationValue)arg1, Convert.ToDouble(arg2));
-                else if (arg1 is YearMonthDurationValue && arg2 is YearMonthDurationValue)
-                    return YearMonthDurationValue.Divide((YearMonthDurationValue)arg1, (YearMonthDurationValue)arg2);
-                else
-                    throw new OperatorMismatchException(Funcs.Div, arg1, arg2);
-            }
-
-            public override Integer IDiv(object arg1, object arg2)
-            {
-                throw new OperatorMismatchException(Funcs.IDiv, arg1, arg2);
-            }
-
-            public override object Mod(object arg1, object arg2)
-            {
-                throw new OperatorMismatchException(Funcs.Div, arg1, arg2);
+                throw new OperatorMismatchException(Funcs.Div, _value, value.Value);
             }
         }
     }
+
 }

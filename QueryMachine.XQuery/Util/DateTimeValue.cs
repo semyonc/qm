@@ -36,6 +36,8 @@ namespace DataEngine.XQuery.Util
 {
     public class DateTimeValue: DateTimeValueBase, IXmlConvertable
     {
+        public const int ProxyValueCode = 10;
+
         public DateTimeValue(bool sign, DateTime value)
             : base(sign, value)
         {
@@ -314,72 +316,129 @@ namespace DataEngine.XQuery.Util
             }
         }
 
-        internal class Proxy : TypeProxy
+        internal class ProxyFactory : ValueProxyFactory
         {
-            public override bool Eq(object arg1, object arg2)
+            public override ValueProxy Create(object value)
             {
-                return arg1.Equals(arg2);
+                return new Proxy((DateTimeValue)value);
             }
 
-            public override object Promote(object arg1)
+            public override int GetValueCode()
             {
-                DateTimeValue dateTime = arg1 as DateTimeValue;
-                if (dateTime == null)
-                    throw new InvalidCastException();
-                return dateTime;
+                return ProxyValueCode;
             }
 
-            public override bool Gt(object arg1, object arg2)
+            public override Type GetValueType()
             {
-                return ((IComparable)arg1).CompareTo(arg2) > 0;
+                return typeof(DateTimeValue);
             }
 
-            public override object Neg(object arg1)
+            public override bool IsNumeric
             {
-                throw new OperatorMismatchException(Funcs.Neg, arg1, null);
+                get { return false; }
             }
 
-            public override object Add(object arg1, object arg2)
+            public override int Compare(ValueProxyFactory other)
             {
-                if (arg1 is DateTimeValue && (arg2 is YearMonthDurationValue))
-                    return DateTimeValue.Add((DateTimeValue)arg1, (YearMonthDurationValue)arg2);
-                else if (arg1 is DateTimeValue && arg2 is DayTimeDurationValue)
-                    return DateTimeValue.Add((DateTimeValue)arg1, (DayTimeDurationValue)arg2);
-                else
-                    throw new OperatorMismatchException(Funcs.Add, arg1, arg2);
+                return 0;
+            }
+        }
 
+
+        internal class Proxy : ValueProxy
+        {            
+            private DateTimeValue _value;
+
+            public Proxy(DateTimeValue value)
+            {
+                _value = value;
             }
 
-            public override object Sub(object arg1, object arg2)
+            public override object Value
             {
-                if (arg1 is DateTimeValue && arg2 is DateTimeValue)
-                    return DateTimeValue.Sub((DateTimeValue)arg1, (DateTimeValue)arg2);
-                else if (arg1 is DateTimeValue && arg2 is YearMonthDurationValue)
-                    return DateTimeValue.Add((DateTimeValue)arg1, -(YearMonthDurationValue)arg2);
-                else if (arg1 is DateTimeValue && arg2 is DayTimeDurationValue)
-                    return DateTimeValue.Add((DateTimeValue)arg1, -(DayTimeDurationValue)arg2);
-                else
-                    throw new OperatorMismatchException(Funcs.Sub, arg1, arg2);
+                get 
+                {
+                    return _value;
+                }
             }
 
-            public override object Mul(object arg1, object arg2)
+            public override int GetValueCode()
             {
-                throw new OperatorMismatchException(Funcs.Mul, arg1, arg2);
+                return ProxyValueCode;
             }
 
-            public override object Div(object arg1, object arg2)
+            protected override bool Eq(ValueProxy val)
             {
-                throw new OperatorMismatchException(Funcs.Div, arg1, arg2);
+                if (val.GetValueCode() != ProxyValueCode)
+                    throw new OperatorMismatchException(Funcs.Eq, _value, val.Value);
+                return _value.Equals(((Proxy)val)._value);
             }
 
-            public override Integer IDiv(object arg1, object arg2)
+            protected override bool Gt(ValueProxy val)
             {
-                throw new OperatorMismatchException(Funcs.IDiv, arg1, arg2);
+                if (val.GetValueCode() != ProxyValueCode)
+                    throw new OperatorMismatchException(Funcs.Gt, _value, val.Value);
+                return ((IComparable)_value).CompareTo(((Proxy)val)._value) > 0;
             }
 
-            public override object Mod(object arg1, object arg2)
+            protected override ValueProxy Promote(ValueProxy val)
             {
-                throw new OperatorMismatchException(Funcs.Div, arg1, arg2);
+                throw new NotImplementedException();
+            }
+
+            protected override ValueProxy Neg()
+            {
+                throw new OperatorMismatchException(Funcs.Neg, _value, null);
+            }
+
+            protected override ValueProxy Add(ValueProxy value)
+            {
+                switch (value.GetValueCode())
+                {
+                    case YearMonthDurationValue.ProxyValueCode:
+                        return new Proxy(DateTimeValue.Add(_value, (YearMonthDurationValue)value.Value));
+                    case DayTimeDurationValue.ProxyValueCode:
+                        return new Proxy(DateTimeValue.Add(_value, (DayTimeDurationValue)value.Value));
+                    
+                    default:
+                        throw new OperatorMismatchException(Funcs.Add, _value, value.Value);
+                }
+            }
+
+            protected override ValueProxy Sub(ValueProxy value)
+            {
+                switch (value.GetValueCode())
+                {
+                    case DateTimeValue.ProxyValueCode:
+                        return new DayTimeDurationValue.Proxy(DateTimeValue.Sub(_value, (DateTimeValue)value.Value));
+                    case YearMonthDurationValue.ProxyValueCode:
+                        return new Proxy(DateTimeValue.Add(_value, -(YearMonthDurationValue)value.Value));
+                    case DayTimeDurationValue.ProxyValueCode:
+                        return new Proxy(DateTimeValue.Add(_value, -(DayTimeDurationValue)value.Value));
+                    
+                    default:
+                        throw new OperatorMismatchException(Funcs.Sub, _value, value.Value);
+                }
+            }
+
+            protected override ValueProxy Mul(ValueProxy value)
+            {
+                throw new OperatorMismatchException(Funcs.Mul, _value, value.Value);
+            }
+
+            protected override ValueProxy Div(ValueProxy value)
+            {
+                throw new OperatorMismatchException(Funcs.Div, _value, value.Value);
+            }
+
+            protected override Integer IDiv(ValueProxy value)
+            {
+                throw new OperatorMismatchException(Funcs.IDiv, _value, value.Value);
+            }
+
+            protected override ValueProxy Mod(ValueProxy value)
+            {
+                throw new OperatorMismatchException(Funcs.Div, _value, value.Value);
             }
         }
 

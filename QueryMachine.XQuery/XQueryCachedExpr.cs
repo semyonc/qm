@@ -186,7 +186,7 @@ namespace DataEngine.XQuery
                     }
                     else if (a is XQueryNodeIterator && b is XQueryNodeIterator)
                     {
-                        if (!XQueryFuncs.DeepEqual(engine, (XQueryNodeIterator)a, (XQueryNodeIterator)b))
+                        if (!XQueryFuncs.DeepEqual((XQueryNodeIterator)a, (XQueryNodeIterator)b))
                             return false;
                     }
                     else

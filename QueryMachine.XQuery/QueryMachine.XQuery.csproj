@@ -91,10 +91,10 @@
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
     <Reference Include="System.Data" />
+    <Reference Include="System.Numerics" />
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BigInteger.cs" />
     <Compile Include="BufferedNodeIterator.cs" />
     <Compile Include="Collections\ItemList.cs" />
     <Compile Include="DocumentModel\DmAttribute.cs" />
@@ -130,6 +130,7 @@
     <Compile Include="Util\NMTOKENSValue.cs" />
     <Compile Include="Util\NotationValue.cs" />
     <Compile Include="Collections\SimpleLinkedList.cs" />
+    <Compile Include="Util\ShadowProxy.cs" />
     <Compile Include="Util\StringTokenizer.cs" />
     <Compile Include="DirectAccessPathExpr.cs" />
     <Compile Include="XQueryCachedExpr.cs" />
@@ -164,6 +165,7 @@
     <Compile Include="XQueryPathExpr.cs" />
     <Compile Include="XQueryStepExpr.cs" />
     <Compile Include="XQueryValueExpr.cs" />
+    <Compile Include="XQueryAbstractWriter.cs" />
     <Compile Include="XQueryWrappedValue.cs" />
     <Compile Include="XQueryCommand.cs" />
     <Compile Include="XQueryFunctionTable.cs" />

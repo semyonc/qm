@@ -53,21 +53,44 @@ namespace DataEngine.CoreServices
             public bool VariableParam;
         }
 
+        internal class ConverterKey
+        {
+            private readonly Type _src;
+            private readonly Type _dest;
+
+            public ConverterKey(Type src, Type dest)
+            {
+                _src = src;
+                _dest = dest;
+            }
+
+            public override bool Equals(object obj)
+            {
+                ConverterKey other = obj as ConverterKey;
+                if (other == null)
+                    return false;
+                return other._src == _src && other._dest == _dest;
+            }
+
+            public override int GetHashCode()
+            {
+                return _src.GetHashCode() ^ _dest.GetHashCode() << 6;
+            }
+        }
+
         private Dictionary<object, SymbolLink> m_value;
         private Dictionary<object, ControlFormBase> m_control;
         private Dictionary<object, FuncDef> m_func;
-        private List<ValueConverter> m_converter;
+        private Dictionary<ConverterKey, ValueConverter> m_converter;
         private Dictionary<object, MacroFuncDef> m_macro;
         private Stack<Resolver> m_resolvers = new Stack<Resolver>();
         private int m_resolvers_lock = 0;
-        private OperatorManager m_oper;
         private MethodInfo m_memoryPoolGetData;
         private MemoryPool m_defaultPool;
 
         public Executive(object owner)
         {
             m_owner = owner;
-            m_oper = InitDynamicOperators();
             
             m_control = GlobalSymbols.Shared.CreateControls();
             m_func = GlobalSymbols.Shared.CreateFuncs();
@@ -85,54 +108,6 @@ namespace DataEngine.CoreServices
             Set(Lisp.T, Generation.RuntimeOps.True);
             Set(Lisp.NIL, null);
             Set(Lisp.UNKNOWN, Undefined.Value);
-        }
-
-        protected virtual OperatorManager CreateOperatorManager()
-        {
-            return new OperatorManager();
-        }
-
-        protected virtual OperatorManager InitDynamicOperators()
-        {
-            OperatorManager res = CreateOperatorManager();
-            res.DefineProxy(typeof(SByte), new Type[] { 
-                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
-                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64) }, new IntegerProxy());
-            res.DefineProxy(typeof(Byte), new Type[] { 
-                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
-                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64) }, new IntegerProxy());
-            res.DefineProxy(typeof(Int16), new Type[] { 
-                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
-                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64) }, new IntegerProxy());
-            res.DefineProxy(typeof(UInt16), new Type[] { 
-                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
-                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64) }, new IntegerProxy());
-            res.DefineProxy(typeof(Int32), new Type[] { 
-                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
-                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64) }, new IntegerProxy());
-            res.DefineProxy(typeof(UInt32), new Type[] { 
-                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
-                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64) }, new IntegerProxy());
-            res.DefineProxy(typeof(Int64), new Type[] { 
-                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
-                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64) }, new IntegerProxy());
-            res.DefineProxy(typeof(UInt64), new Type[] { 
-                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
-                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64) }, new IntegerProxy());
-            res.DefineProxy(typeof(Integer), new Type[] { 
-                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
-                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64) }, new IntegerProxy());
-            res.DefineProxy(typeof(Decimal), new Type[] { 
-                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
-                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64), typeof(Integer) }, new DecimalProxy());
-            res.DefineProxy(typeof(Single), new Type[] { 
-                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
-                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64), typeof(Integer), typeof(Decimal) }, new SingleProxy());
-            res.DefineProxy(typeof(Double), new Type[] { 
-                typeof(SByte), typeof(Int16), typeof(Int32), typeof(Int64),
-                typeof(Byte), typeof(UInt16), typeof(UInt32), typeof(UInt64), typeof(Integer), typeof(Decimal), typeof(Single) }, new DoubleProxy());
-            res.DefineProxy(typeof(String), typeof(String), new StringProxy());
-            return res;
         }
 
         public SymbolLink Set(string Name, object value)
@@ -207,7 +182,7 @@ namespace DataEngine.CoreServices
         public SymbolLink TryGet(object atom, bool bindings, bool resolvers)
         {
             SymbolLink link;
-            if (resolvers && m_resolvers_lock == 0)
+            if (resolvers && m_resolvers_lock == 0 && m_resolvers.Count > 0)
             {
                 if (m_resolvers.Peek().Get(atom, out link))
                     return link;
@@ -262,13 +237,9 @@ namespace DataEngine.CoreServices
                 return new ILConverter();
             else
             {
-                foreach (ValueConverter conv in m_converter)
-                    if (conv.Destination == dest)
-                    {
-                        foreach (Type type in conv.Source)
-                            if (type == source)
-                                return conv;
-                    }
+                ValueConverter res;
+                if (m_converter.TryGetValue(new ConverterKey(source, dest), out res))
+                    return res;
                 return null;
             }
         }
@@ -463,10 +434,17 @@ namespace DataEngine.CoreServices
                 lambda.Values = localAccess.GetValues();
                 lambda.Consts = localAccess.GetConsts();
                 lambda.Dependences = localAccess.GetDependences();
-                lambda.ReturnType = st.Pop();
-                if (lambda.ReturnType.IsValueType)
-                    il.EmitBoxing(lambda.ReturnType);
+                Type retType = st.Pop();
+                if (ValueProxy.IsProxyType(retType))
+                {
+                    il.EmitPropertyGet(typeof(ValueProxy), "Value");
+                    retType = typeof(System.Object);
+                }                
+                else 
+                    if (retType.IsValueType)
+                        il.EmitBoxing(retType);
                 il.Emit(OpCodes.Ret);
+                lambda.ReturnType = retType;
                 if (lambda.Consts != null)
                 {
                     foreach (object obj in lambda.Consts)
@@ -726,7 +704,7 @@ namespace DataEngine.CoreServices
                         bool successed = false;
                         if (parameterTypes.Length == 2)
                         {
-                            Type castType = TypeConverter.GetType(parameterTypes[0], parameterTypes[1]);
+                            Type castType = ValueProxy.GetType(parameterTypes[0], parameterTypes[1]);
                             ValueConverter converter1 = FindConverter(parameterTypes[0], castType);
                             ValueConverter converter2 = FindConverter(parameterTypes[1], castType);
                             body = GetFunc(new FuncName(name.ID, new Type[] { castType, castType }), false);
@@ -758,10 +736,12 @@ namespace DataEngine.CoreServices
                                 for (int k = 0; k < localVar.Length; k++)
                                 {
                                     il.Emit(OpCodes.Ldloc, localVar[k]);
-                                    if (body.Name.GetParameterType(k) != parameterTypes[k] &&
-                                        parameterTypes[k].IsValueType)
+                                    if (body.Name.GetParameterType(k) != parameterTypes[k])                                         
                                     {
-                                        il.EmitBoxing(parameterTypes[k]);
+                                        if (parameterTypes[k].IsValueType)
+                                            il.EmitBoxing(parameterTypes[k]);
+                                        else if (ValueProxy.IsProxyType(parameterTypes[k]))
+                                            il.EmitPropertyGet(typeof(ValueProxy), "Value");
                                         new_parameter_types[k] = typeof(System.Object);
                                     }
                                     else
@@ -884,7 +864,7 @@ namespace DataEngine.CoreServices
                     arg1 = Generation.RuntimeOps.False;
                 if (arg2 == null)
                     arg2 = Generation.RuntimeOps.False;
-                if (DynamicOperators.Eq(arg1, arg2))
+                if (ValueProxy.New(arg1) == ValueProxy.New(arg2))
                     return true;
             }
             return null;
@@ -896,17 +876,14 @@ namespace DataEngine.CoreServices
                 arg1 = Generation.RuntimeOps.False;
             if (arg2 == null)
                 arg2 = Generation.RuntimeOps.False;
-            return DynamicOperators.Gt(arg1, arg2);
+            if (ValueProxy.New(arg1) > ValueProxy.New(arg2))
+                return true;
+            return null;
         }
 
         public object Owner
         {
             get { return m_owner; }
-        }
-
-        public OperatorManager DynamicOperators
-        {
-            get { return m_oper; }
         }
 
         public MemoryPool DefaultPool

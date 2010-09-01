@@ -113,7 +113,15 @@ namespace DataEngine.XQuery
                 if (exception is OperatorMismatchException)
                 {
                     OperatorMismatchException ex = (OperatorMismatchException)exception;
-                    if (ex.ID == Funcs.Neg)
+                    if (ex.ID == Funcs.Eq)
+                        throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:eq",
+                            new XQuerySequenceType(ex.Arg1.GetType(), XmlTypeCardinality.One),
+                            new XQuerySequenceType(ex.Arg2.GetType(), XmlTypeCardinality.One));
+                    else if (ex.ID == Funcs.Gt)
+                        throw new XQueryException(Properties.Resources.BinaryOperatorNotDefined, "op:gt",
+                            new XQuerySequenceType(ex.Arg1.GetType(), XmlTypeCardinality.One),
+                            new XQuerySequenceType(ex.Arg2.GetType(), XmlTypeCardinality.One));
+                    else if (ex.ID == Funcs.Neg)
                         throw new XQueryException(Properties.Resources.UnaryOperatorNotDefined, "fn:unary-minus",
                             new XQuerySequenceType(ex.Arg1.GetType(), XmlTypeCardinality.One));
                     else if (ex.ID == Funcs.Add)
@@ -148,55 +156,6 @@ namespace DataEngine.XQuery
                 throw exception;
             }
 
-            protected override OperatorManager InitDynamicOperators()
-            {
-                OperatorManager mgr = base.InitDynamicOperators();
-                mgr.DefineProxy2(typeof(DateTimeValue), typeof(DateTimeValue), new DateTimeValue.Proxy());
-                mgr.DefineProxy2(typeof(DateTimeValue), typeof(YearMonthDurationValue), new DateTimeValue.Proxy());
-                mgr.DefineProxy2(typeof(DateTimeValue), typeof(DayTimeDurationValue), new DateTimeValue.Proxy());
-                mgr.DefineProxy2(typeof(DateValue), typeof(DateValue), new DateValue.Proxy());
-                mgr.DefineProxy2(typeof(DateValue), typeof(YearMonthDurationValue), new DateValue.Proxy());
-                mgr.DefineProxy2(typeof(DateValue), typeof(DayTimeDurationValue), new DateValue.Proxy());
-                mgr.DefineProxy2(typeof(TimeValue), typeof(TimeValue), new TimeValue.Proxy());
-                mgr.DefineProxy2(typeof(TimeValue), typeof(DayTimeDurationValue), new TimeValue.Proxy());
-                mgr.DefineProxy2(typeof(YearMonthDurationValue), typeof(YearMonthDurationValue), new YearMonthDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(YearMonthDurationValue), typeof(DateTimeValue), new YearMonthDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(YearMonthDurationValue), typeof(DateValue), new YearMonthDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(YearMonthDurationValue), typeof(System.Int16), new YearMonthDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(YearMonthDurationValue), typeof(System.Int32), new YearMonthDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(YearMonthDurationValue), typeof(System.Int64), new YearMonthDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(YearMonthDurationValue), typeof(Integer), new YearMonthDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(YearMonthDurationValue), typeof(System.Single), new YearMonthDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(YearMonthDurationValue), typeof(System.Double), new YearMonthDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(YearMonthDurationValue), typeof(System.Decimal), new YearMonthDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(System.Int16), typeof(YearMonthDurationValue), new YearMonthDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(System.Int32), typeof(YearMonthDurationValue), new YearMonthDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(System.Int64), typeof(YearMonthDurationValue), new YearMonthDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(Integer), typeof(YearMonthDurationValue), new YearMonthDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(System.Single), typeof(YearMonthDurationValue), new YearMonthDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(System.Double), typeof(YearMonthDurationValue), new YearMonthDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(System.Decimal), typeof(YearMonthDurationValue), new YearMonthDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(DayTimeDurationValue), typeof(DayTimeDurationValue), new DayTimeDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(DayTimeDurationValue), typeof(DateTimeValue), new DayTimeDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(DayTimeDurationValue), typeof(DateValue), new DayTimeDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(DayTimeDurationValue), typeof(TimeValue), new DayTimeDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(DayTimeDurationValue), typeof(System.Int16), new DayTimeDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(DayTimeDurationValue), typeof(System.Int32), new DayTimeDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(DayTimeDurationValue), typeof(System.Int64), new DayTimeDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(DayTimeDurationValue), typeof(Integer), new DayTimeDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(DayTimeDurationValue), typeof(System.Single), new DayTimeDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(DayTimeDurationValue), typeof(System.Double), new DayTimeDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(DayTimeDurationValue), typeof(System.Decimal), new DayTimeDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(System.Int16), typeof(DayTimeDurationValue), new DayTimeDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(System.Int32), typeof(DayTimeDurationValue), new DayTimeDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(System.Int64), typeof(DayTimeDurationValue), new DayTimeDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(Integer), typeof(DayTimeDurationValue), new DayTimeDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(System.Single), typeof(DayTimeDurationValue), new DayTimeDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(System.Double), typeof(DayTimeDurationValue), new DayTimeDurationValue.Proxy());
-                mgr.DefineProxy2(typeof(System.Decimal), typeof(DayTimeDurationValue), new DayTimeDurationValue.Proxy());
-                return mgr;
-            }
-
             public override object OperatorEq(object arg1, object arg2)
             {
                 if (Object.ReferenceEquals(arg1, arg2))
@@ -206,7 +165,7 @@ namespace DataEngine.XQuery
                 if (arg2 == null)
                     arg2 = CoreServices.Generation.RuntimeOps.False;
                 object res;
-                if (DynamicOperators.Eq(arg1, arg2, out res))
+                if (ValueProxy.Eq(arg1, arg2, out res))
                     return res;
                 object a = arg1;
                 object b = arg2;
@@ -236,7 +195,7 @@ namespace DataEngine.XQuery
                 if (arg2 == null)
                     arg2 = CoreServices.Generation.RuntimeOps.False;
                 object res;
-                if (DynamicOperators.Gt(arg1, arg2, out res))
+                if (ValueProxy.Gt(arg1, arg2, out res))
                     return res;
                 if (arg1 is IComparable && arg2 is IComparable)
                 {
