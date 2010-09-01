@@ -34,6 +34,8 @@ namespace DataEngine.XQuery.Util
 {
     public class DayTimeDurationValue: DurationValue, IComparable
     {
+        new public const int ProxyValueCode = 12;
+
         public DayTimeDurationValue(TimeSpan value)
             : base(TimeSpan.Zero, value)
         {
@@ -51,7 +53,7 @@ namespace DataEngine.XQuery.Util
 
         #endregion
 
-        private static DayTimeDurationValue Multiply(DayTimeDurationValue a, double b)
+        public static DayTimeDurationValue Multiply(DayTimeDurationValue a, double b)
         {
             if (Double.IsNaN(b) || Double.IsNegativeInfinity(b) || Double.IsPositiveInfinity(b))
                 throw new XQueryException(Properties.Resources.FOCA0005);
@@ -59,7 +61,7 @@ namespace DataEngine.XQuery.Util
             return new DayTimeDurationValue(new TimeSpan(timespan));
         }
 
-        private static DayTimeDurationValue Divide(DayTimeDurationValue a, double b)
+        public static DayTimeDurationValue Divide(DayTimeDurationValue a, double b)
         {
             if (b == 0.0)
                 throw new XQueryException(Properties.Resources.FOAR0001);
@@ -81,83 +83,149 @@ namespace DataEngine.XQuery.Util
             return new DayTimeDurationValue(-d.LowPartValue);
         }
 
-        internal class Proxy : TypeProxy
+        new internal class ProxyFactory : ValueProxyFactory
         {
-            public override bool Eq(object arg1, object arg2)
+            public override ValueProxy Create(object value)
             {
-                return arg1.Equals(arg2);
+                return new Proxy((DayTimeDurationValue)value);
             }
 
-            public override bool Gt(object arg1, object arg2)
+            public override int GetValueCode()
             {
-                return ((IComparable)arg1).CompareTo(arg2) > 0;
+                return ProxyValueCode;
             }
 
-            public override object Promote(object arg1)
+            public override bool IsNumeric
             {
-                DurationValue duration = arg1 as DurationValue;
-                if (duration == null)
-                    throw new InvalidCastException();
-                return new DayTimeDurationValue(duration.LowPartValue);
+                get { return false; }
             }
 
-            public override object Neg(object arg1)
+            public override Type GetValueType()
             {
-                throw new OperatorMismatchException(Funcs.Neg, arg1, null);
+                return typeof(DayTimeDurationValue);
             }
 
-            public override object Add(object arg1, object arg2)
+            public override int Compare(ValueProxyFactory other)
             {
-                if (arg1 is DayTimeDurationValue)
+                if (other.IsNumeric)
+                    return 1;
+                return 0;
+            }
+        }
+
+
+        new internal class Proxy : ValueProxy
+        {
+            private DayTimeDurationValue _value;
+
+            public Proxy(DayTimeDurationValue value)
+            {
+                _value = value;
+            }
+
+            public override int GetValueCode()
+            {
+                return ProxyValueCode;
+            }
+
+            public override object Value
+            {
+                get 
                 {
-                    if (arg2 is DayTimeDurationValue)
-                        return new DayTimeDurationValue(((DayTimeDurationValue)arg1).LowPartValue + ((DayTimeDurationValue)arg2).LowPartValue);
-                    if (arg2 is DateTimeValue)
-                        return DateTimeValue.Add((DateTimeValue)arg2, (DayTimeDurationValue)arg1);
-                    if (arg2 is DateValue)
-                        return DateValue.Add((DateValue)arg2, (DayTimeDurationValue)arg1);
-                    if (arg2 is TimeValue)
-                        return TimeValue.Add((TimeValue)arg2, (DayTimeDurationValue)arg1);
+                    return _value;
                 }
-                throw new OperatorMismatchException(Funcs.Add, arg1, arg2);
             }
 
-            public override object Sub(object arg1, object arg2)
+            protected override bool Eq(ValueProxy val)
             {
-                if (arg1 is DayTimeDurationValue && arg2 is DayTimeDurationValue)
-                    return new DayTimeDurationValue(((DayTimeDurationValue)arg1).LowPartValue - ((DayTimeDurationValue)arg2).LowPartValue);
+                return _value.Equals(val.Value);
+            }
+
+            protected override bool Gt(ValueProxy val)
+            {
+                return ((IComparable)_value).CompareTo(val.Value) > 0;
+            }
+
+            protected override bool TryGt(ValueProxy val, out bool res)
+            {
+                res = false;
+                if (val.GetValueCode() != DayTimeDurationValue.ProxyValueCode)
+                    return false;
+                res = ((IComparable)_value).CompareTo(val.Value) > 0;
+                return true;
+            }
+
+            protected override ValueProxy Promote(ValueProxy val)
+            {
+                if (val.IsNumeric())
+                    return new ShadowProxy(val);
+                if (val.GetValueCode() == DurationValue.ProxyValueCode)
+                {
+                    DurationValue duration = (DurationValue)val.Value;
+                    return new Proxy(new DayTimeDurationValue(duration.LowPartValue));
+                }
+                throw new InvalidCastException();
+            }
+
+            protected override ValueProxy Neg()
+            {
+                throw new OperatorMismatchException(Funcs.Neg, _value, null);
+            }
+
+            protected override ValueProxy Add(ValueProxy value)
+            {
+                switch (value.GetValueCode())
+                {
+                    case DayTimeDurationValue.ProxyValueCode:
+                        return new Proxy(new DayTimeDurationValue(_value.LowPartValue + ((DayTimeDurationValue)value.Value).LowPartValue));
+                    case DateTimeValue.ProxyValueCode:
+                        return new DateTimeValue.Proxy(DateTimeValue.Add((DateTimeValue)value.Value, _value));
+                    case DateValue.ProxyValueCode:
+                        return new DateValue.Proxy(DateValue.Add((DateValue)value.Value, _value));
+                    case TimeValue.ProxyValueCode:
+                        return new TimeValue.Proxy(TimeValue.Add((TimeValue)value.Value, _value));
+                    default:
+                        throw new OperatorMismatchException(Funcs.Add, _value, value.Value);
+                }
+            }
+
+            protected override ValueProxy Sub(ValueProxy value)
+            {
+                switch (value.GetValueCode())
+                {
+                    case DayTimeDurationValue.ProxyValueCode:
+                        return new Proxy(new DayTimeDurationValue(_value.LowPartValue - ((DayTimeDurationValue)value.Value).LowPartValue));
+                    default:
+                        throw new OperatorMismatchException(Funcs.Sub, _value, value.Value);
+                }
+            }
+
+            protected override ValueProxy Mul(ValueProxy value)
+            {
+                if (value.IsNumeric())
+                    return new Proxy(DayTimeDurationValue.Multiply(_value, Convert.ToDouble(value)));
+                throw new OperatorMismatchException(Funcs.Mul, _value, value.Value);
+            }
+
+            protected override ValueProxy Div(ValueProxy value)
+            {
+                if (value.IsNumeric())
+                    return new Proxy(DayTimeDurationValue.Divide(_value, Convert.ToDouble(value)));
+                else if (value.GetValueCode() == DayTimeDurationValue.ProxyValueCode)
+                    return new DataEngine.CoreServices.Proxy.DecimalProxy(
+                        DayTimeDurationValue.Divide(_value, (DayTimeDurationValue)value.Value));
                 else
-                    throw new OperatorMismatchException(Funcs.Sub, arg1, arg2);
+                    throw new OperatorMismatchException(Funcs.Div, _value, value.Value);
             }
 
-            public override object Mul(object arg1, object arg2)
+            protected override Integer IDiv(ValueProxy value)
             {
-                if (arg1 is DayTimeDurationValue && TypeConverter.IsNumberType(arg2.GetType()))
-                    return DayTimeDurationValue.Multiply((DayTimeDurationValue)arg1, Convert.ToDouble(arg2));
-                else if (TypeConverter.IsNumberType(arg1.GetType()) && arg2 is DayTimeDurationValue)
-                    return DayTimeDurationValue.Multiply((DayTimeDurationValue)arg2, Convert.ToDouble(arg1));
-                else
-                    throw new OperatorMismatchException(Funcs.Mul, arg1, arg2);
+                throw new OperatorMismatchException(Funcs.IDiv, _value, value.Value);
             }
 
-            public override object Div(object arg1, object arg2)
+            protected override ValueProxy Mod(ValueProxy value)
             {
-                if (arg1 is DayTimeDurationValue && TypeConverter.IsNumberType(arg2.GetType()))
-                    return DayTimeDurationValue.Divide((DayTimeDurationValue)arg1, Convert.ToDouble(arg2));
-                else if (arg1 is DayTimeDurationValue && arg2 is DayTimeDurationValue)
-                    return DayTimeDurationValue.Divide((DayTimeDurationValue)arg1, (DayTimeDurationValue)arg2);
-                else
-                    throw new OperatorMismatchException(Funcs.Div, arg1, arg2);
-            }
-
-            public override Integer IDiv(object arg1, object arg2)
-            {
-                throw new OperatorMismatchException(Funcs.IDiv, arg1, arg2);
-            }
-
-            public override object Mod(object arg1, object arg2)
-            {
-                throw new OperatorMismatchException(Funcs.Div, arg1, arg2);
+                throw new OperatorMismatchException(Funcs.Div, _value, value.Value);
             }
         }
     }

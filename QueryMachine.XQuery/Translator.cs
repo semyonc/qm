@@ -2645,7 +2645,7 @@ namespace DataEngine.XQuery
                 if (type.Cardinality == XmlTypeCardinality.One ||
                     type.Cardinality == XmlTypeCardinality.OneOrMore)
                 {
-                    if (TypeConverter.IsNumberType(resType))
+                    if (ValueProxy.IsNumeric(resType))
                         return Lisp.List(Funcs.Cast, Lisp.List(ID.AtomizeX, expr), resType);
                     else if (resType == typeof(UntypedAtomic))
                         return Lisp.List(ID.CastToNumber2, Lisp.List(ID.AtomizeX, expr));
@@ -2654,7 +2654,7 @@ namespace DataEngine.XQuery
                 }
                 else
                 {
-                    if (TypeConverter.IsNumberType(resType))
+                    if (ValueProxy.IsNumeric(resType))
                         return Lisp.List(Funcs.Cast, Lisp.List(ID.Atomize, expr), resType);
                     else if (resType == typeof(UntypedAtomic))
                         return Lisp.List(ID.CastToNumber2, Lisp.List(ID.Atomize, expr));
@@ -2735,7 +2735,7 @@ namespace DataEngine.XQuery
                     if (fr != null)
                     {
                         if (fr.returnType.ParameterType != null &&
-                            TypeConverter.IsNumberType(fr.returnType.ParameterType))
+                            ValueProxy.IsNumeric(fr.returnType.ParameterType))
                             return expr;
                         return CompileAtomizeNumberExpr(expr, fr.returnType);
                     }
@@ -2783,7 +2783,7 @@ namespace DataEngine.XQuery
                     if (fr != null)
                     {
                         if (fr.returnType.ParameterType != null &&
-                            TypeConverter.IsNumberType(fr.returnType.ParameterType))
+                            ValueProxy.IsNumeric(fr.returnType.ParameterType))
                             return expr;
                         return CompileAtomizeValueExpr(expr, fr.returnType);
                     }
@@ -2881,7 +2881,7 @@ namespace DataEngine.XQuery
                     }
                     else
                     {
-                        Type typ3 = TypeConverter.GetType(typ1.ItemType, typ2.ItemType);
+                        Type typ3 = ValueProxy.GetType(typ1.ItemType, typ2.ItemType);
                         return new XQuerySequenceType(typ3, cardinality);
                     }
                 }

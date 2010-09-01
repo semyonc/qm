@@ -30,41 +30,62 @@ using System.Globalization;
 
 namespace DataEngine.CoreServices
 {
+    public class OperatorMismatchException : Exception
+    {
+        public OperatorMismatchException(object id, object arg1, object arg2)
+        {
+            ID = id;
+            Arg1 = arg1;
+            Arg2 = arg2;
+        }
+
+        public OperatorMismatchException(object id, object arg)
+            : this(id, arg, null)
+        {
+        }
+
+        public object ID { get; private set; }
+
+        public object Arg1 { get; private set; }
+
+        public object Arg2 { get; private set; }
+    }
+
     public class Runtime
-    {        
-        public static object DynamicNeg([Implict] Executive engine, object arg)
+    {
+        public static ValueProxy DynamicNeg(object arg)
         {
-            return engine.DynamicOperators.Neg(arg);
+            return -ValueProxy.New(arg);
         }
 
-        public static object DynamicAdd([Implict] Executive engine, object arg1, object arg2)
+        public static ValueProxy DynamicAdd(object arg1, object arg2)
         {
-            return engine.DynamicOperators.Add(arg1, arg2);
+            return ValueProxy.New(arg1) + ValueProxy.New(arg2);
         }
 
-        public static object DynamicSub([Implict] Executive engine, object arg1, object arg2)
+        public static ValueProxy DynamicSub(object arg1, object arg2)
         {
-            return engine.DynamicOperators.Sub(arg1, arg2);
+            return ValueProxy.New(arg1) - ValueProxy.New(arg2);
         }
 
-        public static object DynamicMul([Implict] Executive engine, object arg1, object arg2)
+        public static ValueProxy DynamicMul(object arg1, object arg2)
         {
-            return engine.DynamicOperators.Mul(arg1, arg2);
+            return ValueProxy.New(arg1) * ValueProxy.New(arg2);
         }
 
-        public static object DynamicDiv([Implict] Executive engine, object arg1, object arg2)
+        public static ValueProxy DynamicDiv(object arg1, object arg2)
         {
-            return engine.DynamicOperators.Div(arg1, arg2);
+            return ValueProxy.New(arg1) / ValueProxy.New(arg2);
         }
 
-        public static object DynamicMod([Implict] Executive engine, object arg1, object arg2)
+        public static ValueProxy DynamicMod(object arg1, object arg2)
         {
-            return engine.DynamicOperators.Mod(arg1, arg2);
+            return ValueProxy.New(arg1) % ValueProxy.New(arg2);
         }
 
-        public static Integer DynamicIDiv([Implict] Executive engine, object arg1, object arg2)
+        public static Integer DynamicIDiv(object arg1, object arg2)
         {
-            return engine.DynamicOperators.IDiv(arg1, arg2);
+            return ValueProxy.op_IntegerDivide(ValueProxy.New(arg1), ValueProxy.New(arg2));
         }
 
         public static object DynamicEq([Implict] Executive engine, object arg1, object arg2)
@@ -98,32 +119,12 @@ namespace DataEngine.CoreServices
             return 0 - a;
         }
 
-        public static decimal op_Divide(sbyte a, sbyte b)
-        {
-            return Convert.ToDecimal(a) / Convert.ToDecimal(b);
-        }
-
-        public static decimal op_Divide(byte a, byte b)
-        {
-            return Convert.ToDecimal(a) / Convert.ToDecimal(b);
-        }
-
         public static decimal op_Divide(short a, short b)
         {
             return Convert.ToDecimal(a) / Convert.ToDecimal(b);
         }
 
-        public static decimal op_Divide(ushort a, ushort b)
-        {
-            return Convert.ToDecimal(a) / Convert.ToDecimal(b);
-        }
-
         public static decimal op_Divide(int a, int b)
-        {
-            return Convert.ToDecimal(a) / Convert.ToDecimal(b);
-        }
-
-        public static decimal op_Divide(uint a, uint b)
         {
             return Convert.ToDecimal(a) / Convert.ToDecimal(b);
         }
@@ -143,22 +144,7 @@ namespace DataEngine.CoreServices
             return (Decimal)a / (Decimal)b;
         }
 
-        public static Integer op_IntegerDivide(sbyte a, sbyte b)
-        {
-            return (Integer)Convert.ToDecimal(a / b);
-        }
-
-        public static Integer op_IntegerDivide(byte a, byte b)
-        {
-            return (Integer)Convert.ToDecimal(a / b);
-        }
-
         public static Integer op_IntegerDivide(short a, short b)
-        {
-            return (Integer)Convert.ToDecimal(a / b);
-        }
-
-        public static Integer op_IntegerDivide(ushort a, ushort b)
         {
             return (Integer)Convert.ToDecimal(a / b);
         }
@@ -168,17 +154,7 @@ namespace DataEngine.CoreServices
             return (Integer)Convert.ToDecimal(a / b);
         }
 
-        public static Integer op_IntegerDivide(uint a, uint b)
-        {
-            return (Integer)Convert.ToDecimal(a / b);
-        }
-
         public static Integer op_IntegerDivide(long a, long b)
-        {
-            return (Integer)Convert.ToDecimal(a / b);
-        }
-
-        public static Integer op_IntegerDivide(ulong a, ulong b)
         {
             return (Integer)Convert.ToDecimal(a / b);
         }

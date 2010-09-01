@@ -186,12 +186,12 @@ namespace DataEngine.XQuery
                                     return scale * res;
                             }   
                             else
-                            {
-                                NumericCode code = TypeConverter.GetNumericCode(a, b);
+                            {                                
                                 object val1;
                                 object val2;
-                                int res; 
-                                if (code == NumericCode.Unknown)
+                                int res;
+                                Type type = ValueProxy.GetType(a.GetType(), b.GetType());
+                                if (type == typeof(System.Object))
                                 {
                                     val1 = XQueryConvert.ToString(a);
                                     val2 = XQueryConvert.ToString(b);
@@ -199,8 +199,8 @@ namespace DataEngine.XQuery
                                 }
                                 else
                                 {
-                                    val1 = TypeConverter.ChangeType(a, code);
-                                    val2 = TypeConverter.ChangeType(b, code);
+                                    val1 = Convert.ChangeType(a, type);
+                                    val2 = Convert.ChangeType(b, type);
                                     res = ((IComparable)val1).CompareTo(val2);
                                 }                                
                                 if (res != 0)

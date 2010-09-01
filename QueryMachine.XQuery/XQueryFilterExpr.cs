@@ -118,7 +118,7 @@ namespace DataEngine.XQuery
                         yield return iter.Current;
                     else
                     {
-                        if (TypeConverter.IsNumberType(item.ValueType))
+                        if (ValueProxy.IsNumeric(item.ValueType))
                         {
                             if (QueryContext.Engine.OperatorEq(iter.CurrentPosition + 1, item.TypedValue) != null)
                             {

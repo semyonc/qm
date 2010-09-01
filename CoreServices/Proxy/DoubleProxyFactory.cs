@@ -1,4 +1,4 @@
-﻿//        Copyright (c) 2009, Semyon A. Chertkov (semyonc@gmail.com)
+﻿//        Copyright (c) 2009-2010, Semyon A. Chertkov (semyonc@gmail.com)
 //        All rights reserved.
 //
 //        Redistribution and use in source and binary forms, with or without
@@ -24,60 +24,56 @@
 //        SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 
-using DataEngine.CoreServices;
-using DataEngine.XQuery.Parser;
-using System.Globalization;
-
-namespace DataEngine.XQuery
+namespace DataEngine.CoreServices.Proxy
 {
-    public class XQueryWriter: XQueryAbstractWriter
+    public class DoubleProxyFactory: ValueProxyFactory
     {
-        public XQueryWriter(Notation notation)
-            : base(notation)
+        public const int Code = 7;
+
+        public override ValueProxy Create(object value)
         {
-            sb = new StringBuilder();
-            newLineFlag = false;
+            return new DoubleProxy((double)value);
         }
 
-        public override string ToString()
+        public override int GetValueCode()
         {
-            return sb.ToString();
+            return Code;
         }
 
-        #region Text formatting billet
-
-        private StringBuilder sb;
-        private bool newLineFlag;
-
-        protected override void SmartNewLine()
+        public override Type GetValueType()
         {
-            if (!newLineFlag)
+            return typeof(System.Double);
+        }
+
+        public override bool IsNumeric
+        {
+            get { return true; }
+        }
+
+        public override int Compare(ValueProxyFactory other)
+        {
+            switch (other.GetValueCode())
             {
-                sb.AppendLine();
-                newLineFlag = true;
+                case SByteProxyFactory.Code:
+                case ByteProxyFactory.Code:
+                case UShortFactory.Code:
+                case ShortFactory.Code:
+                case UIntFactory.Code:
+                case IntFactory.Code:
+                case ULongFactory.Code:
+                case LongFactory.Code:
+                case IntegerProxyFactory.Code:
+                case DecimalProxyFactory.Code:
+                case FloatFactory.Code:
+                    return 1;
+
+                case DoubleProxyFactory.Code:
+                    return 0;
+
+                default:
+                    return -2;
             }
         }
-
-        protected override void WriteText(char c)
-        {
-            sb.Append(c);
-            newLineFlag = false;
-        }
-
-        protected override void WriteText(string s)
-        {
-            sb.Append(s);
-            newLineFlag = false;
-        }
-
-        protected override void WriteTextFormat(string s, params object[] args)
-        {
-            WriteText(String.Format(s, args));
-        }
-
-        #endregion
     }
 }

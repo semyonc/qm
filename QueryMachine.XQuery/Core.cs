@@ -202,6 +202,16 @@ namespace DataEngine.XQuery
             XQueryFunctionTable.Register(ID.Number, typeof(Core), "Number");
             XQueryFunctionTable.Register(ID.String, typeof(Core), "StringValue");
 
+            ValueProxy.AddFactory(
+                new ValueProxyFactory[] { 
+                    new DateTimeValue.ProxyFactory(),
+                    new DateValue.ProxyFactory(),
+                    new TimeValue.ProxyFactory(),
+                    new DurationValue.ProxyFactory(),
+                    new YearMonthDurationValue.ProxyFactory(),
+                    new DayTimeDurationValue.ProxyFactory()
+            });
+
             GlobalSymbols.Defmacro(ID.Atomize, "(x)", 
                 @"(list 'let (list (list 'y (list 'atomize# x))) 
                     (list 'cond (list (list 'is-unknown 'y) (list 'trap 'unknown)) (list 't 'y)))");
@@ -802,7 +812,7 @@ namespace DataEngine.XQuery
                         {
                             if (value is AnyUriValue || value is UntypedAtomic)
                                 return value.ToString() != String.Empty;
-                            if (TypeConverter.IsNumberType(value.GetType()))
+                            if (ValueProxy.IsNumeric(value.GetType()))
                                 return Convert.ToDecimal(value) != 0;
                             throw new XQueryException(Properties.Resources.FORG0006, "fn:boolean()",
                                 new XQuerySequenceType(value.GetType(), XmlTypeCardinality.One));
@@ -1179,7 +1189,7 @@ namespace DataEngine.XQuery
             y = item2.TypedValue;
             if (x is UntypedAtomic) 
             {
-                if (TypeConverter.IsNumberType(y.GetType()))
+                if (ValueProxy.IsNumeric(y.GetType()))
                     x = Convert.ToDouble(x, CultureInfo.InvariantCulture);
                 else
                     if (y is String)
@@ -1189,7 +1199,7 @@ namespace DataEngine.XQuery
             }
             if (y is UntypedAtomic)
             {
-                if (TypeConverter.IsNumberType(x.GetType()))
+                if (ValueProxy.IsNumeric(x.GetType()))
                     y = Convert.ToDouble(y, CultureInfo.InvariantCulture);
                 else
                     if (x is String)
@@ -1221,11 +1231,6 @@ namespace DataEngine.XQuery
 
         public static bool GeneralGT([Implict] Executive executive, object a, object b)
         {
-#if PF
-            try
-            {
-            PerfMonitor.Global.Begin("GeneralGT");
-#endif
             XQueryContext context = (XQueryContext)executive.Owner;
             XQueryNodeIterator iter1 = XQueryNodeIterator.Create(a);
             XQueryNodeIterator iter2 = XQueryNodeIterator.Create(b);
@@ -1242,13 +1247,6 @@ namespace DataEngine.XQuery
                 }
             }
             return false;
-#if PF
-            }
-            finally
-            {
-                PerfMonitor.Global.End("GeneralGT");
-            }
-#endif 
         }
 
         public static bool GeneralNE([Implict] Executive executive, object a, object b)

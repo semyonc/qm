@@ -141,11 +141,23 @@
     <Compile Include="NullFunc.cs" />
     <Compile Include="ControlOrForm.cs" />
     <Compile Include="ControlQuoteForm.cs" />
-    <Compile Include="OperatorManager.cs" />
     <Compile Include="PerfMonitor.cs" />
+    <Compile Include="Proxy\Bool.cs" />
+    <Compile Include="Proxy\BoolFactory.cs" />
+    <Compile Include="Proxy\ByteProxy.cs" />
+    <Compile Include="Proxy\ByteProxyFactory.cs" />
+    <Compile Include="Proxy\SByteProxy.cs" />
+    <Compile Include="Proxy\SByteProxyFactory.cs" />
+    <Compile Include="Proxy\UInt.cs" />
+    <Compile Include="Proxy\UIntFactory.cs" />
+    <Compile Include="Proxy\ULong.cs" />
+    <Compile Include="Proxy\ULongFactory.cs" />
+    <Compile Include="Proxy\UShort.cs" />
+    <Compile Include="Proxy\UShortFactory.cs" />
     <Compile Include="Resolver.cs" />
     <Compile Include="Runtime.cs" />
-    <Compile Include="TypeConverter.cs" />
+    <Compile Include="ValueProxy.cs" />
+    <Compile Include="ValueProxyFactory.cs" />
     <Compile Include="TypeUtils.cs" />
     <Compile Include="Lisp.cs" />
     <Compile Include="LispParser.cs" />
@@ -154,6 +166,22 @@
     <Compile Include="Undefined.cs" />
     <Compile Include="ValueConverter.cs" />
     <Compile Include="SymbolLink.cs" />
+    <Compile Include="Proxy\DecimalProxy.cs" />
+    <Compile Include="Proxy\DecimalProxyFactory.cs" />
+    <Compile Include="Proxy\DoubleProxy.cs" />
+    <Compile Include="Proxy\DoubleProxyFactory.cs" />
+    <Compile Include="Proxy\Float.cs" />
+    <Compile Include="Proxy\FloatFactory.cs" />
+    <Compile Include="Proxy\IntegerProxy.cs" />
+    <Compile Include="Proxy\IntegerProxyFactory.cs" />
+    <Compile Include="Proxy\Int.cs" />
+    <Compile Include="Proxy\IntFactory.cs" />
+    <Compile Include="Proxy\Long.cs" />
+    <Compile Include="Proxy\LongFactory.cs" />
+    <Compile Include="Proxy\Short.cs" />
+    <Compile Include="Proxy\ShortFactory.cs" />
+    <Compile Include="Proxy\StringProxy.cs" />
+    <Compile Include="Proxy\StringProxyFactory.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Qm.snk" />
@@ -175,6 +203,7 @@
       <Install>true</Install>
     </BootstrapperPackage>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

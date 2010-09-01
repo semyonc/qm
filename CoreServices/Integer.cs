@@ -275,17 +275,22 @@ namespace DataEngine.CoreServices
 
         public static bool IsDerivedSubtype(object value)
         {
-            NumericCode code = TypeConverter.GetNumericCode(value.GetType());
-            switch (code)
+            if (value is Integer)
+                return true;
+            switch (Type.GetTypeCode(value.GetType()))
             {
-                case NumericCode.Unknown:
-                case NumericCode.Float:
-                case NumericCode.Double: 
-                case NumericCode.Decimal:
-                    return false;
+                case TypeCode.SByte:
+                case TypeCode.Int16:
+                case TypeCode.Int32:
+                case TypeCode.Int64:
+                case TypeCode.Byte:
+                case TypeCode.UInt16:
+                case TypeCode.UInt32:
+                case TypeCode.UInt64:
+                    return true;
 
                 default:
-                    return true;
+                    return false;
             }
         }
 
