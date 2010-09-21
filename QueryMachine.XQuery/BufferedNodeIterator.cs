@@ -111,10 +111,23 @@ namespace DataEngine.XQuery
             if (index < buffer.Count)
                 return iter[index];
             else
-                if (!src.IsFinished && src.MoveNext())
+                if (!src.IsFinished)
                 {
-                    buffer.Add(src.Current);
-                    return src.Current;
+                    lock (src)
+                    {
+                        int n = 0;
+                        XPathItem res = null;
+                        while (src.MoveNext())
+                        {
+                            if (res == null)
+                                res = src.Current.Clone();
+                            buffer.Add(src.Current);
+                            if (n == XQueryLimits.IteratorPrefetchSize)
+                                break;
+                            n++;
+                        }
+                        return res;
+                    }
                 }
             return null;
         }

@@ -731,6 +731,18 @@ namespace XQTSRun
             }            
         }
 
+        private void TraceIter(XQueryNodeIterator iter)
+        {
+            iter = iter.Clone();
+            foreach (XPathItem item in iter)
+            {
+                if (item.IsNode)
+                    Trace.WriteLine(((XPathNavigator)item).OuterXml);
+                else
+                    Trace.WriteLine(item.Value);
+            }
+        }
+
         private IEnumerable<XPathItem> DocumentIterator(XQueryContext context, XQueryNodeIterator iter)
         {
             foreach (XPathItem item in iter)

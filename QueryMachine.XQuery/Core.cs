@@ -36,6 +36,7 @@ using System.Xml.XPath;
 
 using DataEngine.CoreServices;
 using DataEngine.XQuery.Util;
+using System.Threading.Tasks;
 
 namespace DataEngine.XQuery
 {
@@ -281,8 +282,6 @@ namespace DataEngine.XQuery
                 throw new XQueryException(ex.Message, ex);
             }
             IXPathNavigable doc = context.OpenDocument(fileName);
-            //if (doc is XQueryDocument && context.EnableTPL)
-            //    ((XQueryDocument)doc).Fill();
             return doc.CreateNavigator();
         }
 
@@ -1367,6 +1366,15 @@ namespace DataEngine.XQuery
             XQueryNodeIterator iter1 = XQueryNodeIterator.Create(a);
             XQueryNodeIterator iter2 = XQueryNodeIterator.Create(b);
             XQueryContext context = (XQueryContext)executive.Owner;
+            if (context.EnableHPC && 
+                !(iter1 is XQueryNodeIterator.SingleIterator || iter2 is XQueryNodeIterator.SingleIterator))
+            {
+                Task<XQueryNodeIterator> task1 = iter1.BeginPreload(context.Token);
+                Task<XQueryNodeIterator> task2 = iter2.BeginPreload(context.Token);
+                Task.WaitAll(task1, task2);
+                iter1 = task1.Result;
+                iter2 = task2.Result;
+            }
             if (isOrdered)
                 return new NodeIterator(XPathFactory.UnionIterator1(iter1, iter2));
             else
@@ -1378,6 +1386,15 @@ namespace DataEngine.XQuery
             XQueryNodeIterator iter1 = XQueryNodeIterator.Create(a);
             XQueryNodeIterator iter2 = XQueryNodeIterator.Create(b);
             XQueryContext context = (XQueryContext)executive.Owner;
+            if (context.EnableHPC &&
+                !(iter1 is XQueryNodeIterator.SingleIterator || iter2 is XQueryNodeIterator.SingleIterator))
+            {
+                Task<XQueryNodeIterator> task1 = iter1.BeginPreload(context.Token);
+                Task<XQueryNodeIterator> task2 = iter2.BeginPreload(context.Token);
+                Task.WaitAll(task1, task2);
+                iter1 = task1.Result;
+                iter2 = task2.Result;
+            }
             if (isOrdered)
                 return new NodeIterator(XPathFactory.IntersectExceptIterator1(true, iter1, iter2));
             else
@@ -1389,6 +1406,15 @@ namespace DataEngine.XQuery
             XQueryNodeIterator iter1 = XQueryNodeIterator.Create(a);
             XQueryNodeIterator iter2 = XQueryNodeIterator.Create(b);
             XQueryContext context = (XQueryContext)executive.Owner;
+            if (context.EnableHPC &&
+                !(iter1 is XQueryNodeIterator.SingleIterator || iter2 is XQueryNodeIterator.SingleIterator))
+            {
+                Task<XQueryNodeIterator> task1 = iter1.BeginPreload(context.Token);
+                Task<XQueryNodeIterator> task2 = iter2.BeginPreload(context.Token);
+                Task.WaitAll(task1, task2);
+                iter1 = task1.Result;
+                iter2 = task2.Result;
+            }
             if (isOrdered)
                 return new NodeIterator(XPathFactory.IntersectExceptIterator1(false, iter1, iter2));
             else

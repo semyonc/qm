@@ -1,4 +1,4 @@
-﻿//        Copyright (c) 2009, Semyon A. Chertkov (semyonc@gmail.com)
+﻿//        Copyright (c) 2009-2010, Semyon A. Chertkov (semyonc@gmail.com)
 //        All rights reserved.
 //
 //        Redistribution and use in source and binary forms, with or without
@@ -25,14 +25,16 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Text;
-
+using System.Threading.Tasks;
+using System.Threading;
+using System.Diagnostics;
 using System.Xml;
 using System.Xml.XPath;
 using System.Xml.Schema;
 
 using DataEngine.CoreServices;
-using System.Diagnostics;
 
 namespace DataEngine.XQuery
 {
@@ -79,6 +81,8 @@ namespace DataEngine.XQuery
         private Type m_itemType;
         private bool m_convert;
 
+        public bool Parallel { get; set; }
+
         public XQueryFLWOR(XQueryContext context, object var, XQuerySequenceType varType, object pos, object expr, XQueryExprBase bodyExpr, bool convert)
             : base(context, var, varType, expr, bodyExpr)
         {
@@ -115,8 +119,12 @@ namespace DataEngine.XQuery
 
         public override object Execute(IContextProvider provider, Object[] args, MemoryPool pool)
         {
-            return new XQueryFLWORIterator(this, provider, args, pool, XQueryNodeIterator.Create(
-                QueryContext.Engine.Apply(null, null, m_expr, args, m_valueExpr, pool)));
+            if (Parallel)
+                return new XQueryFLWORIteratorHPC(this, provider, args, pool, XQueryNodeIterator.Create(
+                    QueryContext.Engine.Apply(null, null, m_expr, args, m_valueExpr, pool)));
+            else
+                return new XQueryFLWORIterator(this, provider, args, pool, XQueryNodeIterator.Create(
+                    QueryContext.Engine.Apply(null, null, m_expr, args, m_valueExpr, pool)));
         }
 
         private bool MoveNext(IContextProvider provider, object[] args, MemoryPool pool, XPathItem curr, Integer index, out object res)
@@ -150,31 +158,68 @@ namespace DataEngine.XQuery
             return false;
         }
 
-        private sealed class XQueryFLWORIterator : XQueryNodeIterator
+        private Task<Object> BeginMoveNext(IContextProvider provider, object[] args, MemoryPool pool, XPathItem curr, Integer index)
         {
-            private XQueryFLWOR owner;
-            private IContextProvider provider;
-            private object[] args;
-            private MemoryPool pool;
-            private XQueryNodeIterator baseIter;
-            private XQueryNodeIterator iter;
-            private XQueryNodeIterator childIter;
-            private Integer index;
+            object value;
+            if (curr.IsNode)
+                value = curr.Clone();
+            else
+                value = curr.TypedValue;
+            if (m_varType != XQuerySequenceType.Item && m_convert)
+            {
+                if (m_varType.IsNode && !Core.InstanceOf(QueryContext.Engine, value, m_varType))
+                    throw new XQueryException(Properties.Resources.XPTY0004,
+                       new XQuerySequenceType(curr.XmlType.TypeCode), m_varType);
+                value = XQueryConvert.TreatValueAs(value, m_varType);
+                if (m_varType.Cardinality == XmlTypeCardinality.ZeroOrMore ||
+                    m_varType.Cardinality == XmlTypeCardinality.OneOrMore)
+                    value = XQueryNodeIterator.Create(value);
+            }
+            pool.SetData(m_value, value);
+            if (m_pos != null)
+                pool.SetData(m_posValue, index);
+            if (m_conditionExpr == null ||
+                Core.BooleanValue(QueryContext.Engine.Apply(null, null, ConditionExpr, args, m_conditionExpr, pool)))
+            {
+                MemoryPool taskPool = pool.Clone();
+                return Task<Object>.Factory.StartNew(() =>
+                    {
+                        object res = m_bodyExpr.Execute(provider, args, taskPool);
+                        XQueryNodeIterator iter = res as XQueryNodeIterator;
+                        if (iter != null)
+                        {
+                            BufferedNodeIterator resIter = new BufferedNodeIterator(iter, false);
+                            resIter.Fill();
+                            return resIter;
+                        }
+                        return res;
+                    }, QueryContext.Token);
+            }
+            return null;
+        }
 
-            private XQueryItem currItem = new XQueryItem();
+        private abstract class XQueryFLWORIteratorBase : XQueryNodeIterator
+        {
+            protected XQueryFLWOR owner;
+            protected IContextProvider provider;
+            protected object[] args;
+            protected MemoryPool pool;
+            protected XQueryNodeIterator baseIter;
+            protected XQueryNodeIterator iter;
+            protected XQueryNodeIterator childIter;
+            protected Integer index;
+            protected CancellationToken token;
 
-            public XQueryFLWORIterator(XQueryFLWOR owner, IContextProvider provider, object[] args, MemoryPool pool, XQueryNodeIterator baseIter)
+            protected XQueryItem currItem = new XQueryItem();
+
+            public XQueryFLWORIteratorBase(XQueryFLWOR owner, IContextProvider provider, object[] args, MemoryPool pool, XQueryNodeIterator baseIter)
             {
                 this.owner = owner;
                 this.provider = provider;
                 this.args = args;
                 this.pool = pool;
-                this.baseIter = baseIter;                
-            }
-
-            public override XQueryNodeIterator Clone()
-            {
-                return new XQueryFLWORIterator(owner, provider, args, pool, baseIter);
+                this.baseIter = baseIter;
+                token = owner.QueryContext.Token;
             }
 
             public override XQueryNodeIterator CreateBufferedIterator()
@@ -187,11 +232,25 @@ namespace DataEngine.XQuery
                 index = 1;
                 iter = baseIter.Clone();
             }
+        }
+
+        private sealed class XQueryFLWORIterator : XQueryFLWORIteratorBase
+        {
+            public XQueryFLWORIterator(XQueryFLWOR owner, IContextProvider provider, object[] args, MemoryPool pool, XQueryNodeIterator baseIter)
+                : base(owner, provider, args, pool, baseIter)
+            {
+            }
+
+            public override XQueryNodeIterator Clone()
+            {
+                return new XQueryFLWORIterator(owner, provider, args, pool, baseIter);
+            }
 
             protected override XPathItem NextItem()
             {
                 while (true)
                 {
+                    token.ThrowIfCancellationRequested();
                     if (childIter != null)
                     {
                         if (childIter.MoveNext())
@@ -211,7 +270,75 @@ namespace DataEngine.XQuery
                             if (item != null)
                                 return item;
                             currItem.RawValue = res;
-                            return currItem;                            
+                            return currItem;
+                        }
+                    }
+                }
+            }
+        }
+
+        private sealed class XQueryFLWORIteratorHPC : XQueryFLWORIteratorBase
+        {
+            private ConcurrentQueue<Task<Object>> tasks = new ConcurrentQueue<Task<object>>();
+
+            public XQueryFLWORIteratorHPC(XQueryFLWOR owner, IContextProvider provider, object[] args, MemoryPool pool, XQueryNodeIterator baseIter)
+                : base(owner, provider, args, pool, baseIter)
+            {
+                tasks = new ConcurrentQueue<Task<object>>();
+            }
+
+            public override XQueryNodeIterator Clone()
+            {
+                return new XQueryFLWORIteratorHPC(owner, provider, args, pool, baseIter);
+            }
+
+            protected override void Init()
+            {
+                base.Init();
+                Task.Factory.StartNew(() =>
+                    {
+                        while (iter.MoveNext())
+                        {
+                            token.ThrowIfCancellationRequested();
+                            Task<Object> task = owner.BeginMoveNext(provider, args, pool, iter.Current, index++);
+                            if (task != null)
+                                tasks.Enqueue(task);
+                            while (tasks.Count > XQueryLimits.MaxParallelTasks)
+                            {
+                                token.ThrowIfCancellationRequested();
+                                Thread.Sleep(0);
+                            }
+                        }
+                        tasks.Enqueue(null);
+                    });                
+            }
+
+            protected override XPathItem NextItem()
+            {
+                while (true)
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (childIter != null)
+                    {
+                        if (childIter.MoveNext())
+                            return childIter.Current;
+                        else
+                            childIter = null;
+                    }
+                    Task<Object> task;
+                    if (tasks.TryDequeue(out task))
+                    {
+                        if (task == null)
+                            return null;
+                        task.Wait(token);
+                        childIter = task.Result as XQueryNodeIterator;
+                        if (childIter == null)
+                        {
+                            XPathItem item = task.Result as XPathItem;
+                            if (item != null)
+                                return item;
+                            currItem.RawValue = task.Result;
+                            return currItem;
                         }
                     }
                 }
@@ -222,6 +349,8 @@ namespace DataEngine.XQuery
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
+            if (Parallel)
+                sb.Append("HPC: ");
             sb.Append("[");
             sb.Append(base.ToString());
             sb.Append(": ");

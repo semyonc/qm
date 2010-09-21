@@ -313,22 +313,22 @@ namespace DataEngine.XQuery
         {
             if (_pos == 0 || _props.index > 0)
                 return false;
-                int p = _pf[_pos];
-                if (p == PageFile.Leaf || p == PageFile.MixedLeaf)
-                    p = _pos + 1;
-                else
-                    if (p == 0)
-                    {
-                        _props.doc.ExpandUtilElementEnd(_pos);
-                        p = _pf[_pos];
-                    }
-                _props.doc.ExpandPageFile(p);
-                if (p < _pf.Count && _pf.GetHead(p) != null)
+            int p = _pf[_pos];
+            if (p == PageFile.Leaf || p == PageFile.MixedLeaf)
+                p = _pos + 1;
+            else
+                if (p == 0)
                 {
-                    _pos = p;
-                    Read();
-                    return true;
+                    _props.doc.ExpandUtilElementEnd(_pos);
+                    p = _pf[_pos];
                 }
+            _props.doc.ExpandPageFile(p);
+            if (p < _pf.Count && _pf.GetHead(p) != null)
+            {
+                _pos = p;
+                Read();
+                return true;
+            }
             return false;
         }
 

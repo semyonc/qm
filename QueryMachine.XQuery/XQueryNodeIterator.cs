@@ -27,6 +27,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Diagnostics;
 
 using System.Xml;
@@ -177,9 +179,6 @@ namespace DataEngine.XQuery
                 pos = -1;
                 iteratorStarted = true;
             }
-#if PARALLEL
-            CheckThreadCanceled();
-#endif
             XPathItem item = GetNextItem();
             if (item != null)
             {
@@ -192,17 +191,7 @@ namespace DataEngine.XQuery
             iteratorFinished = true;
             return false;
         }
-
-#if PARALLEL
-        public static event EventHandler CheckThread;
-
-        public static void CheckThreadCanceled()
-        {
-            if (CheckThread != null)
-                CheckThread(null, EventArgs.Empty);
-        }
-#endif
-        
+       
         public virtual List<XPathItem> ToList()
         {
             XQueryNodeIterator iter = Clone();
@@ -213,6 +202,45 @@ namespace DataEngine.XQuery
         }
 
         public abstract XQueryNodeIterator CreateBufferedIterator();
+
+        public XQueryNodeIterator Preload()
+        {
+            XQueryNodeIterator res = CreateBufferedIterator();
+            while (res.MoveNext())
+                ;
+            return res.Clone();
+        }
+
+        public XQueryNodeIterator Preload(CancellationToken token)
+        {
+            XQueryNodeIterator res = CreateBufferedIterator();
+            while (res.MoveNext())
+                token.ThrowIfCancellationRequested();
+            return res.Clone();
+        }
+
+        public Task<XQueryNodeIterator> BeginPreload()
+        {
+            XQueryNodeIterator iter = CreateBufferedIterator();
+            return Task<XQueryNodeIterator>.Factory.StartNew(() =>
+            {
+                while (iter.MoveNext())
+                    ;
+                return iter.Clone();
+            });
+        }
+
+        public Task<XQueryNodeIterator> BeginPreload(CancellationToken token)
+        {
+            XQueryNodeIterator iter = CreateBufferedIterator();
+            return Task<XQueryNodeIterator>.Factory.StartNew(() =>
+                {
+                    while (iter.MoveNext() && 
+                        !token.IsCancellationRequested)
+                        ;
+                    return iter.Clone();
+                });
+        }
 
         protected virtual void Init()
         {
@@ -330,7 +358,7 @@ namespace DataEngine.XQuery
             #endregion
         }
 
-        private class SingleIterator : XQueryNodeIterator
+        internal class SingleIterator : XQueryNodeIterator
         {
             private XPathItem _item;            
 

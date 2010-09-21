@@ -63,9 +63,7 @@ namespace DataEngine.XQuery.OpenXML
                 command.Context.CopyNamespaces(nsmgr);
             command.ContextItem = node;
             command.CommandText = xquery;
-            BufferedNodeIterator res = (BufferedNodeIterator)command.Execute().CreateBufferedIterator();
-            res.Fill(); // Load all nodes for preventing to close container before finish query
-            return res;
+            return command.Execute().Preload(); // Load all nodes for preventing to close container before finish query
         }
     }
 }

@@ -34,6 +34,7 @@ using System.Xml.XPath;
 using DataEngine.CoreServices;
 using DataEngine.XQuery.Util;
 
+
 namespace DataEngine.XQuery
 {
     sealed class XQueryCachedExpr: XQueryExprBase
@@ -76,14 +77,22 @@ namespace DataEngine.XQuery
             object[] keys = new object[m_params.Count + 1];
             keys[0] = provider.Context;
             for (int k = 0; k < m_params.Count; k++)
-                keys[k+1] = pool.GetData(m_params[k]);
+                keys[k + 1] = pool.GetData(m_params[k]);
             Key key = new Key(QueryContext.Engine, keys);
             object res;
-            if (!m_cache.TryGetValue(key, out res))
+            lock (m_cache)
             {
-                key.CloneKeys();
-                res = m_body.Execute(provider, args, pool);
-                m_cache.Add(key, res);
+                if (m_cache.TryGetValue(key, out res))
+                    return res.CloneObject();
+            }
+            res = m_body.Execute(provider, args, pool);
+            lock (m_cache)
+            {
+                if (!m_cache.ContainsKey(key))
+                {
+                    key.CloneKeys();
+                    m_cache.Add(key, res);
+                }
             }
             return res.CloneObject();
         }
@@ -105,11 +114,13 @@ namespace DataEngine.XQuery
         {
             private Executive engine;
             private object[] keys;
+            private int hashcode;
 
             public Key(Executive engine, object[] keys)
             {
                 this.engine = engine;
                 this.keys = keys;
+                hashcode = CalcHashCode();
             }
 
             public void CloneKeys()
@@ -117,8 +128,8 @@ namespace DataEngine.XQuery
                 for (int k = 0; k < keys.Length; k++)
                     keys[k] = keys[k].CloneObject();
             }
-
-            public override int GetHashCode()
+           
+            private int CalcHashCode()
             {
                 int hashCode = 0;
                 for (int k = 0; k < keys.Length; k++)
@@ -159,6 +170,11 @@ namespace DataEngine.XQuery
                         hashCode = hashCode << 6 ^ a.GetHashCode();
                 }
                 return hashCode;
+            }
+
+            public override int GetHashCode()
+            {
+                return hashcode;
             }
 
             public override bool Equals(object obj)

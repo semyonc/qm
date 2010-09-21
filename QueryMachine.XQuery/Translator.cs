@@ -74,6 +74,7 @@ namespace DataEngine.XQuery
             public object pos;
             public object assignExpr;
             public bool convert;
+            public bool parallel;
         }
 
         private XQueryContext _context;
@@ -846,6 +847,8 @@ namespace DataEngine.XQuery
                                 {
                                     FLWORItem item = new FLWORItem();
                                     item.desc = Descriptor.For;
+                                    if (notation.Flag(arr[k], Descriptor.Parallel))
+                                        item.parallel = true;
                                     VarName name = (VarName)recs2[0].Arg0;
                                     item.var = ProcessVarName(name);
                                     item.assignExpr = ProcessExprSingle(notation, recs2[0].Arg3);
@@ -980,6 +983,8 @@ namespace DataEngine.XQuery
                 {
                     case Descriptor.For:
                         expr = new XQueryFLWOR(_context, item.var, item.varType, item.pos, item.assignExpr, expr, item.convert);
+                        if (item.parallel && _context.EnableHPC)
+                            ((XQueryFLWOR)expr).Parallel = true;
                         break;
 
                     case Descriptor.Let:
@@ -2012,7 +2017,7 @@ namespace DataEngine.XQuery
                                 WriteDirAttributeValue(notation, recs[0].args[4], builder, stmt);
                                 stmt.Add(Lisp.List(ID.WriteEndAttribute, builder));
                             }
-                            else
+                            else 
                             {
                                 Symbol[] arr = Lisp.ToArray<Symbol>(recs[0].args[4]);
                                 Literal targetNamespace = (Literal)arr[0];

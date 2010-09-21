@@ -172,8 +172,8 @@ namespace DataEngine.XQuery
         private int partSize;
         private volatile int cacheCount;
         private PageFilePart[] parts;
-        private SpinLock cacheLock;
         private readonly HashSet<Page> cache;
+        private SpinLock cacheLock;
 
         #region IDisposable Members
 
@@ -194,34 +194,32 @@ namespace DataEngine.XQuery
         }
 
         #endregion
-                                                   
-        public const int XQueryDirectAcessBufferSize = 500;    
-        
+                                                                   
         public PageFile(bool large)
         {
             if (large)
             {
-                pagesize = 400;
-                min_workset = 3;
-                max_workset = 15;
-                workset_delta = 5;
-                min_increment = 3;
-                max_decrement = 1;
+                pagesize = XQueryLimits.LargeFilePageSize;
+                min_workset = XQueryLimits.LargeFileMinWorkset;
+                max_workset = XQueryLimits.LargeFileMaxWorkset;
+                workset_delta = XQueryLimits.LargeFileWorksetDelta;
+                min_increment = XQueryLimits.LargeFileMinIncrement;
+                max_decrement = XQueryLimits.LargeFileMaxDecrement;
             }
             else
             {
-                pagesize = 16;
-                min_workset = 100;
-                max_workset = 3000;
-                workset_delta = 500;
-                min_increment = 150;
-                max_decrement = 100;
+                pagesize = XQueryLimits.SmallFilePageSize;
+                min_workset = XQueryLimits.SmallFileMinWorkset;
+                max_workset = XQueryLimits.SmallFileMaxWorkset;
+                workset_delta = XQueryLimits.SmallFileWorksetDelta;
+                min_increment = XQueryLimits.SmallFileMinIncrement;
+                max_decrement = XQueryLimits.SmallFileMaxDecrement;
             }
             pagelist = new List<Page>();
             heads = new List<DmNode>();
             workset = min_workset;
-            cacheLock = new SpinLock();
             cache = new HashSet<Page>();
+            cacheLock = new SpinLock();
             partSize = Environment.ProcessorCount;
             _optimizer.Add(this);
         }
@@ -456,7 +454,7 @@ namespace DataEngine.XQuery
         }
 
         private void OptimizeCache()
-        {
+        {            
             if (cacheCount > workset + workset_delta)
             {
                 if (miss_count > 0 && hit_count > 0)
@@ -485,11 +483,17 @@ namespace DataEngine.XQuery
                     bool lockTaken = false;
                     cacheLock.Enter(ref lockTaken);
                     len = cache.Count - (int)workset;
+                    if (len <= 0)
+                    {
+                        if (lockTaken)
+                            cacheLock.Exit();
+                        return;
+                    }
                     pages = new Page[len];
                     cached_pages = new Page[cache.Count];
                     cache.CopyTo(cached_pages);
                     if (lockTaken)
-                        cacheLock.Exit();
+                        cacheLock.Exit(); 
                     for (int i = 0; i < cached_pages.Length; i++)
                     {
                         Page curr = cached_pages[i];
@@ -542,7 +546,6 @@ namespace DataEngine.XQuery
                 lastcount = 0;
                 pagelist.Add(lastpage);
             }
-            count++;
             if (head == null)
                 lastpage.hindex[lastcount] = -1;
             else
@@ -555,10 +558,11 @@ namespace DataEngine.XQuery
                 lastpage.hindex[lastcount] = head._index;
             }
             lastpage.nodes[lastcount] = node;
-            lastpage.next[lastcount] = count;
+            lastpage.next[lastcount] = count + 1;
             lastpage.parent[lastcount] = parent;
             lastnode = node;
             lastcount++;
+            count++;
         }
 
         internal XdmNode LastNode

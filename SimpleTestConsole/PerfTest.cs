@@ -40,7 +40,7 @@ namespace SimpleTestConsole
                 Stopwatch wh = new Stopwatch();
                 wh.Start();
                 XQueryDocument ndoc = new XQueryDocument();
-                ndoc.Open(uri, context.GetSettings(), XmlSpace.Default);
+                ndoc.Open(uri, context.GetSettings(), XmlSpace.Default, context.Token);
                 ndoc.Fill();
                 ndoc.Close();
                 wh.Stop();
@@ -89,21 +89,5 @@ namespace SimpleTestConsole
             }
             return TicksToMilliseconds(time, iter);
         }
-
-        [XQuerySignature("query-param", NamespaceUri = "urn:urn", Cardinality = XmlTypeCardinality.ZeroOrMore, Return = XmlTypeCode.String)]
-        public static object QueryParam(
-           [XQueryParameter(XmlTypeCode.String, Cardinality = XmlTypeCardinality.One)] string name)
-        {
-
-            List<XPathItem> items = new List<XPathItem>();
-
-            items.Add(new XQueryItem("1", XmlSchemaSimpleType.GetBuiltInSimpleType(XmlTypeCode.String)));
-            items.Add(new XQueryItem("2", XmlSchemaSimpleType.GetBuiltInSimpleType(XmlTypeCode.String)));
-            items.Add(new XQueryItem("3", XmlSchemaSimpleType.GetBuiltInSimpleType(XmlTypeCode.String)));
-
-            return new NodeIterator(items);
-        }
-
-
     }
 }

@@ -158,6 +158,7 @@
     <Compile Include="TreeComparer.cs" />
     <Compile Include="VarTable.cs" />
     <Compile Include="XQueryItemBase.cs" />
+    <Compile Include="XQueryLimits.cs" />
     <Compile Include="XQueryMapping.cs" />
     <Compile Include="XQueryNavigatorWrapper.cs" />
     <Compile Include="XQueryParameter.cs" />
