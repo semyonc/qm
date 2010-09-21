@@ -121,6 +121,7 @@ namespace DataEngine.XQuery
         CompCommentConstructor,
         CompPIConstructor,
         MappingExpr,
-        Atomize
+        Atomize,
+        Parallel
     };
 }

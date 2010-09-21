@@ -35,6 +35,8 @@ using DataEngine.CoreServices;
 using DataEngine.XQuery.DTD;
 using DataEngine.XQuery.DocumentModel;
 using System.Threading;
+using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace DataEngine.XQuery
 {
@@ -55,9 +57,10 @@ namespace DataEngine.XQuery
 
         internal int sequenceNumber;
         internal bool preserveSpace;
-        internal static int s_docNumberSequence = 0;
+        internal static int s_docNumberSequence = 0;        
 
-        public static long LargeFileLength = 154533888;
+        private object syncRoot = new Object();
+        private CancellationToken token;
 
         public bool IsIndexed
         {
@@ -138,13 +141,13 @@ namespace DataEngine.XQuery
         {
         }
 
-        public void Open(Uri uri, XmlReaderSettings settings, XmlSpace space)
+        public void Open(Uri uri, XmlReaderSettings settings, XmlSpace space, CancellationToken token)
         {
             bool large = false;
             if (uri.Scheme == "file")
             {
                 FileInfo fi = new FileInfo(uri.LocalPath);
-                if (fi.Exists && fi.Length > LargeFileLength)
+                if (fi.Exists && fi.Length > XQueryLimits.LargeFileLength)
                     large = true;
             }
             pagefile = new PageFile(large);
@@ -155,6 +158,7 @@ namespace DataEngine.XQuery
             pagefile.HasSchemaInfo = (input.SchemaInfo != null);
             baseUri = input.BaseURI;
             preserveSpace = (space == XmlSpace.Preserve);
+            this.token = token;
         }
 
         XPathNavigator IXPathNavigable.CreateNavigator()
@@ -183,9 +187,7 @@ namespace DataEngine.XQuery
 
         private void Read()
         {
-#if PARALLEL
-            XQueryNodeIterator.CheckThreadCanceled();
-#endif
+            token.ThrowIfCancellationRequested();
             if (lookahead || input.Read())
             {
                 if (documentRoot == null)
@@ -318,53 +320,34 @@ namespace DataEngine.XQuery
             }
         }
 
-        //internal void BeginRead()
-        //{
-        //    //rw.EnterReadLock();
-        //}
-
-        //internal void EndRead()
-        //{
-        //    //rw.ExitReadLock();
-        //}
-
-        //internal void BeginWrite()
-        //{
-        //    //readLockHeald = rw.IsReadLockHeld;
-        //    //if (readLockHeald)
-        //    //    rw.ExitReadLock();
-        //    //rw.EnterWriteLock();
-        //}
-
-        //internal void EndWrite()
-        //{
-        //    //rw.ExitWriteLock();
-        //    //if (readLockHeald)
-        //    //    rw.EnterReadLock();
-        //}
-
         internal void ExpandPageFile(int pos)
         {
+            Thread.MemoryBarrier(); 
             if (pos >= pagefile.Count && input != null)
-            {
-                while (pos >= pagefile.Count && input != null)
-                    Read();
-            }
+                lock(syncRoot)
+                {
+                    while (pos >= pagefile.Count && input != null)
+                        Read();
+                }
         }
 
         internal void ExpandUtilElementEnd(int pos)
         {
-            if (input != null && pos != builder.LastElementEnd)
+            lock (syncRoot)
             {
-                while (input != null && pos != builder.LastElementEnd)
-                    Read();
+                if (input != null && pagefile[pos] == 0)
+                    while (input != null && pos != builder.LastElementEnd)
+                        Read();
             }
         }
 
         public void Fill()
         {
-            while (input != null)
-                Read();
+            lock (syncRoot)
+            {
+                while (input != null)
+                    Read();
+            }
         }
 
         private void CreateIdTable(object documentType)

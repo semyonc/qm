@@ -114,7 +114,7 @@ namespace DataEngine.XQuery
             length = Math.Min(length, sup - inf + 1);
             XQueryNavigator res = (XQueryNavigator)src.Clone();
             PageFile pf = src.Document.pagefile;
-            int[] buffer = new int[PageFile.XQueryDirectAcessBufferSize];
+            int[] buffer = new int[XQueryLimits.DirectAcessBufferSize];
             while (length > 0)
             {
                 int size = pf.Select(nset.hindex, ref index, ref length, buffer);

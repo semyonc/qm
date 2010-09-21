@@ -309,9 +309,9 @@ namespace DataEngine.XQuery
                 {
                     PerfMonitor.Global.Begin(owner);
 #endif
-                    if (iter.MoveNext())
-                        return iter.Current;
-                    return null;
+                if (iter.MoveNext())
+                    return iter.Current;
+                return null;
 #if PF
                 }
                 finally

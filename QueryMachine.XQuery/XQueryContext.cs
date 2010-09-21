@@ -240,7 +240,9 @@ namespace DataEngine.XQuery
         internal Dictionary<XmlQualifiedName, string> option;
         internal Dictionary<object, object> extraProps;
         internal DateTime now;
-        internal CancellationTokenSource ctSource;
+        internal CancellationTokenSource cancelSource;
+
+        private object syncRoot = new Object();
         
 
         public XQueryContext(XmlNameTable nameTable)
@@ -249,7 +251,7 @@ namespace DataEngine.XQuery
             EmptyOrderSpec = XQueryEmptyOrderSpec.Least;
             SearchPath = String.Empty;
             SchemaProcessing = SchemaProcessingMode.Default;
-            ctSource = new CancellationTokenSource();
+            cancelSource = new CancellationTokenSource();
 
             this.nameTable = nameTable;
             schemaSet = new XmlSchemaSet(nameTable);
@@ -298,7 +300,7 @@ namespace DataEngine.XQuery
 
             FunctionTable = XQueryFunctionTable.CreateInstance();
             lispEngine = master.lispEngine;
-            ctSource = master.ctSource;
+            cancelSource = master.cancelSource;
             
             this.master = master;            
             slave = true;
@@ -411,14 +413,18 @@ namespace DataEngine.XQuery
         
         public XQueryDocument CreateDocument()
         {
-            XQueryDocument doc = new XQueryDocument(nameTable);
-            worklist.Add(doc);
-            return doc;
+            lock (syncRoot)
+            {
+                XQueryDocument doc = new XQueryDocument(nameTable);
+                worklist.Add(doc);
+                return doc;
+            }
         }
 
         public void AddDocument(XQueryDocument doc)
         {
-            worklist.Add(doc);
+            lock (syncRoot)
+                worklist.Add(doc);
         }
 
         public virtual IXPathNavigable OpenDocument(string fileName)
@@ -438,14 +444,17 @@ namespace DataEngine.XQuery
                 return master.OpenDocument(uri);
             else
             {
-                foreach (XQueryDocument doc in worklist)
+                lock (syncRoot)
                 {
-                    if (doc.baseUri == uri.AbsoluteUri)
-                        return doc;
+                    foreach (XQueryDocument doc in worklist)
+                    {
+                        if (doc.baseUri == uri.AbsoluteUri)
+                            return doc;
+                    }
+                    XQueryDocument ndoc = CreateDocument();
+                    ndoc.Open(uri, GetSettings(), XmlSpace.Default, Token);
+                    return ndoc;
                 }
-                XQueryDocument ndoc = CreateDocument();
-                ndoc.Open(uri, GetSettings(), XmlSpace.Default);                
-                return ndoc;
             }
         }
 
@@ -453,6 +462,8 @@ namespace DataEngine.XQuery
         {
             if (!slave)
             {
+                if (EnableHPC)
+                    cancelSource.Cancel();
                 foreach (XQueryDocument doc in worklist)
                     doc.Close();
                 foreach (object prop in extraProps.Values)
@@ -608,6 +619,14 @@ namespace DataEngine.XQuery
             get
             {
                 return nameTable;
+            }
+        }
+
+        public CancellationToken Token
+        {
+            get
+            {
+                return cancelSource.Token;
             }
         }
 

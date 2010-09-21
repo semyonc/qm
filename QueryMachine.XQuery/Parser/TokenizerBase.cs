@@ -600,6 +600,18 @@ namespace DataEngine.XQuery.Parser
                     throw new XQueryException(Properties.Resources.ExpectedVariablePrefix, "for");
                 m_state = LexerState.VarName;
             }
+            else if (MatchIdentifer("parallel", "for"))
+            {
+                EndToken();
+                ConsumeToken(Token.PFOR);
+                SkipWhitespace();
+                BeginToken();
+                if (Peek(0) == '$')
+                    ConsumeChar(Read());
+                else
+                    throw new XQueryException(Properties.Resources.ExpectedVariablePrefix, "for");
+                m_state = LexerState.VarName;
+            }
             else if (MatchIdentifer("let"))
             {
                 EndToken();
@@ -1421,6 +1433,18 @@ namespace DataEngine.XQuery.Parser
             {
                 EndToken();
                 ConsumeToken(Token.FOR);
+                SkipWhitespace();
+                BeginToken();
+                if (Peek(0) == '$')
+                    ConsumeChar(Read());
+                else
+                    throw new XQueryException(Properties.Resources.ExpectedVariablePrefix, "for");
+                m_state = LexerState.VarName;
+            }
+            else if (MatchIdentifer("parallel", "for"))
+            {
+                EndToken();
+                ConsumeToken(Token.PFOR);
                 SkipWhitespace();
                 BeginToken();
                 if (Peek(0) == '$')

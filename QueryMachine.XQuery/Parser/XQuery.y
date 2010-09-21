@@ -97,6 +97,7 @@ namespace DataEngine.XQuery.Parser
 %token IN
 %token RETURN
 %token FOR
+%token PFOR
 %token LET
 %token WHERE
 %token ASCENDING
@@ -659,6 +660,11 @@ ForClause
   : FOR ForClauseBody
   {
      $$ = notation.Confirm(new Symbol(Tag.Expr), Descriptor.For, $2);
+  }
+  | PFOR ForClauseBody
+  {
+     $$ = notation.Confirm(new Symbol(Tag.Expr), Descriptor.For, $2);
+	 notation.Confirm((Symbol)$$, Descriptor.Parallel);
   }
   ;      
 
@@ -1470,21 +1476,33 @@ DirElemConstructor
    }
    | BeginTag QName opt_DirAttributeList '>' '<' '/' QName opt_S '>'
    {
+       if (!$2.Equals($7))
+	     throw new XQueryException(Properties.Resources.XPST0003, 
+		   String.Format("The end tag '{0}' does not match the start tag '{1}'", $7, $2));
        $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
 		 $2, $3, null, $7, $8);
    }   
    | BeginTag QName S '>' '<' '/' QName opt_S '>'
    {
+       if (!$2.Equals($7))
+	     throw new XQueryException(Properties.Resources.XPST0003, 
+		   String.Format("The end tag '{0}' does not match the start tag '{1}'", $7, $2));
        $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
 		 $2, null, null, $7, $8);
    }      
    | BeginTag QName opt_DirAttributeList '>' DirElemContentList '<' '/' QName opt_S '>'
    {
+       if (!$2.Equals($8))
+	     throw new XQueryException(Properties.Resources.XPST0003, 
+		   String.Format("The end tag '{0}' does not match the start tag '{1}'", $8, $2));
        $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
 		 $2, $3, $5, $8, $9);
    }      
    | BeginTag QName S '>' DirElemContentList '<' '/' QName opt_S '>'
    {
+       if (!$2.Equals($8))
+	     throw new XQueryException(Properties.Resources.XPST0003, 
+		   String.Format("The end tag '{0}' does not match the start tag '{1}'", $8, $2));
        $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
 		 $2, null, $5, $8, $9);
    }       
@@ -1507,18 +1525,27 @@ DirElemConstructor
    }      
    | BeginTag QName opt_S '[' PathExpr ']' S '>' '<' '/' QName opt_S '>'
    {
+       if (!$2.Equals($11))
+	     throw new XQueryException(Properties.Resources.XPST0003, 
+		   String.Format("The end tag '{0}' does not match the start tag '{1}'", $11, $2));
        $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
 		 $2, null, null, $10, $11);
 	   notation.Confirm((Symbol)$$, Descriptor.MappingExpr, $5); 
    }         
    | BeginTag QName opt_S '[' PathExpr ']' opt_DirAttributeList '>' DirElemContentList '<' '/' QName opt_S '>'
    {
+       if (!$2.Equals($12))
+	     throw new XQueryException(Properties.Resources.XPST0003, 
+		   String.Format("The end tag '{0}' does not match the start tag '{1}'", $12, $2));
        $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
 		 $2, $7, $9, $12, $13);
 	   notation.Confirm((Symbol)$$, Descriptor.MappingExpr, $5);
    }         
    | BeginTag QName opt_S '[' PathExpr ']' S '>' DirElemContentList '<' '/' QName opt_S '>'
    {
+       if (!$2.Equals($12))
+	     throw new XQueryException(Properties.Resources.XPST0003, 
+		   String.Format("The end tag '{0}' does not match the start tag '{1}'", $12, $2));
        $$ = notation.Confirm(new Symbol(Tag.Constructor), Descriptor.DirElemConstructor, 
 		 $2, null, $9, $12, $13);
 	   notation.Confirm((Symbol)$$, Descriptor.MappingExpr, $5);	 

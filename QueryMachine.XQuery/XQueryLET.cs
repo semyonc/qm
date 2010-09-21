@@ -79,7 +79,7 @@ namespace DataEngine.XQuery
             if (m_varType != XQuerySequenceType.Item && m_convert)
                 value = Core.TreatAs(QueryContext.Engine, value, m_varType);
             XQueryNodeIterator iter = value as XQueryNodeIterator;
-            if (iter != null)
+            if (iter != null && !(iter is BufferedNodeIterator))
                 value = iter.CreateBufferedIterator();
             pool.SetData(m_value, value);
             if (m_conditionExpr != null &&
