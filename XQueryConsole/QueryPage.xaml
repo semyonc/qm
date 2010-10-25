@@ -1,0 +1,104 @@
+﻿<Page x:Class="XQueryConsole.QueryPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
+      xmlns:my="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"  
+      xmlns:w="clr-namespace:XQueryConsole"
+      mc:Ignorable="d" 
+      d:DesignHeight="300" d:DesignWidth="300"
+      Loaded="Page_Loaded"
+	Title="QueryPage">
+    <Page.Resources>
+        <Style TargetType="{x:Type Image}" x:Key="toolbarImageStyle">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type Button}, AncestorLevel=1}, Path=IsEnabled}" Value="False">
+                    <Setter Property="Opacity" Value="0.30"></Setter>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="{x:Type TextBlock}" x:Key="toolbarTextStyle">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type Button}, AncestorLevel=1}, Path=IsEnabled}" Value="False">
+                    <Setter Property="Opacity" Value="0.30"></Setter>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Page.Resources>    
+    <Page.CommandBindings>
+        <CommandBinding Command="{x:Static w:QueryPage.ExecuteCommand}" Executed="CommandBinding_Execute" CanExecute="CommandBinding_CanExecute"></CommandBinding>
+        <CommandBinding Command="{x:Static w:QueryPage.SaveResultCommand}" Executed="CommandBinding_SaveResExecuted" CanExecute="CommandBinding_SaveResCanExecute"></CommandBinding>
+        <CommandBinding Command="Stop" Executed="CommandBinding_StopExecuted" CanExecute="CommandBinding_CanStopExecute"></CommandBinding>
+    </Page.CommandBindings>
+    <Grid Name="layout">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"></RowDefinition>
+            <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="0.45*"></RowDefinition>
+            <RowDefinition Height="Auto"></RowDefinition>
+        </Grid.RowDefinitions>
+        <ToolBar Grid.Row="0">
+            <Button Command="Save" ToolTip="Save">
+                <Image Style="{StaticResource toolbarImageStyle}" Source="/XQueryConsole;component/Images/Save.png"></Image>
+            </Button>
+            <Separator></Separator>
+            <Button Command="Undo" ToolTip="Undo">
+                <Image Style="{StaticResource toolbarImageStyle}" Source="/XQueryConsole;component/Images/Redo.png"></Image>
+            </Button>
+            <Button Command="Redo" ToolTip="Redo">
+                <Image Style="{StaticResource toolbarImageStyle}" Source="/XQueryConsole;component/Images/Undo.png"></Image>
+            </Button>
+            <Separator></Separator>
+            <Button Command="Cut" ToolTip="Cut">
+                <Image Style="{StaticResource toolbarImageStyle}" Source="/XQueryConsole;component/Images/Cut.png"></Image>
+            </Button>
+            <Button Command="Copy" ToolTip="Copy">
+                <Image Style="{StaticResource toolbarImageStyle}" Source="/XQueryConsole;component/Images/Copy.png"></Image>
+            </Button>
+            <Button Command="Paste" ToolTip="Paste">
+                <Image Style="{StaticResource toolbarImageStyle}" Source="/XQueryConsole;component/Images/Paste.png"></Image>
+            </Button>
+            <Separator></Separator>
+            <Button Command="{x:Static w:QueryPage.ExecuteCommand}" ToolTip="Execute XQuery">
+                <StackPanel Orientation="Horizontal">
+                    <Image Style="{StaticResource toolbarImageStyle}" Source="/XQueryConsole;component/Images/Execute.png"></Image>
+                    <TextBlock Style="{StaticResource toolbarTextStyle}">Execute</TextBlock>
+                </StackPanel>
+            </Button>
+            <Button Command="{x:Static w:QueryPage.SaveResultCommand}" ToolTip="Save results on disk...">
+                <Image Style="{StaticResource toolbarImageStyle}" Source="/XQueryConsole;component/Images/ExportFile.png"></Image>
+            </Button>
+        </ToolBar>
+        <Border Grid.Row="1" BorderBrush="{x:Static SystemColors.ActiveBorderBrush}" BorderThickness="1">
+            <avalonEdit:TextEditor Name="textEditor" FontFamily="Consolas" Padding="5,3,0,0" 
+				FontSize="9pt" SyntaxHighlighting="XQuery" TextChanged="textEditor_TextChanged" PreviewDrop="textEditor_PreviewDrop"></avalonEdit:TextEditor>
+        </Border>
+        <GridSplitter Grid.Row="2" VerticalAlignment="Center" Name="splitter" HorizontalAlignment="Stretch" Height="3"></GridSplitter>        
+        <Border Name="gridViewBorder"  Grid.Row="3" BorderBrush="{x:Static SystemColors.ActiveBorderBrush}" BorderThickness="1">
+            <my:WindowsFormsHost Name="windowsFormsHost" Margin="3,2,0,0"></my:WindowsFormsHost>
+        </Border>
+        <Border Name="sourceViewBorder"  Grid.Row="3" BorderBrush="{x:Static SystemColors.ActiveBorderBrush}" BorderThickness="1" Visibility="Hidden">
+            <avalonEdit:TextEditor Name="sourceViewer" FontFamily="Consolas" IsReadOnly="True"
+				FontSize="9pt" SyntaxHighlighting="XML" ShowLineNumbers="True" WordWrap="True">
+            </avalonEdit:TextEditor>
+         </Border>
+         <ToolBar Name="gridToolBar" Grid.Row="4" FontFamily="Tahoma" FontSize="8.25pt" ToolBarTray.IsLocked="True" Margin="0,2,0,0">            
+            <RadioButton Name="gridViewButton"  Focusable="False" 
+                         IsChecked="True" Click="gridViewButton_Click" ToolTip="Show XML table view">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Width="9" Height="9" Source="/XQueryConsole;component/Images/Grid.png" Margin="0,0,3,0"></Image>
+                    <TextBlock>Table View</TextBlock>
+                </StackPanel>
+            </RadioButton>
+            <Separator></Separator>
+            <RadioButton Name="xmlSourceButton"  Focusable="False" Click="xmlSourceButton_Click" ToolTip="Show XML source view">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Width="9" Height="9" Source="/XQueryConsole;component/Images/PlainText.png" Margin="0,0,3,0"></Image>
+                    <TextBlock>Source</TextBlock>
+                </StackPanel>
+            </RadioButton>
+        </ToolBar>
+    </Grid>
+</Page>
