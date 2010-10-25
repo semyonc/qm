@@ -294,6 +294,11 @@ namespace DataEngine.XQuery
             m_context.SchemaSet.Add(schemaSet);
         }
 
+        public void Terminate()
+        {
+            m_context.cancelSource.Cancel();
+        }
+
         public String CommandText { get; set; }
         public String BaseUri { get; set; }
         public String SearchPath { get; set; }

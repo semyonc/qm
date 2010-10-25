@@ -127,7 +127,11 @@ namespace DataEngine.XQuery
             else if (value is System.Single)
                 return ToString((float)value);
             else if (value is System.Boolean)
-                return ToString((bool)value);            
+                return ToString((bool)value);
+            else if (value is System.DateTime)
+                return new DateTimeValue(false, (DateTime)value).ToString();
+            else if (value is System.TimeSpan)
+                return new DayTimeDurationValue((TimeSpan)value).ToString();
             return value.ToString();
         }
 

@@ -1,0 +1,186 @@
+﻿<Window x:Class="XQueryConsole.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:w="clr-namespace:XQueryConsole"
+        xmlns:my="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"  
+        Title="XQuery Console" Height="443" Width="690" Closing="Window_Closing" ResizeMode="CanResizeWithGrip" Loaded="Window_Loaded" 
+        Icon="/XQueryConsole;component/Images/App.ico">
+    <Window.Resources>
+        <Style TargetType="{x:Type MenuItem}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsEnabled}" Value="False">
+                    <Setter Property="Image.Opacity" Value="0.30"></Setter>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+    <Window.CommandBindings>
+        <CommandBinding Command="New"
+                        Executed="CommandBinding_NewQueryExecuted"></CommandBinding>
+        <CommandBinding Command="Close"
+                        Executed="CommandBinding_CloseQueryExecuted" CanExecute="CommandBinding_CanExecuteClose"></CommandBinding>
+        <CommandBinding Command="Open"
+                        Executed="CommandBinding_OpenQueryExecuted"></CommandBinding>
+        <CommandBinding Command="Save"
+                        Executed="CommandBinding_SaveExecuted" CanExecute="CommandBinding_CanExecuteSave"></CommandBinding>
+        <CommandBinding Command="SaveAs"
+                        Executed="CommandBinding_SaveAsExecuted" CanExecute="CommandBinding_CanExecuteSaveAs"></CommandBinding>
+        <CommandBinding Command="{x:Static w:MainWindow.CloneQueryCommand}"
+                        Executed="CommandBinding_CloneQueryExecuted" CanExecute="CommandBinding_CanExecuteCloneQuery"></CommandBinding>
+        <CommandBinding Command="{x:Static w:MainWindow.ShowResultsCommand}"
+                        Executed="CommandBinding_ShowResultsExecuted"></CommandBinding>
+    </Window.CommandBindings>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="*" MinHeight="50"></RowDefinition>
+            <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="1.5*" MinHeight="80"></RowDefinition>
+            <RowDefinition Height="Auto"></RowDefinition>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MinWidth="150"></ColumnDefinition>
+            <ColumnDefinition Width="Auto"></ColumnDefinition>
+            <ColumnDefinition Width="2.5*"></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        <Menu Name="mainMenu" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3">
+            <MenuItem Header="File">
+                <MenuItem Header="New" Command="ApplicationCommands.New">
+                    <MenuItem.Icon>
+                        <Image Source="/XQueryConsole;component/Images/New.png" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Open..." Command="ApplicationCommands.Open">
+                    <MenuItem.Icon>
+                        <Image Source="/XQueryConsole;component/Images/Load.png" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Clone Query" Command="{x:Static w:MainWindow.CloneQueryCommand}"></MenuItem>
+                <Separator/>
+                <MenuItem Header="Save" Command="ApplicationCommands.Save">
+                    <MenuItem.Icon>
+                        <Image Source="/XQueryConsole;component/Images/Save.png" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Save As..." Command="ApplicationCommands.SaveAs">
+                </MenuItem>
+                <!--<Separator/>
+                <MenuItem Header="Close" Command="ApplicationCommands.Close">
+                    <MenuItem.Icon>
+                        <Image Source="/XQueryConsole;component/Images/Close.png" />
+                    </MenuItem.Icon>
+                </MenuItem>-->
+                <Separator/>
+                <MenuItem Header="Preferences..." Click="MenuItem_PreferencesClick"></MenuItem>
+                <Separator/>
+                <MenuItem Header="Exit" Click="MenuItem_ExitClick"></MenuItem>
+            </MenuItem>
+            <MenuItem Header="Edit" Name="menuEdit">
+                <MenuItem Header="Undo" Command="Undo">
+                    <MenuItem.Icon>
+                        <Image Source="/XQueryConsole;component/Images/Redo.png"></Image>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Redo" Command="Redo">
+                    <MenuItem.Icon>
+                        <Image Source="/XQueryConsole;component/Images/Undo.png"></Image>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator></Separator>
+                <MenuItem Header="Cut" Command="Cut">
+                    <MenuItem.Icon>
+                        <Image Source="/XQueryConsole;component/Images/Cut.png"></Image>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Copy" Command="Copy">
+                    <MenuItem.Icon>
+                        <Image Source="/XQueryConsole;component/Images/Copy.png"></Image>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Paste" Command="Paste">
+                    <MenuItem.Icon>
+                        <Image Source="/XQueryConsole;component/Images/Paste.png"></Image>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator></Separator>
+                <MenuItem Header="Select All" Command="SelectAll"></MenuItem>
+            </MenuItem>
+            <MenuItem Header="Query" Name="menuQuery">
+                <MenuItem Header="Execute" Command="{x:Static w:QueryPage.ExecuteCommand}" InputGestureText="F5">
+                    <MenuItem.Icon>
+                        <Image Source="/XQueryConsole;component/Images/Execute.png"></Image>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Cancel" InputGestureText="Esc" Command="Stop">
+                </MenuItem>
+                <Separator></Separator>
+                <MenuItem Header="Show Results Panel" InputGestureText="Ctrl+R" Name="showResults"               
+                          Command="{x:Static w:MainWindow.ShowResultsCommand}" 
+                          IsChecked="{Binding ElementName=QueryTabs, Path=SelectedContent.Content.ShowResultPane, UpdateSourceTrigger=PropertyChanged}">                    
+                </MenuItem>
+            </MenuItem>
+            <MenuItem Header="Help">
+                <MenuItem Name="HelpPrj"  Header="Project website" Click="HelpPrj_Click"></MenuItem>
+                <MenuItem Name="HelpGetStarted" Header="Getting starting with QueryMachine.XQuery" Click="HelpGetStarted_Click"></MenuItem>
+                <MenuItem Name="HelpXQTS"  Header="XQuery Test Suite 1.0.2 Result Summary" Click="HelpXQTS_Click"></MenuItem>
+                <MenuItem Name="HelpXQ"  Header="XQuery on w3.org" Click="HelpXQ_Click"></MenuItem>
+                <Separator/>
+                <MenuItem Header="About" Click="HelpAbout_Click"></MenuItem>
+            </MenuItem>
+        </Menu>
+        <my:WindowsFormsHost Grid.Row="1" Grid.Column="0" 
+            Name="treeViewHost2">
+            <my:WindowsFormsHost.ToolTip>
+                <StackPanel>
+                    <TextBlock FontWeight="Bold">XML Import</TextBlock>
+                    <TextBlock Margin="2">You can drag table name to editor for import data</TextBlock>
+                </StackPanel>
+            </my:WindowsFormsHost.ToolTip>
+            <my:WindowsFormsHost.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Name="RefreshConnection"  Header="Refresh" Click="RefreshConnection_Click"></MenuItem>
+                    <MenuItem Name="EditConnection" Header="Edit..." Click="EditConnection_Click"></MenuItem>
+                    <MenuItem Name="DeleteConnection" Header="Delete" Click="DeleteConnection_Click"></MenuItem>
+                </ContextMenu>
+            </my:WindowsFormsHost.ContextMenu>
+        </my:WindowsFormsHost>
+        <GridSplitter Grid.Row="2" Grid.Column="0" Height="3" 
+                      VerticalAlignment="Center" HorizontalAlignment="Stretch">
+        </GridSplitter>
+        <TabControl Grid.Row="3" Grid.Column="0" Grid.RowSpan="2" BorderThickness="1">
+            <TabItem Header="My Queries">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"></RowDefinition>
+                        <RowDefinition></RowDefinition>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Grid.Row="0" Margin="2,3,0,0" FontSize="11" FontFamily="Tahoma">                        
+                        <Hyperlink Click="HyperlinkOrganize_Click">Organize...</Hyperlink>
+                    </TextBlock>
+                    <TextBlock Grid.Column="1" Grid.Row="0" HorizontalAlignment="Right" Margin="0,3,2,0" FontSize="11" FontFamily="Tahoma">
+                        <Hyperlink Click="HyperlinkSetFolder_Click">Set Folder...</Hyperlink>
+                    </TextBlock>
+                    <my:WindowsFormsHost Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="1" Margin="1,5,1,0"  
+                                         Name="treeViewHost1">                        
+                    </my:WindowsFormsHost>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Samples">
+                <my:WindowsFormsHost Name="treeViewHost3"></my:WindowsFormsHost>
+            </TabItem>
+        </TabControl>
+        <GridSplitter Grid.Row="1" Grid.Column="1" Grid.RowSpan="3" 
+                      Width="5" HorizontalAlignment="Center">
+        </GridSplitter>
+        <TabControl Name="QueryTabs" Grid.Row="1" Grid.Column="3" Grid.RowSpan="3">
+        </TabControl>
+        <StatusBar Grid.Row="4" Grid.Column="2" Name="StatusBar">
+            <TextBlock Name="statusText" Text="{Binding ElementName=QueryTabs, 
+                Path=SelectedContent.Content.StatusText, UpdateSourceTrigger=PropertyChanged}"></TextBlock>
+        </StatusBar>
+    </Grid>
+</Window>

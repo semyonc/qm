@@ -33,7 +33,7 @@ using System.Xml.XPath;
 
 namespace DataEngine.XQuery
 {
-    class EmptyIterator : XQueryNodeIterator
+    public class EmptyIterator : XQueryNodeIterator
     {
         public static EmptyIterator Shared = new EmptyIterator();
 
