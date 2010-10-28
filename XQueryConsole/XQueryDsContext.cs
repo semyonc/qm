@@ -107,6 +107,8 @@ namespace XQueryConsole
             if (credential != null)
                 webClient.Credentials = credential;
             webClient.Proxy.Credentials = CredentialCache.DefaultCredentials;
+            webClient.Headers["Accept"] = "*/*";
+            webClient.Headers["UserAgent"] = "Mozilla/4.0 (compatible; Win32; QueryMachine.XQuery)";
             try
             {
                 stream = webClient.OpenRead(uri);
@@ -138,8 +140,9 @@ namespace XQueryConsole
                 webRequest.Credentials = credential;
             webRequest.Proxy.Credentials = CredentialCache.DefaultCredentials;
             webRequest.Method = "POST";
-            webRequest.ContentType = "text/xml";
-            webRequest.KeepAlive = false;            
+            webRequest.ContentType = "text/xml; Charset=UTF-8";
+            webRequest.Accept = "*/*";
+            webRequest.UserAgent = "Mozilla/4.0 (compatible; Win32; QueryMachine.XQuery)";
             XQueryNodeIterator iter = request.Clone();
             if (iter.MoveNext())
             {
@@ -166,9 +169,9 @@ namespace XQueryConsole
                 writer.WriteEndDocument();
                 writer.Close();
                 byte[] buffer = stream.ToArray();
-                webRequest.ContentLength = buffer.Length;
+                webRequest.ContentLength = buffer.Length -3;
                 Stream input = webRequest.GetRequestStream();
-                input.Write(buffer, 0, buffer.Length);
+                input.Write(buffer, 3, buffer.Length -3);
                 input.Close();
             }
             WebResponse webResponse = webRequest.GetResponse();
