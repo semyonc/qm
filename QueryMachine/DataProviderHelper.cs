@@ -25,9 +25,14 @@ using System.Xml;
 using System.Data;
 using System.Data.Common;
 
+using DataEngine.Parser;
 using System.IO;
 using System.Reflection;
 using System.Globalization;
+
+using Data.Remote;
+using Data.Remote.Proxy;
+using DataEngine.CoreServices;
 
 namespace DataEngine
 {
@@ -35,6 +40,7 @@ namespace DataEngine
     {
         private class ProviderInfo
         {
+            public string ConfigName;
             public string ProviderInvariantName;
             public string DataSourceProductName;
             public string IdentifierPattern;
@@ -69,9 +75,26 @@ namespace DataEngine
         
         private ProviderInfo _providerInfo;
 
+        public static bool HostADOProviders { get; set; }
+
         static DataProviderHelper()
         {
             _cached_info = new Dictionary<string, ProviderInfo>();
+        }
+
+        public static DbConnection CreateDbConnection(string providerInvariantName)
+        {
+            if (RemoteDbProviderFactories.Isx64() && 
+                (HostADOProviders || providerInvariantName == "System.Data.OleDb"))
+            {
+                RemoteDbProviderFactory f = RemoteDbProviderFactories.GetFactory(providerInvariantName);
+                return f.CreateConnection();
+            }
+            else
+            {
+                DbProviderFactory f = DbProviderFactories.GetFactory(providerInvariantName);
+                return f.CreateConnection();
+            }
         }
 
         public DataProviderHelper()
@@ -79,17 +102,44 @@ namespace DataEngine
             _providerInfo = new ProviderInfo();
             SetDefaultProperties();
             List<string> reservedWords = new List<string>();
+            for (int t = Token._RS_START + 1; t < Token._RS_END; t++)
+                _providerInfo.keywords.Add(YYParser.yyname(t).ToUpper(), 0);
+        }
+
+        public DataProviderHelper(TableType tableType)
+            : this(tableType.DataSource.ProviderInvariantName, tableType.DataSource.ConnectionString)
+        {
         }
 
         public DataProviderHelper(string providerInvariantName, string connectionString)
         {
+            string configName = providerInvariantName;
+            if (providerInvariantName == "System.Data.OleDb")
+            {
+                string OLEDBprovider;
+                if (RemoteDbProviderFactories.Isx64())
+                {
+                    RemoteDbProviderFactory f = RemoteDbProviderFactories.GetFactory(providerInvariantName);
+                    ProxyConnectionStringBuilder csb = f.CreateConnectionStringBuilder();
+                    csb.ConnectionString = connectionString;
+                    OLEDBprovider = (string)csb["Provider"];
+                }
+                else
+                {
+                    DbProviderFactory f = DbProviderFactories.GetFactory(providerInvariantName);
+                    DbConnectionStringBuilder csb = f.CreateConnectionStringBuilder();
+                    csb.ConnectionString = connectionString;
+                    OLEDBprovider = (string)csb["Provider"];
+                }                
+                if (!String.IsNullOrEmpty(OLEDBprovider))
+                    configName = OLEDBprovider;
+            }
             lock (_cached_info)
-                if (!_cached_info.TryGetValue(providerInvariantName, out _providerInfo))
+                if (!_cached_info.TryGetValue(configName, out _providerInfo))
                 {
                     _providerInfo = new ProviderInfo();
 
-                    DbProviderFactory f = DbProviderFactories.GetFactory(providerInvariantName);
-                    using (DbConnection connection = f.CreateConnection())
+                    using (DbConnection connection = CreateDbConnection(providerInvariantName))
                     {
                         connection.ConnectionString = connectionString;
                         connection.Open();
@@ -97,6 +147,7 @@ namespace DataEngine
                         DataTable dt = connection.GetSchema("DataSourceInformation");
                         DataRow r = dt.Rows[0];
 
+                        _providerInfo.ConfigName = configName;
                         _providerInfo.ProviderInvariantName = providerInvariantName;
                         _providerInfo.DataSourceProductName = (string)r["DataSourceProductName"];
                         _providerInfo.IdentifierCase = (IdentifierCase)Convert.ToInt32(r["IdentifierCase"]);
@@ -118,7 +169,7 @@ namespace DataEngine
                                 _providerInfo.keywords.Add(kw, 0);
                         }
 
-                        _cached_info.Add(providerInvariantName, _providerInfo);
+                        _cached_info.Add(configName, _providerInfo);
                         connection.Close();
                     }
                 }
@@ -135,8 +186,11 @@ namespace DataEngine
                 return new FileStream(configPath, FileMode.Open, FileAccess.Read);
             else
             {
-                return typeof(DataProviderHelper).Assembly
-                    .GetManifestResourceStream("XQueryConsole.SQLX.Config.xml");
+                MemoryStream memStream = new MemoryStream();
+                memStream.Write(Properties.Resources.SQLX_Config, 0,
+                    Properties.Resources.SQLX_Config.Length);
+                memStream.Seek(0, 0);
+                return memStream;
             }
         }
 
@@ -147,7 +201,10 @@ namespace DataEngine
             xmldoc.Load(stream);
             stream.Close();
             XmlNode node = xmldoc.SelectSingleNode(
-                String.Format("//add[@invariant='{0}']/providerHelper", _providerInfo.ProviderInvariantName));
+                String.Format("//add[@invariant='{0}']/providerHelper", _providerInfo.ConfigName));
+            if (node == null)
+                node = xmldoc.SelectSingleNode(
+                    String.Format("//add[@invariant='{0}']/providerHelper", _providerInfo.ProviderInvariantName));
             if (node != null)
             {
                 XmlNode item = node.SelectSingleNode("parameterMarkerFormat");

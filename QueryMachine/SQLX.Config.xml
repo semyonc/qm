@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+	<providers>
+		<add invariant="System.Data.OracleClient">
+			<providerHelper>
+				<qualifer>.</qualifer>
+				<stringSeparator>'</stringSeparator>
+				<leftQuote>"</leftQuote>
+				<rightQuote>"</rightQuote>
+				<parameterMarkerFormat>:{0}</parameterMarkerFormat>
+				<dateFormat>to_date('{0}', 'YYYY-MM-DD HH24:MI:SS')</dateFormat>
+				<rowCountQuery>select count(*) from {1} where rownum &lt;= {0}</rowCountQuery>
+				<normalizeColumnName>1</normalizeColumnName>
+			</providerHelper>
+			<SchemaBrowser>
+				<node collection="Users" caption="{NAME}">
+					<image index="4"/>
+					<node collection="Tables" caption="{TABLE_NAME}" restrictions="{NAME}">
+						<target schema="{OWNER}" name="{TABLE_NAME}"/>
+					</node>
+				</node>
+			</SchemaBrowser>
+		</add>
+		<add invariant="System.Data.SqlClient">
+			<providerHelper>
+				<qualifer>.</qualifer>
+				<stringSeparator>'</stringSeparator>
+				<leftQuote>[</leftQuote>
+				<rightQuote>]</rightQuote>
+				<parameterMarkerFormat>@{0}</parameterMarkerFormat>
+				<dateFormat>{{ts '{0}'}}</dateFormat>
+				<rowCountQuery>SELECT COUNT(*) FROM (SELECT TOP({0}) 1 AS Expr1 FROM {1}) AS SQuery</rowCountQuery>
+				<updateBatchSize>100</updateBatchSize>
+			</providerHelper>
+			<SchemaBrowser>
+				<node collection="Tables" caption="{TABLE_NAME}" restrictions="null,null,null,BASE TABLE">
+					<target name="{TABLE_NAME}"/>
+				</node>
+			</SchemaBrowser>
+		</add>
+		<add invariant="System.Data.OleDb">
+			<providerHelper>
+				<qualifer>.</qualifer>
+				<stringSeparator>'</stringSeparator>
+				<leftQuote>[</leftQuote>
+				<rightQuote>]</rightQuote>
+				<parameterMarkerFormat>@{0}</parameterMarkerFormat>
+			</providerHelper>
+			<SchemaBrowser>
+				<node collection="Tables" caption="{TABLE_NAME}" restrictions="null,null,null,TABLE">
+					<target name="{TABLE_NAME}"/>
+				</node>
+			</SchemaBrowser>
+		</add>
+		<add invariant="MySql.Data.MySqlClient">
+			<providerHelper>
+				<qualifer>.</qualifer>
+				<stringSeparator>'</stringSeparator>
+				<leftQuote>`</leftQuote>
+				<rightQuote>`</rightQuote>
+				<rowCountQuery>select count(*) from (select * from {1} limit {0}) AS SQuery</rowCountQuery>
+				<parameterMarkerFormat>?</parameterMarkerFormat>
+			</providerHelper>
+			<SchemaBrowser>
+				<node collection="Tables" caption="{TABLE_NAME}">
+					<target name="{TABLE_NAME}"/>
+				</node>
+			</SchemaBrowser>
+		</add>
+		<add invariant="Oracle.DataAccess.Client">
+			<providerHelper>
+				<qualifer>.</qualifer>
+				<stringSeparator>'</stringSeparator>
+				<leftQuote>"</leftQuote>
+				<rightQuote>"</rightQuote>
+				<parameterMarkerFormat>:{0}</parameterMarkerFormat>
+				<dateFormat>to_date('{0}', 'YYYY-MM-DD HH24:MI:SS')</dateFormat>
+				<rowCountQuery>select count(*) from {1} where rownum &lt;= {0}</rowCountQuery>
+			</providerHelper>
+			<SchemaBrowser>
+				<node collection="Users" caption="{NAME}">
+					<image index="4"/>
+					<node collection="Tables" caption="{TABLE_NAME}" restrictions="{NAME}">
+						<target schema="{OWNER}" name="{TABLE_NAME}"/>
+					</node>
+				</node>
+			</SchemaBrowser>
+		</add>
+	</providers>
+</configuration>
+
+
+
+
+

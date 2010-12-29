@@ -1,4 +1,12 @@
-﻿using System;
+﻿//        Copyright (c) 2010, Semyon A. Chertkov (semyonc@gmail.com)
+//        All rights reserved.
+//
+//        This program is free software: you can redistribute it and/or modify
+//        it under the terms of the GNU General Public License as published by
+//        the Free Software Foundation, either version 3 of the License, or
+//        any later version.
+
+using System;
 using System.ComponentModel;
 using System.Collections.Generic;
 using System.Text;
@@ -9,15 +17,23 @@ using System.IO;
 using System.Reflection;
 using Microsoft.Win32;
 
+using DataEngine;
 
 namespace XQueryConsole
 {
+    public enum StartupPanel
+    {
+        SQL,
+        XQuery
+    }
+
     public class DocumentController: INotifyPropertyChanged
     {
         private string myQueriesPath;
         private string searchPath;
         private bool confirmFileSave;
-
+        private bool enableServerQuery;
+        private StartupPanel startupPanel;
 
         public DocumentController()
         {
@@ -63,6 +79,32 @@ namespace XQueryConsole
             }
         }
 
+        public bool EnableServerQuery
+        {
+            get
+            {
+                return enableServerQuery;
+            }
+            set
+            {
+                enableServerQuery = value;
+                OnPropertyChanged("EnableServerQuery");
+            }
+        }
+
+        public StartupPanel DefaultPanel
+        {
+            get
+            {
+                return startupPanel;
+            }
+            set
+            {
+                startupPanel = value;
+                OnPropertyChanged("DefaultPanel");
+            }
+        }
+
         #region INotifyPropertyChanged Members
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -94,6 +136,32 @@ namespace XQueryConsole
                         ConfirmFileSave = true;
                     SearchPath = (string)key.GetValue("SearchPath");
                     MyQueriesPath = (string)key.GetValue("QueryPath");
+
+                    startupPanel = StartupPanel.XQuery;
+                    object startupPanelValue = key.GetValue("StartupPanel");
+                    if (startupPanelValue != null)
+                    {
+                        switch ((int)startupPanelValue)
+                        {
+                            case 0:
+                                startupPanel = StartupPanel.SQL;
+                                break;
+                            case 1:
+                                startupPanel = StartupPanel.XQuery;
+                                break;
+                        }
+                    }
+
+                    object enableServerQueryValue = key.GetValue("EnableServerQuery");
+                    if (enableServerQueryValue != null)
+                        enableServerQuery = (int)enableServerQueryValue == 1;
+                    else
+                        enableServerQuery = true;
+
+                    object hostADOProvidersValue = key.GetValue("HostADOProviders");
+                    if (hostADOProvidersValue != null)
+                        DataProviderHelper.HostADOProviders = (int)hostADOProvidersValue == 1;
+
                     key.Close();
                 }
 
@@ -117,10 +185,13 @@ namespace XQueryConsole
                 key = Registry.CurrentUser.CreateSubKey("SOFTWARE\\WMHelp Software\\QueryMachine");
             key.SetValue("SearchPath", SearchPath);
             key.SetValue("QueryPath", MyQueriesPath);
+            key.SetValue("StartupPanel", (int)DefaultPanel);
+            key.SetValue("EnableServerQuery", Convert.ToInt32(EnableServerQuery));
+            key.SetValue("HostADOProviders", Convert.ToInt32(DataProviderHelper.HostADOProviders));
             key.Close();
         }
 
-        private string GetNewQueryTitle(TabControl queryTabs)
+        private string GetNewQueryTitle(TabControl queryTabs, IQueryEngineFacade facade)
         {
             int k = 1;
             String name;
@@ -130,7 +201,7 @@ namespace XQueryConsole
             do
             {
                 found = false;
-                name = String.Format("Query{0}.xq", k++);
+                name = String.Format("Query{0}{1}", k++, facade.DefaultExt);
                 foreach (TabItem item in queryTabs.Items)
                 {
                     frame = (Frame)item.Content;
@@ -182,16 +253,27 @@ namespace XQueryConsole
             }
         }
 
-        public void NewQuery(TabControl queryTabs)
+        public IQueryEngineFacade CreateQueryFacade(string fileExt)
         {
-            QueryPage page = new QueryPage();
-            page.FileName = GetNewQueryTitle(queryTabs);
+            if (String.Compare(fileExt, ".xq", true) == 0)
+                return new XQueryFacade();
+            if (String.Compare(fileExt, ".xsql", true) == 0)
+                return new SQLXFacade();
+            return null;
+        }
+
+
+        public void NewQuery(TabControl queryTabs, IQueryEngineFacade facade)
+        {
+            QueryPage page = new QueryPage(facade);
+            page.FileName = GetNewQueryTitle(queryTabs, facade);
             AddPage(queryTabs, page);
         }
 
         public void OpenQuery(TabControl queryTabs, string fileName)
         {
             QueryPage page = null;
+            String ext = Path.GetExtension(fileName);
             Frame frame = (Frame)queryTabs.SelectedContent;
             if (frame != null)
             {
@@ -199,9 +281,10 @@ namespace XQueryConsole
                 if (page.HasContent)
                     page = null;
             }
-            if (page == null)
+            if (page == null || 
+                String.Compare(page.QueryFacade.DefaultExt,  ext, true) != 0)
             {
-                page = new QueryPage();
+                page = new QueryPage(CreateQueryFacade(ext));
                 AddPage(queryTabs, page);
             }
             page.Title = Path.GetFileName(fileName);
@@ -211,8 +294,8 @@ namespace XQueryConsole
 
         public void CloneQuery(TabControl queryTabs, QueryPage page)
         {
-            QueryPage cloned_page = new QueryPage();
-            cloned_page.Title = GetNewQueryTitle(queryTabs);
+            QueryPage cloned_page = new QueryPage(page.QueryFacade);
+            cloned_page.Title = GetNewQueryTitle(queryTabs, page.QueryFacade);
             cloned_page.textEditor.Text = page.textEditor.Text;
             AddPage(queryTabs, cloned_page);
         }
@@ -223,9 +306,11 @@ namespace XQueryConsole
                 page.Save();
             else
             {
+                IQueryEngineFacade facade = page.QueryFacade;
                 SaveFileDialog dlg = new SaveFileDialog();
-                dlg.DefaultExt = ".xq";
-                dlg.Filter = "XQuery files|*.xq|Text documents|*.txt|All files|*.*";
+                dlg.DefaultExt = facade.DefaultExt;
+                dlg.Filter = String.Format("{0} files|*{1}|Text documents|*.txt|All files|*.*", 
+                    facade.EngineName, facade.DefaultExt);
                 dlg.FileName = page.ShortFileName;
                 if (dlg.ShowDialog() != true)
                     return false;

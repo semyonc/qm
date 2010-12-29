@@ -72,7 +72,50 @@
   <PropertyGroup>
     <Win32Resource>C:\Work\vsnet05\XQuery\Repository\XQueryConsole\app.manifest.res</Win32Resource>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release-1|x86'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x86\Release-1\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <CodeAnalysisLogFile>bin\Debug\XQueryConsole.exe.CodeAnalysisLog.xml</CodeAnalysisLogFile>
+    <CodeAnalysisUseTypeNameInSuppression>true</CodeAnalysisUseTypeNameInSuppression>
+    <CodeAnalysisModuleSuppressionsFile>GlobalSuppressions.cs</CodeAnalysisModuleSuppressionsFile>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSetDirectories>;C:\Program Files (x86)\Microsoft Visual Studio 10.0\Team Tools\Static Analysis Tools\\Rule Sets</CodeAnalysisRuleSetDirectories>
+    <CodeAnalysisIgnoreBuiltInRuleSets>false</CodeAnalysisIgnoreBuiltInRuleSets>
+    <CodeAnalysisRuleDirectories>;C:\Program Files (x86)\Microsoft Visual Studio 10.0\Team Tools\Static Analysis Tools\FxCop\\Rules</CodeAnalysisRuleDirectories>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release-1|AnyCPU'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\Release-1\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <CodeAnalysisLogFile>bin\Debug\XQueryConsole.exe.CodeAnalysisLog.xml</CodeAnalysisLogFile>
+    <CodeAnalysisUseTypeNameInSuppression>true</CodeAnalysisUseTypeNameInSuppression>
+    <CodeAnalysisModuleSuppressionsFile>GlobalSuppressions.cs</CodeAnalysisModuleSuppressionsFile>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSetDirectories>;C:\Program Files (x86)\Microsoft Visual Studio 10.0\Team Tools\Static Analysis Tools\\Rule Sets;C:\Program Files (x86)\Microsoft Visual Studio 10.0\Team Tools\Static Analysis Tools\\Rule Sets</CodeAnalysisRuleSetDirectories>
+    <CodeAnalysisIgnoreBuiltInRuleSets>false</CodeAnalysisIgnoreBuiltInRuleSets>
+    <CodeAnalysisRuleDirectories>;C:\Program Files (x86)\Microsoft Visual Studio 10.0\Team Tools\Static Analysis Tools\FxCop\\Rules;C:\Program Files (x86)\Microsoft Visual Studio 10.0\Team Tools\Static Analysis Tools\FxCop\\Rules</CodeAnalysisRuleDirectories>
+    <CodeAnalysisIgnoreBuiltInRules>false</CodeAnalysisIgnoreBuiltInRules>
+    <CodeAnalysisFailOnMissingRules>false</CodeAnalysisFailOnMissingRules>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
   <ItemGroup>
+    <Reference Include="ADOHost">
+      <HintPath>lib\ADOHost.exe</HintPath>
+    </Reference>
+    <Reference Include="Data.Remote">
+      <HintPath>lib\Data.Remote.dll</HintPath>
+    </Reference>
+    <Reference Include="Data.Remote.Proxy, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>lib\Data.Remote.Proxy.dll</HintPath>
+    </Reference>
     <Reference Include="DocumentFormat.OpenXml, Version=2.0.5022.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\QueryMachine.XQuery.OpenXML\lib\DocumentFormat.OpenXml.dll</HintPath>
@@ -131,10 +174,10 @@
       <DependentUpon>ConnectionDialog.xaml</DependentUpon>
     </Compile>
     <Compile Include="BracketSearcher.cs" />
-    <Compile Include="DataProviderHelper.cs" />
     <Compile Include="DataSourceTreeController.cs" />
     <Compile Include="DocumentController.cs" />
     <Compile Include="FileTreeController.cs" />
+    <Compile Include="IQueryEngineFacade.cs" />
     <Compile Include="PreferencesDialog.xaml.cs">
       <DependentUpon>PreferencesDialog.xaml</DependentUpon>
     </Compile>
@@ -142,12 +185,14 @@
       <DependentUpon>QueryPage.xaml</DependentUpon>
     </Compile>
     <Compile Include="Extensions.cs" />
+    <Compile Include="ResultsetGridBuilder.cs" />
     <Compile Include="SearchPathDialog.xaml.cs">
       <DependentUpon>SearchPathDialog.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Util.cs" />
+    <Compile Include="SQLXFacade.cs" />
     <Compile Include="XPathGridBuilder.cs" />
     <Compile Include="XQueryDsContext.cs" />
+    <Compile Include="XQueryFacade.cs" />
     <Page Include="AboutBox.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -215,6 +260,7 @@
     <EmbeddedResource Include="XQuery.xshd">
       <SubType>Designer</SubType>
     </EmbeddedResource>
+    <EmbeddedResource Include="SQLX.xshd" />
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Images\Load.png" />
@@ -283,9 +329,6 @@
     <Resource Include="Images\Field.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="SQLX.Config.xml" />
-  </ItemGroup>
-  <ItemGroup>
     <Resource Include="Images\Grid.png" />
     <Resource Include="Images\PlainText.png" />
   </ItemGroup>
@@ -297,9 +340,17 @@
       <Project>{454016BE-0E1C-4DFB-A22F-2E642A1AE9A6}</Project>
       <Name>CoreServices</Name>
     </ProjectReference>
+    <ProjectReference Include="..\QueryMachine.Export\QueryMachine.Export.csproj">
+      <Project>{223929E8-59BC-4872-872B-104F183E7428}</Project>
+      <Name>QueryMachine.Export</Name>
+    </ProjectReference>
     <ProjectReference Include="..\QueryMachine.XQuery\QueryMachine.XQuery.csproj">
       <Project>{0FDD0A6C-E9FA-4CE2-B2A7-461C7444EEFF}</Project>
       <Name>QueryMachine.XQuery</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\QueryMachine\QueryMachine.csproj">
+      <Project>{30559E5B-115F-4C16-B265-CA4EF7973BEC}</Project>
+      <Name>QueryMachine</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

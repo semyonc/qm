@@ -4,7 +4,9 @@
         xmlns:w="clr-namespace:XQueryConsole"
         Title="XQuery Database Connection" Height="272" Width="368"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False" 
-        HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Loaded="Window_Loaded">
+        HorizontalContentAlignment="Center" VerticalContentAlignment="Center" 
+        Loaded="Window_Loaded"
+        TextOptions.TextFormattingMode="Display">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"></ColumnDefinition>

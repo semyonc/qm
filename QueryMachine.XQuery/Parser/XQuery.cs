@@ -1,7 +1,8 @@
 
 // created by jay 0.7 (c) 1998 Axel.Schreiner@informatik.uni-osnabrueck.de
 
-#line 35 "XQuery.y"
+#line 34 "XQuery.y"
+  
 
 #pragma warning disable 162
 

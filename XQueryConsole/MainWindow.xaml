@@ -4,7 +4,8 @@
         xmlns:w="clr-namespace:XQueryConsole"
         xmlns:my="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"  
         Title="XQuery Console" Height="443" Width="690" Closing="Window_Closing" ResizeMode="CanResizeWithGrip" Loaded="Window_Loaded" 
-        Icon="/XQueryConsole;component/Images/App.ico">
+        Icon="/XQueryConsole;component/Images/App.ico" 
+        TextOptions.TextFormattingMode="Display">
     <Window.Resources>
         <Style TargetType="{x:Type MenuItem}">
             <Style.Triggers>
@@ -15,8 +16,10 @@
         </Style>
     </Window.Resources>
     <Window.CommandBindings>
-        <CommandBinding Command="New"
-                        Executed="CommandBinding_NewQueryExecuted"></CommandBinding>
+        <CommandBinding Command="{x:Static w:MainWindow.NewXQueryCommand}"
+                        Executed="CommandBinding_NewXQueryExecuted"></CommandBinding>
+        <CommandBinding Command="{x:Static w:MainWindow.NewSQLXCommand}"
+                        Executed="CommandBinding_NewSQLXExecuted"></CommandBinding>
         <CommandBinding Command="Close"
                         Executed="CommandBinding_CloseQueryExecuted" CanExecute="CommandBinding_CanExecuteClose"></CommandBinding>
         <CommandBinding Command="Open"
@@ -45,10 +48,9 @@
         </Grid.ColumnDefinitions>
         <Menu Name="mainMenu" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3">
             <MenuItem Header="File">
-                <MenuItem Header="New" Command="ApplicationCommands.New">
-                    <MenuItem.Icon>
-                        <Image Source="/XQueryConsole;component/Images/New.png" />
-                    </MenuItem.Icon>
+                <MenuItem Header="New XQuery" Command="{x:Static w:MainWindow.NewXQueryCommand}">
+                </MenuItem>
+                <MenuItem Header="New SQL" Command="{x:Static w:MainWindow.NewSQLXCommand}">
                 </MenuItem>
                 <MenuItem Header="Open..." Command="ApplicationCommands.Open">
                     <MenuItem.Icon>
@@ -121,7 +123,9 @@
             </MenuItem>
             <MenuItem Header="Help">
                 <MenuItem Name="HelpPrj"  Header="Project website" Click="HelpPrj_Click"></MenuItem>
+                <MenuItem Name="HelpGetStartedSQL" Header="Getting starting with QueryMachine" Click="HelpGetStartedSQL_Click"></MenuItem>                
                 <MenuItem Name="HelpGetStarted" Header="Getting starting with QueryMachine.XQuery" Click="HelpGetStarted_Click"></MenuItem>
+                <MenuItem Name="HelpSQLX" Header="QueryMachine SQLX manual" Click="HelpSQLX_Click"></MenuItem>
                 <MenuItem Name="HelpXQTS"  Header="XQuery Test Suite 1.0.2 Result Summary" Click="HelpXQTS_Click"></MenuItem>
                 <MenuItem Name="HelpXQ"  Header="XQuery on w3.org" Click="HelpXQ_Click"></MenuItem>
                 <Separator/>

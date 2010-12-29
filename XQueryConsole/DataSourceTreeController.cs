@@ -1,4 +1,12 @@
-﻿using System;
+﻿//        Copyright (c) 2010, Semyon A. Chertkov (semyonc@gmail.com)
+//        All rights reserved.
+//
+//        This program is free software: you can redistribute it and/or modify
+//        it under the terms of the GNU General Public License as published by
+//        the Free Software Foundation, either version 3 of the License, or
+//        any later version.
+
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,6 +31,7 @@ namespace XQueryConsole
         private DocumentController documentController;
         private string configurationPath;
         private bool toolTipShown;
+        private DatabaseDictionary _dictionary;
         
         class Node : TreeNode
         {
@@ -112,8 +121,7 @@ namespace XQueryConsole
                 }
                 if (Metadata != null)
                 {
-                    DbProviderFactory f = DbProviderFactories.GetFactory(Connection.InvariantName);
-                    DbConnection dbConnection = f.CreateConnection();
+                    DbConnection dbConnection = DataProviderHelper.CreateDbConnection(Connection.InvariantName);
                     dbConnection.ConnectionString = Connection.ConnectionString;
                     dbConnection.Open();
                     try
@@ -238,13 +246,16 @@ namespace XQueryConsole
             dataTree.ImageList = imageList;
             dataTree.ShowLines = false;
             dataTree.Font = new Font("Tahoma", 8.25f);
+            
             try
             {
                 Extensions.SetWindowTheme(dataTree.Handle, "explorer", null);
             }
-            catch
+            catch(Exception ex)
             {
+                Trace.TraceError(ex.Message);
             }
+            
             dataTree.BeforeExpand += new TreeViewCancelEventHandler(dataTree_BeforeExpand);
             dataTree.AfterExpand += new TreeViewEventHandler(dataTree_AfterExpand);
             dataTree.MouseMove += new MouseEventHandler(dataTree_MouseMove);
@@ -252,6 +263,13 @@ namespace XQueryConsole
             dataTree.MouseUp += new MouseEventHandler(dataTree_MouseUp);
             dataTree.ItemDrag += new ItemDragEventHandler(dataTree_ItemDrag);            
             
+            LoadConnections();
+            Fill();
+        }
+
+        public void Reload()
+        {
+            dataTree.Nodes.Clear();
             LoadConnections();
             Fill();
         }
@@ -321,8 +339,23 @@ namespace XQueryConsole
             if (e.Button == MouseButtons.Left && e.Item is TableNode)
             {
                 TableNode node = (TableNode)e.Item;
-                dataTree.DoDragDrop(String.Format("wmh:ds('{0}')", node.QualifiedName), 
-                    DragDropEffects.Move | DragDropEffects.Copy | DragDropEffects.Scroll);
+                MainWindow main = (MainWindow)System.Windows.Application.Current.MainWindow;
+                QueryPage current = main.SelectedPage;
+                if (current != null)
+                {
+                    if (current.QueryFacade is XQueryFacade)
+                        dataTree.DoDragDrop(String.Format("wmh:ds('{0}')", node.QualifiedName),
+                            DragDropEffects.Move | DragDropEffects.Copy | DragDropEffects.Scroll);
+                    else
+                    {
+                        if (current.HasContent)
+                            dataTree.DoDragDrop(GetTableName(e.Item), 
+                                DragDropEffects.Move | DragDropEffects.Copy | DragDropEffects.Scroll);
+                        else
+                            dataTree.DoDragDrop(String.Format("select * from {0}", GetTableName(e.Item)),
+                                DragDropEffects.Move | DragDropEffects.Copy | DragDropEffects.Scroll);
+                    }
+                }
             }
         }
 
@@ -461,6 +494,42 @@ namespace XQueryConsole
             node.Nodes.Clear();
             node.Nodes.Add(new TreeNode());
             node.HasExpand = false;
+        }
+
+        public DatabaseDictionary Dictionary
+        {
+            get
+            {
+                if (_dictionary == null || Modified)
+                {
+                    _dictionary = new DatabaseDictionary();
+                    Modified = false;
+                    if (Container.connections != null)
+                        foreach (Connection setting in Container.connections)
+                            _dictionary.RegisterDataProvider(setting.Prefix, setting.Default,
+                                setting.InvariantName, setting.ConnectionString);
+                }
+                return _dictionary;
+            }
+        }
+
+        private string GetTableName(object treeNode)
+        {
+            TableNode node = (TableNode)treeNode;
+            StringBuilder sb = new StringBuilder();
+            DataProviderHelper helper = new DataProviderHelper();
+            if (!node.Connection.Default)
+            {
+                sb.Append(node.Connection.Prefix);
+                sb.Append(":");
+            }
+            if (!String.IsNullOrEmpty(node.SchemaName))
+            {
+                sb.Append(helper.NativeFormatIdentifier(node.SchemaName));
+                sb.Append(".");
+            }
+            sb.Append(helper.NativeFormatIdentifier(node.TableName));
+            return sb.ToString();
         }
     }
 }

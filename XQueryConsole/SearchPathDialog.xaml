@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:w="clr-namespace:XQueryConsole"
         Title="Directories" Height="350" Width="400" ResizeMode="NoResize" 
+        TextOptions.TextFormattingMode="Display"
         ShowInTaskbar="False" WindowStartupLocation="CenterOwner" Loaded="Window_Loaded">
     <Grid Margin="3,2,5,0">
         <Grid.RowDefinitions>

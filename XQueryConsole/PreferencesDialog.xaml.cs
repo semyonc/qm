@@ -1,6 +1,13 @@
-﻿using System;
+﻿//        Copyright (c) 2010, Semyon A. Chertkov (semyonc@gmail.com)
+//        All rights reserved.
+//
+//        This program is free software: you can redistribute it and/or modify
+//        it under the terms of the GNU General Public License as published by
+//        the Free Software Foundation, either version 3 of the License, or
+//        any later version.
+
+using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -14,6 +21,8 @@ using System.ComponentModel;
 using System.Windows.Forms;
 using System.Windows.Threading;
 
+using DataEngine;
+
 namespace XQueryConsole
 {
     /// <summary>
@@ -23,13 +32,19 @@ namespace XQueryConsole
     {
         private DocumentController controller;
 
-        public static void ShowDialog(DocumentController controller, bool focusQuerisFolder)
+        public static PreferencesDialog ShowDialog(DocumentController controller, bool focusQuerisFolder)
         {
             PreferencesDialog dlg = new PreferencesDialog(controller);
             dlg.Owner = System.Windows.Application.Current.MainWindow;
             if (focusQuerisFolder)
                 dlg.FocusAndSelect();
             dlg.ShowDialog();
+            if (dlg.ReloadDatasources)
+            {
+                MainWindow main = (MainWindow)System.Windows.Application.Current.MainWindow;
+                main.DatasourceController.Reload();
+            }
+            return dlg;
         }
 
         public PreferencesDialog(DocumentController controller)
@@ -39,6 +54,9 @@ namespace XQueryConsole
             this.controller = controller;
             MyQueriesPath = controller.MyQueriesPath;
             SearchPath = controller.SearchPath;
+            DefaultPanel = controller.DefaultPanel;
+            EnableServerQuery = controller.EnableServerQuery;
+            HostADOProviders = DataProviderHelper.HostADOProviders;
             searchPathTextBox.Focus();
         }
 
@@ -56,11 +74,16 @@ namespace XQueryConsole
 
         public string MyQueriesPath { get; set; }
         public string SearchPath { get; set; }
+        public StartupPanel DefaultPanel { get; set; }
+        public bool EnableServerQuery { get; set; }
+        public bool HostADOProviders { get; set; }
+        public bool ReloadDatasources { get; set; }
 
         public void FocusAndSelect()
         {
             Dispatcher.BeginInvoke(new Action(() => 
             {
+                OptionTab.SelectedIndex = 1;
                 queriesFolderTextBox.SelectAll();
                 queriesFolderTextBox.Focus();
             }));
@@ -83,6 +106,10 @@ namespace XQueryConsole
         {
             controller.MyQueriesPath = MyQueriesPath;
             controller.SearchPath = SearchPath;
+            controller.DefaultPanel = DefaultPanel;
+            controller.EnableServerQuery = EnableServerQuery;
+            ReloadDatasources = DataProviderHelper.HostADOProviders != HostADOProviders;
+            DataProviderHelper.HostADOProviders = HostADOProviders;
             controller.SaveSettings();
             DialogResult = true;
         }
@@ -93,4 +120,6 @@ namespace XQueryConsole
             OnPropertyChanged("SearchPath");
         }
     }
+
+    
 }

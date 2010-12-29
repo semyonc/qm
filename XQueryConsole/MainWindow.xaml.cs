@@ -1,6 +1,13 @@
-﻿using System;
+﻿//        Copyright (c) 2010, Semyon A. Chertkov (semyonc@gmail.com)
+//        All rights reserved.
+//
+//        This program is free software: you can redistribute it and/or modify
+//        it under the terms of the GNU General Public License as published by
+//        the Free Software Foundation, either version 3 of the License, or
+//        any later version.
+
+using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -25,10 +32,14 @@ namespace XQueryConsole
     public partial class MainWindow : Window
     {
         public DocumentController Controller { get; private set; }
-        public FileTreeController TreeController1 { get; private set; }
-        public DataSourceTreeController TreeController2 { get; private set; }
-        public FileTreeController TreeController3 { get; private set; }
+        public FileTreeController FileTreeController1 { get; private set; }
+        public DataSourceTreeController DatasourceController { get; private set; }
+        public FileTreeController FileTreeController2 { get; private set; }        
 
+        public static readonly ICommand NewXQueryCommand =
+            new RoutedUICommand("New XQuery", "NewXQuery", typeof(MainWindow));
+        public static readonly ICommand NewSQLXCommand =
+            new RoutedUICommand("New SQL", "NewSQLX", typeof(MainWindow));
         public static readonly ICommand CloneQueryCommand =
             new RoutedUICommand("Clone Query", "CloneQuery", typeof(MainWindow));
         public static readonly ICommand ShowResultsCommand =
@@ -62,26 +73,34 @@ namespace XQueryConsole
             InitializeComponent();
             Controller = new DocumentController();
             Controller.PropertyChanged += new System.ComponentModel.PropertyChangedEventHandler(Controller_PropertyChanged);
-            TreeController1 = new FileTreeController(Controller.MyQueriesPath);
-            TreeController1.MonitorFolders = true;
-            TreeController1.FileOpen += new EventHandler(TreeController1_FileOpen);
-            treeViewHost1.Child = TreeController1.TreeControl;
-            TreeController2 = new DataSourceTreeController(Controller);
-            TreeController2.RightClick += new EventHandler(TreeController2_RightClick);
-            TreeController2.ShowTooltip += new EventHandler(TreeController2_ShowTooltip);
-            treeViewHost2.Child = TreeController2.TreeControl;
-            TreeController3 = new FileTreeController(GetSamplesDirectory());
-            treeViewHost3.Child = TreeController3.TreeControl;
-            TreeController3.FileOpen += new EventHandler(TreeController3_FileOpen);
+            FileTreeController1 = new FileTreeController(Controller.MyQueriesPath);
+            FileTreeController1.MonitorFolders = true;
+            FileTreeController1.FileOpen += new EventHandler(TreeController1_FileOpen);
+            treeViewHost1.Child = FileTreeController1.TreeControl;
+            DatasourceController = new DataSourceTreeController(Controller);
+            DatasourceController.RightClick += new EventHandler(TreeController2_RightClick);
+            DatasourceController.ShowTooltip += new EventHandler(TreeController2_ShowTooltip);
+            treeViewHost2.Child = DatasourceController.TreeControl;
+            FileTreeController2 = new FileTreeController(GetSamplesDirectory());
+            treeViewHost3.Child = FileTreeController2.TreeControl;
+            FileTreeController2.FileOpen += new EventHandler(TreeController3_FileOpen);
             INotifyCollectionChanged notify = (INotifyCollectionChanged)QueryTabs.Items; 
             notify.CollectionChanged += new NotifyCollectionChangedEventHandler(Notify_TabItemsCollectionChanged);
-            ApplicationCommands.New.Execute(null, this);
+            switch (Controller.DefaultPanel)
+            {
+                case StartupPanel.XQuery:
+                    Dispatcher.BeginInvoke(new Action(() => Controller.NewQuery(QueryTabs, new XQueryFacade())));
+                    break;
+                case StartupPanel.SQL:
+                    Dispatcher.BeginInvoke(new Action(() => Controller.NewQuery(QueryTabs, new SQLXFacade())));
+                    break;
+            }
         }
 
         private void Controller_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
             if (e.PropertyName == "MyQueriesPath")
-                TreeController1.ChangeBasePath(Controller.MyQueriesPath);
+                FileTreeController1.ChangeBasePath(Controller.MyQueriesPath);
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -125,9 +144,9 @@ namespace XQueryConsole
 
         private void TreeController1_FileOpen(object sender, EventArgs e)
         {
-            if (TreeController1.SelectedFileName != null)
+            if (FileTreeController1.SelectedFileName != null)
             {
-                Controller.OpenQuery(QueryTabs, TreeController1.SelectedFileName);
+                Controller.OpenQuery(QueryTabs, FileTreeController1.SelectedFileName);
                 if (SelectedPage != null)
                     SelectedPage.textEditor.Focus();
             }
@@ -135,9 +154,9 @@ namespace XQueryConsole
 
         private void TreeController3_FileOpen(object sender, EventArgs e)
         {
-            if (TreeController3.SelectedFileName != null)
+            if (FileTreeController2.SelectedFileName != null)
             {
-                Controller.OpenQuery(QueryTabs, TreeController3.SelectedFileName);
+                Controller.OpenQuery(QueryTabs, FileTreeController2.SelectedFileName);
                 if (SelectedPage != null)
                     SelectedPage.textEditor.Focus();
             }
@@ -162,9 +181,14 @@ namespace XQueryConsole
             Close();
         }
 
-        private void CommandBinding_NewQueryExecuted(object sender, ExecutedRoutedEventArgs e)
+        private void CommandBinding_NewXQueryExecuted(object sender, ExecutedRoutedEventArgs e)
         {
-            Controller.NewQuery(QueryTabs);
+            Controller.NewQuery(QueryTabs, new XQueryFacade());
+        }
+
+        private void CommandBinding_NewSQLXExecuted(object sender, ExecutedRoutedEventArgs e)
+        {
+            Controller.NewQuery(QueryTabs, new SQLXFacade());
         }
 
         private void CommandBinding_CloseQueryExecuted(object sender, ExecutedRoutedEventArgs e)
@@ -185,7 +209,7 @@ namespace XQueryConsole
         {
             OpenFileDialog dlg = new OpenFileDialog();
             dlg.DefaultExt = ".xq";
-            dlg.Filter = "XQuery files|*.xq|Text documents|*.txt|All files|*.*";
+            dlg.Filter = "XQuery files|*.xq|SQLX files|*.xsql|Text documents|*.txt|All files|*.*";
             if (dlg.ShowDialog() == true)
                 Controller.OpenQuery(QueryTabs, dlg.FileName);        
         }
@@ -201,10 +225,11 @@ namespace XQueryConsole
             if (QueryTabs.SelectedContent != null)
             {
                 SaveFileDialog dlg = new SaveFileDialog();
+                IQueryEngineFacade facade = SelectedPage.QueryFacade;
                 dlg.InitialDirectory = SelectedPage.FilePath;
                 dlg.FileName = SelectedPage.ShortFileName;
-                dlg.DefaultExt = ".xq";                
-                dlg.Filter = "XQuery files|*.xq|Text documents|*.txt|All files|*.*";
+                dlg.DefaultExt = facade.DefaultExt;
+                dlg.Filter = String.Format("{0} files|*{1}|Text documents|*.txt|All files|*.*", facade.EngineName, facade.DefaultExt);
                 if (dlg.ShowDialog() == true)
                     Controller.SaveAsQuery(SelectedPage, dlg.FileName);
             }
@@ -325,17 +350,17 @@ namespace XQueryConsole
 
         private void RefreshConnection_Click(object sender, RoutedEventArgs e)
         {
-            TreeController2.RefreshConnection();
+            DatasourceController.RefreshConnection();
         }
 
         private void EditConnection_Click(object sender, RoutedEventArgs e)
         {
-            TreeController2.EditConnection();
+            DatasourceController.EditConnection();
         }
 
         private void DeleteConnection_Click(object sender, RoutedEventArgs e)
         {
-            TreeController2.RemoveConnection();
+            DatasourceController.RemoveConnection();
         }
 
         private void HelpPrj_Click(object sender, RoutedEventArgs e)
@@ -345,7 +370,12 @@ namespace XQueryConsole
 
         private void HelpGetStarted_Click(object sender, RoutedEventArgs e)
         {
-            Extensions.ShellExecute("http://docs.google.com/View?id=d5cbh2c_73gk79srg3");
+            Extensions.ShellExecute("http://dl.dropbox.com/u/8070414/QuickStart.pdf");
+        }
+
+        private void HelpGetStartedSQL_Click(object sender, RoutedEventArgs e)
+        {
+            Extensions.ShellExecute("http://dl.dropbox.com/u/8070414/Getting_started_with_QueryMahine.pdf");
         }
 
         private void HelpXQTS_Click(object sender, RoutedEventArgs e)
@@ -356,6 +386,11 @@ namespace XQueryConsole
         private void HelpXQ_Click(object sender, RoutedEventArgs e)
         {
             Extensions.ShellExecute("http://www.w3.org/standards/xml/query");
+        }
+
+        private void HelpSQLX_Click(object sender, RoutedEventArgs e)
+        {
+            Extensions.ShellExecute("http://dl.dropbox.com/u/8070414/QueryMachine.pdf");
         }
 
         private void HelpAbout_Click(object sender, RoutedEventArgs e)

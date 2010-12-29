@@ -43,9 +43,11 @@ namespace DataEngine.CoreServices
             Type = typeof(System.Object);            
         }
 
-        public SymbolLink(object value)
+        public SymbolLink(object value, MemoryPool pool)
         {
-            Type = value.GetType();            
+            Type = value.GetType();
+            pool.Bind(this);
+            pool.SetData(this, value);
         }
 
         public SymbolLink(Type type)
@@ -60,6 +62,14 @@ namespace DataEngine.CoreServices
         }
 
         public bool IsStatic { get; set; }
+
+        public bool IsBinded
+        {
+            get
+            {
+                return pool_id != MemoryPool.UnkID;
+            }
+        }
         
         public Type Type { get; private set; }
 
