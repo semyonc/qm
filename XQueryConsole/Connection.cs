@@ -1,4 +1,12 @@
-﻿using System;
+﻿//        Copyright (c) 2010, Semyon A. Chertkov (semyonc@gmail.com)
+//        All rights reserved.
+//
+//        This program is free software: you can redistribute it and/or modify
+//        it under the terms of the GNU General Public License as published by
+//        the Free Software Foundation, either version 3 of the License, or
+//        any later version.
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -7,6 +15,10 @@ using System.Xml.Serialization;
 using System.Data;
 using System.Data.Common;
 using System.Windows.Forms;
+
+using Data.Remote;
+using Data.Remote.Proxy;
+using DataEngine;
 
 namespace XQueryConsole
 {    
@@ -47,10 +59,21 @@ namespace XQueryConsole
 
         private String GetConnectionName()
         {
-            DbProviderFactory factory = DbProviderFactories.GetFactory(InvariantName);
-            DbConnectionStringBuilder sb = factory.CreateConnectionStringBuilder();
-            sb.ConnectionString = ConnectionString;
-            return (String)sb["Data Source"];
+            if (RemoteDbProviderFactories.Isx64() &&
+                (DataProviderHelper.HostADOProviders || InvariantName == "System.Data.OleDb"))
+            {
+                RemoteDbProviderFactory f = RemoteDbProviderFactories.GetFactory(InvariantName);
+                ProxyConnectionStringBuilder csb = f.CreateConnectionStringBuilder();
+                csb.ConnectionString = ConnectionString;
+                return (String)csb["Data Source"];
+            }
+            else
+            {
+                DbProviderFactory factory = DbProviderFactories.GetFactory(InvariantName);
+                DbConnectionStringBuilder csb = factory.CreateConnectionStringBuilder();
+                csb.ConnectionString = ConnectionString;
+                return (String)csb["Data Source"];
+            }
         }
     }
 

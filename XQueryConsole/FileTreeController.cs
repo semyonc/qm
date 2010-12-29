@@ -1,4 +1,12 @@
-﻿using System;
+﻿//        Copyright (c) 2010, Semyon A. Chertkov (semyonc@gmail.com)
+//        All rights reserved.
+//
+//        This program is free software: you can redistribute it and/or modify
+//        it under the terms of the GNU General Public License as published by
+//        the Free Software Foundation, either version 3 of the License, or
+//        any later version.
+
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,13 +16,13 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows.Threading;
 using System.Drawing;
+using System.Xml;
 
 namespace XQueryConsole
 {   
     public class FileTreeController : DispatcherObject
     {
         private TreeView dataTree;
-        //private DocumentController documentController;
         private string basePath;
         private FileSystemWatcher watcher;
 
@@ -62,7 +70,7 @@ namespace XQueryConsole
                 {
                     watcher = new FileSystemWatcher();
                     watcher.Path = basePath;
-                    watcher.Filter = "*.xq";
+                    watcher.Filter = "*.x*";
                     watcher.IncludeSubdirectories = true;
                     watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName;
                     watcher.Created += new FileSystemEventHandler(watcher_Created);
@@ -89,7 +97,15 @@ namespace XQueryConsole
             dataTree.AfterExpand += new TreeViewEventHandler(dataTree_AfterExpand);
             dataTree.AfterCollapse += new TreeViewEventHandler(dataTree_AfterCollapse);
             dataTree.Font = new Font("Tahoma", 8.25f);
-            Extensions.SetWindowTheme(dataTree.Handle, "explorer", null);
+
+            try
+            {
+                Extensions.SetWindowTheme(dataTree.Handle, "explorer", null);
+            }
+            catch(Exception ex)
+            {
+                Trace.TraceError(ex.Message);
+            }
             
             this.basePath = basePath;
             Reload();
@@ -153,8 +169,13 @@ namespace XQueryConsole
                 }
                 foreach (FileInfo fi in rootDir.GetFiles("*.xq"))
                 {
-                    TreeNode node = new TreeNode(
-                        Path.GetFileNameWithoutExtension(fi.Name), 2, 2);
+                    TreeNode node = new TreeNode(fi.Name, 2, 2);
+                    node.Tag = fi.FullName;
+                    dataTree.Nodes.Add(node);
+                }
+                foreach (FileInfo fi in rootDir.GetFiles("*.xsql"))
+                {
+                    TreeNode node = new TreeNode(fi.Name, 2, 2);
                     node.Tag = fi.FullName;
                     dataTree.Nodes.Add(node);
                 }
@@ -170,12 +191,49 @@ namespace XQueryConsole
                 parent.Nodes.Add(node);
                 LoadFileTree(node, child_di);
             }
-            foreach (FileInfo fi in di.GetFiles("*.xq"))
+            string showcaseFile = Path.Combine(di.FullName, "showcase.xml");
+            if (File.Exists(showcaseFile))
             {
-                TreeNode node = new TreeNode(
-                    Path.GetFileNameWithoutExtension(fi.Name), 2, 2);
-                node.Tag = fi.FullName;
-                parent.Nodes.Add(node);
+                XmlDocument doc = new XmlDocument();
+                doc.Load(showcaseFile);
+                LoadSampleTree(di, doc.DocumentElement, parent);
+            }
+            else
+            {
+                foreach (FileInfo fi in di.GetFiles("*.xq"))
+                {
+                    TreeNode node = new TreeNode(fi.Name, 2, 2);
+                    node.Tag = fi.FullName;
+                    parent.Nodes.Add(node);
+                }
+                foreach (FileInfo fi in di.GetFiles("*.xsql"))
+                {
+                    TreeNode node = new TreeNode(fi.Name, 2, 2);
+                    node.Tag = fi.FullName;
+                    parent.Nodes.Add(node);
+                }
+            }
+        }
+
+        private void LoadSampleTree(DirectoryInfo di, XmlElement xmlElement, TreeNode parent)
+        {
+            foreach (XmlNode node in xmlElement.ChildNodes)
+            {
+                if (node.NodeType != XmlNodeType.Element)
+                    continue;
+                XmlElement elem = (XmlElement)node;
+                if (elem.Name == "folder")
+                {
+                    TreeNode treeNode = new TreeNode(elem.GetAttribute("name"), 0, 0);
+                    parent.Nodes.Add(treeNode);
+                    LoadSampleTree(di, elem, treeNode);
+                }
+                else if (elem.Name == "item")
+                {
+                    TreeNode treeNode = new TreeNode(elem.GetAttribute("name"), 2, 2);                    
+                    treeNode.Tag = Path.Combine(di.FullName, elem.InnerText);
+                    parent.Nodes.Add(treeNode);
+                }
             }
         }
     }

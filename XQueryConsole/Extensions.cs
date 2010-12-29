@@ -4,6 +4,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using System.Diagnostics;
+using System.Windows.Data;
 
 namespace XQueryConsole
 {
@@ -118,6 +119,25 @@ namespace XQueryConsole
             }
 
             return null;
+        }
+    }
+
+    /// <summary>
+    /// http://stackoverflow.com/questions/397556/wpf-how-to-bind-radiobuttons-to-an-enum
+    /// </summary>
+    public class EnumToBooleanConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            return value.Equals(parameter);
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value.Equals(false))
+                return Binding.DoNothing;
+            else
+                return parameter;
         }
     }
 }

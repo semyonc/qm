@@ -73,7 +73,7 @@
         </ToolBar>
         <Border Grid.Row="1" BorderBrush="{x:Static SystemColors.ActiveBorderBrush}" BorderThickness="1">
             <avalonEdit:TextEditor Name="textEditor" FontFamily="Consolas" Padding="5,3,0,0" 
-				FontSize="9pt" SyntaxHighlighting="XQuery" TextChanged="textEditor_TextChanged" PreviewDrop="textEditor_PreviewDrop"></avalonEdit:TextEditor>
+				FontSize="9pt" TextChanged="textEditor_TextChanged" PreviewDrop="textEditor_PreviewDrop"></avalonEdit:TextEditor>
         </Border>
         <GridSplitter Grid.Row="2" VerticalAlignment="Center" Name="splitter" HorizontalAlignment="Stretch" Height="3"></GridSplitter>        
         <Border Name="gridViewBorder"  Grid.Row="3" BorderBrush="{x:Static SystemColors.ActiveBorderBrush}" BorderThickness="1">
@@ -93,10 +93,10 @@
                 </StackPanel>
             </RadioButton>
             <Separator></Separator>
-            <RadioButton Name="xmlSourceButton"  Focusable="False" Click="xmlSourceButton_Click" ToolTip="Show XML source view">
+            <RadioButton Name="xmlSourceButton"  Focusable="False" Click="xmlSourceButton_Click" ToolTip="Show XML view">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Image Width="9" Height="9" Source="/XQueryConsole;component/Images/PlainText.png" Margin="0,0,3,0"></Image>
-                    <TextBlock>Source</TextBlock>
+                    <TextBlock>XML</TextBlock>
                 </StackPanel>
             </RadioButton>
         </ToolBar>

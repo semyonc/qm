@@ -35,6 +35,9 @@ namespace DataEngine.CoreServices
 {
     internal class ControlWeakForm: ControlFormBase
     {
+        private static MethodInfo m_memoryPoolGetData = 
+            typeof(MemoryPool).GetMethod("GetData", BindingFlags.Instance | BindingFlags.Public);
+
         public ControlWeakForm()
         {
             ID = Funcs.Weak;
@@ -55,10 +58,11 @@ namespace DataEngine.CoreServices
             if (args.Length != 1 || !Lisp.IsAtom(args[0]))
                 throw new ArgumentException("Unproperly formated expression");
             SymbolLink link = engine.Get(args[0]);
+            il.Emit(OpCodes.Ldarg_3);
             il.Emit(OpCodes.Ldarg_1);
             il.EmitInt(locals.DefineConstant(link));
             il.Emit(OpCodes.Ldelem_Ref);
-            il.EmitPropertyGet(typeof(SymbolLink), "Value");
+            il.EmitCall(m_memoryPoolGetData);
             st.Push(typeof(System.Object));
         }
     }

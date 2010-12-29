@@ -1,7 +1,8 @@
 ﻿<Window x:Class="XQueryConsole.ConfirmSaveDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Close" Height="240" Width="350" ResizeMode="NoResize" WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+        Title="Close" Height="240" Width="350" ResizeMode="NoResize" TextOptions.TextFormattingMode="Display"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
     <Window.Resources>
         <Style TargetType="{x:Type ListBox}">
             <Setter Property="SelectionMode" Value="Multiple"></Setter>

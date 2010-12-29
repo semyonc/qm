@@ -1,4 +1,12 @@
-﻿using System;
+﻿//        Copyright (c) 2010, Semyon A. Chertkov (semyonc@gmail.com)
+//        All rights reserved.
+//
+//        This program is free software: you can redistribute it and/or modify
+//        it under the terms of the GNU General Public License as published by
+//        the Free Software Foundation, either version 3 of the License, or
+//        any later version.
+
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Text;
@@ -60,7 +68,7 @@ namespace XQueryConsole
                     return doc;
                 string prefix;
                 string[] identifierPart;
-                DataEngine.Util.ParseCollectionName(name, out prefix, out identifierPart);
+                Util.ParseCollectionName(name, out prefix, out identifierPart);
                 Connection connectionData = controller.FindConnectionData(prefix);
                 if (connectionData == null)
                 {
@@ -73,8 +81,7 @@ namespace XQueryConsole
                 }
                 DataProviderHelper helper = new DataProviderHelper(connectionData.InvariantName, 
                     connectionData.ConnectionString);
-                DbProviderFactory f = DbProviderFactories.GetFactory(connectionData.InvariantName);
-                DbConnection connection = f.CreateConnection();
+                DbConnection connection = DataProviderHelper.CreateDbConnection(connectionData.InvariantName);
                 try
                 {
                     connection.ConnectionString = connectionData.ConnectionString;
@@ -143,6 +150,7 @@ namespace XQueryConsole
             webRequest.ContentType = "text/xml; Charset=UTF-8";
             webRequest.Accept = "*/*";
             webRequest.UserAgent = "Mozilla/4.0 (compatible; Win32; QueryMachine.XQuery)";
+            webRequest.Timeout = 30000;
             XQueryNodeIterator iter = request.Clone();
             if (iter.MoveNext())
             {

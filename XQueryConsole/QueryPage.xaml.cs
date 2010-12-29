@@ -1,4 +1,12 @@
-﻿using System;
+﻿//        Copyright (c) 2010, Semyon A. Chertkov (semyonc@gmail.com)
+//        All rights reserved.
+//
+//        This program is free software: you can redistribute it and/or modify
+//        it under the terms of the GNU General Public License as published by
+//        the Free Software Foundation, either version 3 of the License, or
+//        any later version.
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
@@ -21,6 +29,7 @@ using ICSharpCode.AvalonEdit;
 using System.IO;
 using System.Xml;
 using Microsoft.Win32;
+using ICSharpCode.AvalonEdit.Highlighting;
 
 namespace XQueryConsole
 {
@@ -33,7 +42,7 @@ namespace XQueryConsole
         private string filePath;
         private XmlGridView xmlGrid;
         private Task queryTask;
-        private XQueryCommand command;
+        private IQueryEngineFacade engine;
         private Stopwatch workTime;
         private String status;
         private bool hasTextContent;
@@ -59,9 +68,13 @@ namespace XQueryConsole
             }
         }
 
-        public QueryPage()
+        public QueryPage(IQueryEngineFacade engine)
         {
             InitializeComponent();
+
+            this.engine = engine;
+            textEditor.SyntaxHighlighting = 
+                HighlightingManager.Instance.GetDefinitionByExtension(engine.DefaultExt);
 
             height1 = layout.RowDefinitions[3].Height;
             height2 = layout.RowDefinitions[4].Height;
@@ -84,7 +97,7 @@ namespace XQueryConsole
             // see http://community.sharpdevelop.net/forums/t/10312.aspx          
             bracketSearcher = new BracketSearcher();
             bracketRenderer = new BracketHighlightRenderer(textEditor.TextArea.TextView);
-            textEditor.TextArea.Caret.PositionChanged += new EventHandler(Caret_PositionChanged);
+            textEditor.TextArea.Caret.PositionChanged += new EventHandler(Caret_PositionChanged);            
         }
 
         #region INotifyPropertyChanged Members
@@ -199,6 +212,14 @@ namespace XQueryConsole
             }
         }
 
+        public IQueryEngineFacade QueryFacade
+        {
+            get
+            {
+                return engine;
+            }
+        }
+
         private void Update(bool modified)
         {
             if (hasModified != modified)
@@ -214,8 +235,7 @@ namespace XQueryConsole
         public void Close()
         {
             windowsFormsHost.Dispose();
-            if (command != null)
-                command.Dispose();            
+            engine.CloseQuery();
         }
 
         private void Page_Loaded(object sender, RoutedEventArgs e)
@@ -262,21 +282,13 @@ namespace XQueryConsole
 
         private void CommandBinding_Execute(object sender, ExecutedRoutedEventArgs e)
         {
-            MainWindow mainWindow = (MainWindow)Application.Current.MainWindow;
-            DocumentController controller = mainWindow.Controller;
-            if (command != null)
-                command.Dispose();
+            engine.OpenQuery(textEditor.Text, filePath);
             xmlGrid.Cell = null;
             gridViewButton.IsChecked = true;
             gridViewBorder.Visibility = System.Windows.Visibility.Visible;
             sourceViewBorder.Visibility = System.Windows.Visibility.Hidden;
             sourceViewer.Clear();
             hasTextContent = false;
-            command = new XQueryCommand(new XQueryDsContext(mainWindow.TreeController2));
-            command.CommandText = textEditor.Text;
-            command.SearchPath = controller.SearchPath;
-            if (filePath != String.Empty)
-                command.BaseUri = filePath;
             textEditor.IsReadOnly = true;
             textEditor.Cursor = Cursors.Wait;
             textEditor.ForceCursor = true;
@@ -286,10 +298,7 @@ namespace XQueryConsole
                 {
                     try
                     {
-                        XQueryNodeIterator res = command.Execute();
-                        XPathGridBuilder builder = new XPathGridBuilder();
-                        GridCellGroup rootCell = new GridCellGroup();
-                        builder.ParseNodes(rootCell, res.ToList());
+                        GridCellGroup rootCell = engine.Execute();
                         Dispatcher.BeginInvoke(new UpdateXmlGridDelegate(UpdateXmlGrid), rootCell);
                     }
                     catch (Exception ex)
@@ -311,8 +320,8 @@ namespace XQueryConsole
             textEditor.IsReadOnly = false;
             textEditor.Cursor = null;
             textEditor.ForceCursor = false;
-            if (ex is XQueryException)
-                MessageBox.Show(ex.Message /*+ "\r\n" + ex.StackTrace*/, "Runtime error",
+            if (engine.IsQueryException(ex))
+                MessageBox.Show(ex.Message /*+ "\r\n" + ex.StackTrace*/, "Query error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             else
                 if ((ex is OperationCanceledException))
@@ -324,8 +333,7 @@ namespace XQueryConsole
                     MessageBox.Show(ex.Message + "\r\n" + ex.StackTrace, "Runtime error",
                         MessageBoxButton.OK, MessageBoxImage.Error);
             textEditor.Focus();
-            command.Dispose();
-            command = null;
+            engine.CloseQuery();
         }
 
         private void UpdateXmlGrid(GridCellGroup rootCell)
@@ -361,24 +369,9 @@ namespace XQueryConsole
             if (xmlGrid.Cell != null)
             {
                 Cursor = Cursors.Wait;
-                StringBuilder sb = new StringBuilder();
                 try
                 {
-                    GridCellGroup root = xmlGrid.Cell;
-                    for (int s = 0; s < root.Table.Height; s++)
-                    {
-                        if (s > 0)
-                            sb.AppendLine();
-                        GridCell cell = root.Table[0, s];
-                        if (cell is XPathGroupCell)
-                        {
-                            XPathGroupCell groupCell = (XPathGroupCell)cell;
-                            sb.Append(groupCell.Navigator.OuterXml);
-                        }
-                        else
-                            sb.Append(cell.Text);
-                    }
-                    sourceViewer.Document.Text = sb.ToString();
+                    sourceViewer.Document.Text = engine.GetSourceXML(xmlGrid.Cell);
                     hasTextContent = true;
                 }
                 finally
@@ -388,49 +381,26 @@ namespace XQueryConsole
             }
         }
 
-        private void SaveResults(XmlWriter writer)
-        {
-            Cursor = Cursors.Wait;            
-            try
-            {
-                GridCellGroup root = xmlGrid.Cell;
-                for (int s = 0; s < root.Table.Height; s++)
-                {
-                    if (s > 0)
-                        writer.WriteWhitespace("\n");
-                    GridCell cell = root.Table[0, s];
-                    if (cell is XPathGroupCell)
-                    {
-                        XPathGroupCell groupCell = (XPathGroupCell)cell;
-                        groupCell.Navigator.WriteSubtree(writer);
-                    }
-                    else
-                        writer.WriteString(cell.Text);
-                }
-            }
-            finally
-            {
-                Cursor = null;
-            }
-        }
-
         private void CommandBinding_SaveResExecuted(object sender, ExecutedRoutedEventArgs e)
         {
             SaveFileDialog dlg = new SaveFileDialog();
             dlg.DefaultExt = ".xml";
-            dlg.Filter = "XML files|*.xml|Text documents|*.txt";
+            if (engine.CanExportDS(xmlGrid.Cell))
+                dlg.Filter = "XML Data File (*.xml)|*.xml";
+            else
+                dlg.Filter = "XML Data File (*.xml)|*.xml|Tab delimited text (*.txt)|*.txt|"+
+                    "Comma Separated Value (*.csv)|*.csv|Fixed Length Text (*.txt)|*.txt|Microsoft Office Excel 97-2003 Worksheet(*.xls)|*.xls|ADO .NET Dataset (*.xml)|*.xml";
             if (dlg.ShowDialog() == true)
             {
-                FileStream stream = new FileStream(dlg.FileName, FileMode.Create);
-                XmlWriterSettings settings = new XmlWriterSettings
+                Cursor = Cursors.Wait;
+                try
                 {
-                    Indent = true,
-                    OmitXmlDeclaration = true,
-                    ConformanceLevel = ConformanceLevel.Auto
-                };
-                XmlWriter writer = XmlWriter.Create(stream, settings);
-                SaveResults(writer);
-                writer.Close();
+                    engine.ExportTo(xmlGrid.Cell, dlg.FileName);
+                }
+                finally
+                {
+                    Cursor = null;
+                }
             }
         }
 
@@ -441,8 +411,8 @@ namespace XQueryConsole
 
         private void CommandBinding_StopExecuted(object sender, ExecutedRoutedEventArgs e)
         {
-            if (command != null && queryTask != null)
-                command.Terminate();
+            if (queryTask != null)
+                engine.Terminate();
         }
 
         private void CommandBinding_CanStopExecute(object sender, CanExecuteRoutedEventArgs e)
