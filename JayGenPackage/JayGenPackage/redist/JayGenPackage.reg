@@ -1,0 +1,13 @@
+REGEDIT4
+
+[HKEY_CURRENT_USER\Software\Microsoft\VisualStudio\9.0\Configuration\Generators\{FAE04EC1-301F-11D3-BF4B-00C04F79EFBC}\JaySourceGenerator]
+@="JaySourceGenerator"
+"CLSID"="{8da02118-5b10-4efa-9b0d-cb0c779ee41f}"
+"GeneratesDesignTimeSource"=dword:00000001
+[HKEY_CURRENT_USER\Software\Microsoft\VisualStudio\9.0\Configuration\CLSID\{8da02118-5b10-4efa-9b0d-cb0c779ee41f}]
+@="wmhelp.VStudio.Generator.JaySourceGenerator"
+"InprocServer32"="C:\\Windows\\SYSTEM32\\MSCOREE.DLL"
+"Class"="wmhelp.VStudio.Generator.JaySourceGenerator"
+"Assembly"="JayGenPackage, Version=1.0.0.0, Culture=neutral, PublicKeyToken=dd9e0f1456dfd9aa"
+"ThreadingModel"="Both"
+

@@ -16,6 +16,9 @@ using DataEngine;
 using DataEngine.CoreServices;
 using DataEngine.CoreServices.Data;
 
+using Data.Remote;
+using Data.Remote.Proxy;
+
 namespace DataEngine.Export
 {
     public class AdoProviderWriter : AbstractWriter
@@ -41,8 +44,7 @@ namespace DataEngine.Export
                 column.DataType = rs.RowType.Fields[k].DataType;
                 dt.Columns.Add(column);
             }
-
-            DbDataAdapter adapter = m_batchMove.CreateDataAdapter();
+            
             while (rs.Begin != null)
             {
                 Row row = rs.Dequeue();
@@ -52,7 +54,18 @@ namespace DataEngine.Export
                 dt.Rows.Add(dr);
                 RowProceded();
             }
-            adapter.Update(dt);
+
+            if (RemoteDbProviderFactories.Isx64() &&
+                 (DataProviderHelper.HostADOProviders || m_batchMove.ProviderInvariantName == "System.Data.OleDb"))
+            {
+                ProxyDataAdapter proxy = m_batchMove.CreateProxyDataAdapter();
+                proxy.Update(dt);
+            }
+            else
+            {
+                DbDataAdapter adapter = m_batchMove.CreateDataAdapter();
+                adapter.Update(dt);
+            }
         }
     }
 }

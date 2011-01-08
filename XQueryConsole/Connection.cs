@@ -15,10 +15,12 @@ using System.Xml.Serialization;
 using System.Data;
 using System.Data.Common;
 using System.Windows.Forms;
+using System.Diagnostics;
 
 using Data.Remote;
 using Data.Remote.Proxy;
 using DataEngine;
+
 
 namespace XQueryConsole
 {    
@@ -98,6 +100,20 @@ namespace XQueryConsole
             List<Connection> list = new List<Connection>(connections);
             list.Remove(conn);
             connections = list.ToArray();
+        }
+
+        public void Check()
+        {
+            foreach (Connection conn in connections)
+                try
+                {
+                    conn.ToString();
+                }
+                catch (Exception ex)
+                {
+                    Trace.TraceError(ex.Message);
+                    Remove(conn);
+                }
         }
     }
 }

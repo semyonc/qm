@@ -21,6 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace DataEngine.CoreServices
 {
@@ -31,12 +32,6 @@ namespace DataEngine.CoreServices
         public static void For(int fromInclusive, int toExclusive, Action<int> body)
         {
             for (int s = fromInclusive; s < toExclusive; s++)
-                body(s);
-        }
-
-        public static void For(int fromInclusive, int toExclusive, int step, Action<int> body)
-        {
-            for (int s = fromInclusive; s < toExclusive; s+= step)
                 body(s);
         }
 
@@ -57,25 +52,16 @@ namespace DataEngine.CoreServices
     {
         public static void For(int fromInclusive, int toExclusive, Action<int> body)
         {
-            Util.CheckTaskCanceled();
             Parallel.For(fromInclusive, toExclusive, body);
-        }
-
-        public static void For(int fromInclusive, int toExclusive, int step, Action<int> body)
-        {
-            Util.CheckTaskCanceled();
-            Parallel.For(fromInclusive, toExclusive, step, body);
         }
 
         public static void ForEach<TSource>(IEnumerable<TSource> source, Action<TSource> body)
         {
-            Util.CheckTaskCanceled();
             Parallel.ForEach<TSource>(source, body);
         }
 
         public static void Invoke(Action[] actions)
         {
-            Util.CheckTaskCanceled();
             Parallel.Invoke(actions);
         }
     }

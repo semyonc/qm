@@ -331,6 +331,15 @@ namespace DataEngine.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to {0} - No one file was found..
+        /// </summary>
+        internal static string NoOneFileWasFound {
+            get {
+                return ResourceManager.GetString("NoOneFileWasFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Not a group by expression &quot;{0}&quot;.
         /// </summary>
         internal static string NotAGroupByExpr {

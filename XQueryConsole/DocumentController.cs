@@ -295,7 +295,7 @@ namespace XQueryConsole
         public void CloneQuery(TabControl queryTabs, QueryPage page)
         {
             QueryPage cloned_page = new QueryPage(page.QueryFacade);
-            cloned_page.Title = GetNewQueryTitle(queryTabs, page.QueryFacade);
+            cloned_page.FileName = GetNewQueryTitle(queryTabs, page.QueryFacade);
             cloned_page.textEditor.Text = page.textEditor.Text;
             AddPage(queryTabs, cloned_page);
         }
@@ -329,7 +329,7 @@ namespace XQueryConsole
         {
             if (page.Modified && ConfirmFileSave)
             {
-                switch (MessageBox.Show(String.Format("Save {0}?", page.Title),
+                switch (MessageBox.Show(String.Format("Save {0}?", page.FileName),
                     GetApplicationTitle(), MessageBoxButton.YesNoCancel, MessageBoxImage.Question))
                 {
                     case MessageBoxResult.Yes:

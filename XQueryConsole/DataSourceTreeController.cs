@@ -367,6 +367,7 @@ namespace XQueryConsole
                 XmlSerializer serializer = new XmlSerializer(typeof(ConnectionContainer));
                 FileStream fs = new FileStream(configurationPath, FileMode.Open);
                 Container = (ConnectionContainer)serializer.Deserialize(fs);
+                Container.Check();
                 fs.Close();
             }
         }
@@ -391,18 +392,11 @@ namespace XQueryConsole
             if (Container.connections != null)
                 foreach (Connection conn in Container.connections)
                 {
-                    try
-                    {
-                        node = new DatabaseNode(conn);
-                        if (conn.Default)
-                            node.ImageIndex =
-                                node.SelectedImageIndex = 2;
-                        dataTree.Nodes.Add(node);
-                    }
-                    catch (Exception ex)
-                    {
-                        Trace.TraceError(ex.Message);
-                    }
+                    node = new DatabaseNode(conn);
+                    if (conn.Default)
+                        node.ImageIndex =
+                            node.SelectedImageIndex = 2;
+                    dataTree.Nodes.Add(node);
                 }
             dataTree.EndUpdate();
         }

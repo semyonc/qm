@@ -8,6 +8,7 @@
 
 using System;
 using WmHelp.XmlGrid;
+using DataEngine.Export;
 
 namespace XQueryConsole
 {
@@ -20,9 +21,10 @@ namespace XQueryConsole
         bool IsQueryException(Exception ex);
         bool CanExportDS(GridCellGroup rootCell);
         string GetSourceXML(GridCellGroup rootCell);
-        void ExportTo(GridCellGroup rootCell, string fileName);
+        void ExportTo(GridCellGroup rootCell, string fileName, ExportTarget target);
+        void BatchMove(GridCellGroup rootCell, string name);
 
         string EngineName { get; }
-        string DefaultExt { get; }
+        string DefaultExt { get; }        
     }
 }

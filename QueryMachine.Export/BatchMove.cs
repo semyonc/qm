@@ -16,6 +16,8 @@ using System.Data.Common;
 using DataEngine;
 using DataEngine.CoreServices.Data;
 using DataEngine.CoreServices;
+using Data.Remote;
+using Data.Remote.Proxy;
 
 namespace DataEngine.Export
 {
@@ -276,13 +278,9 @@ namespace DataEngine.Export
             }
         }
 
-        public DbDataAdapter CreateDataAdapter()
+        public string CreateCommandText()
         {
             DataProviderHelper helper = new DataProviderHelper(ProviderInvariantName, ConnectionString);
-            DbProviderFactory f = DbProviderFactories.GetFactory(ProviderInvariantName);
-            DbConnection conn = f.CreateConnection();
-            conn.ConnectionString = ConnectionString;
-            DbCommand command = conn.CreateCommand();
             StringBuilder sb = new StringBuilder();
             sb.Append("SELECT ");
             for (int k = 0; k < FieldNames.Count; k++)
@@ -294,7 +292,17 @@ namespace DataEngine.Export
             sb.AppendLine();
             sb.Append(" FROM ");
             sb.Append(helper.FormatIdentifier(Util.SplitName(TableName)));
-            command.CommandText = sb.ToString();
+            return sb.ToString();
+        }
+
+        public DbDataAdapter CreateDataAdapter()
+        {
+            DataProviderHelper helper = new DataProviderHelper(ProviderInvariantName, ConnectionString);
+            DbProviderFactory f = DbProviderFactories.GetFactory(ProviderInvariantName);
+            DbConnection conn = f.CreateConnection();
+            conn.ConnectionString = ConnectionString;
+            DbCommand command = conn.CreateCommand();
+            command.CommandText = CreateCommandText();
             DbDataAdapter adapter = f.CreateDataAdapter();
             adapter.UpdateBatchSize = helper.UpdateBatchSize;
             adapter.SelectCommand = command;
@@ -303,6 +311,23 @@ namespace DataEngine.Export
             builder.QuotePrefix = Convert.ToString(helper.LeftQuote);
             builder.QuoteSuffix = Convert.ToString(helper.RightQuote);
             return adapter;             
+        }
+
+        public ProxyDataAdapter CreateProxyDataAdapter()
+        {
+            DataProviderHelper helper = new DataProviderHelper(ProviderInvariantName, ConnectionString);
+            RemoteDbProviderFactory f = RemoteDbProviderFactories.GetFactory(ProviderInvariantName);
+            DbConnection conn = f.CreateConnection();
+            conn.ConnectionString = ConnectionString;
+            RemoteCommand command = f.CreateCommand();
+            command.Connection = conn;
+            command.CommandText = CreateCommandText();
+            ProxyDataAdapter proxy = f.CreateProxyDataAdapter();
+            proxy.UpdateBatchSize = helper.UpdateBatchSize;
+            proxy.SelectCommand = command.InnerCommand;
+            proxy.QuotePrefix = Convert.ToString(helper.LeftQuote);
+            proxy.QuoteSuffix = Convert.ToString(helper.RightQuote);
+            return proxy;
         }
 
         private DataRow[] SelectDataType(DataTable dt, Type dataType, long? columnSize,
@@ -345,8 +370,7 @@ namespace DataEngine.Export
 
         private DbConnection CreateConnection()
         {
-            DbProviderFactory f = DbProviderFactories.GetFactory(ProviderInvariantName);
-            DbConnection conn = f.CreateConnection();
+            DbConnection conn = DataProviderHelper.CreateDbConnection(ProviderInvariantName);
             conn.ConnectionString = ConnectionString;
             return conn;
         }

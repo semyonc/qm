@@ -259,7 +259,7 @@ namespace XQueryConsole
 
             public override string ToString()
             {
-                return Content.Title;
+                return Content.FileName;
             }
         }
 
@@ -370,12 +370,12 @@ namespace XQueryConsole
 
         private void HelpGetStarted_Click(object sender, RoutedEventArgs e)
         {
-            Extensions.ShellExecute("http://dl.dropbox.com/u/8070414/QuickStart.pdf");
+            Extensions.ShellExecute("http://dl.dropbox.com/u/8070414/Getting_started_with_QueryMahine.pdf");            
         }
 
         private void HelpGetStartedSQL_Click(object sender, RoutedEventArgs e)
         {
-            Extensions.ShellExecute("http://dl.dropbox.com/u/8070414/Getting_started_with_QueryMahine.pdf");
+            Extensions.ShellExecute("http://dl.dropbox.com/u/8070414/QuickStart.pdf");
         }
 
         private void HelpXQTS_Click(object sender, RoutedEventArgs e)

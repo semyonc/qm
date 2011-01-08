@@ -312,7 +312,6 @@ namespace DataEngine.CoreServices.Data
 
         #endregion
 
-
         #region IEnumerable<Row> Members
 
         public IEnumerator<Row> GetEnumerator()

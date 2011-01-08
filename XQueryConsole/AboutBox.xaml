@@ -3,8 +3,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:w="clr-namespace:XQueryConsole"
         Title="About" Height="303" Width="330"
+        TextOptions.TextFormattingMode="Display"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False">
-    <Grid>
+    <Grid Margin="5,5,8,8">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition></ColumnDefinition>
+        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="*"></RowDefinition>
             <RowDefinition Height="Auto"></RowDefinition>
@@ -39,6 +43,6 @@
                 </Paragraph>
             </FlowDocument>
         </FlowDocumentScrollViewer>
-        <Button Grid.Row="1" Width="70" IsCancel="True" IsDefault="True" Margin="0,0,0,5">OK</Button>
+        <Button Grid.Row="1" Width="70" IsCancel="True" IsDefault="True">OK</Button>
     </Grid>
 </Window>
