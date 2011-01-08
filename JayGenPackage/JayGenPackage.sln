@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{92F77D18-BBDC-439A-BF56-91A58E6C9846}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JayGenPackage", "JayGenPackage\JayGenPackage.csproj", "{C6F7A6FC-2444-4870-BCC1-FF7F60E3A554}"
+EndProject
+Global
+	GlobalSection(TestCaseManagementSettings) = postSolution
+		CategoryFile = netoci2010.vsmdi
+	EndGlobalSection
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C6F7A6FC-2444-4870-BCC1-FF7F60E3A554}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C6F7A6FC-2444-4870-BCC1-FF7F60E3A554}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C6F7A6FC-2444-4870-BCC1-FF7F60E3A554}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C6F7A6FC-2444-4870-BCC1-FF7F60E3A554}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

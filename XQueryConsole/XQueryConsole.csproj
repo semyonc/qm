@@ -112,10 +112,6 @@
     <Reference Include="Data.Remote">
       <HintPath>lib\Data.Remote.dll</HintPath>
     </Reference>
-    <Reference Include="Data.Remote.Proxy, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>lib\Data.Remote.Proxy.dll</HintPath>
-    </Reference>
     <Reference Include="DocumentFormat.OpenXml, Version=2.0.5022.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\QueryMachine.XQuery.OpenXML\lib\DocumentFormat.OpenXml.dll</HintPath>
@@ -174,6 +170,9 @@
       <DependentUpon>ConnectionDialog.xaml</DependentUpon>
     </Compile>
     <Compile Include="BracketSearcher.cs" />
+    <Compile Include="CreateTableDialog.xaml.cs">
+      <DependentUpon>CreateTableDialog.xaml</DependentUpon>
+    </Compile>
     <Compile Include="DataSourceTreeController.cs" />
     <Compile Include="DocumentController.cs" />
     <Compile Include="FileTreeController.cs" />
@@ -202,6 +201,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="ConnectionDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="CreateTableDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -352,6 +355,9 @@
       <Project>{30559E5B-115F-4C16-B265-CA4EF7973BEC}</Project>
       <Name>QueryMachine</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Images\BatchMoveTable.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

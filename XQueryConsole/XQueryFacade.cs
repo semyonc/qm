@@ -15,6 +15,7 @@ using System.Text;
 using DataEngine.XQuery;
 using WmHelp.XmlGrid;
 using System.IO;
+using DataEngine.Export;
 
 namespace XQueryConsole
 {
@@ -94,18 +95,30 @@ namespace XQueryConsole
             return sb.ToString();
         }
 
-        public void ExportTo(GridCellGroup rootCell, string fileName)
+        public void ExportTo(GridCellGroup rootCell, string fileName, ExportTarget target)
         {
-            FileStream stream = new FileStream(fileName, FileMode.Create);
-            XmlWriterSettings settings = new XmlWriterSettings
+            switch (target)
             {
-                Indent = true,
-                OmitXmlDeclaration = true,
-                ConformanceLevel = ConformanceLevel.Auto
-            };
-            XmlWriter writer = XmlWriter.Create(stream, settings);
-            SaveResults(rootCell, writer);
-            writer.Close();
+                case ExportTarget.Xml:
+                    {
+                        FileStream stream = new FileStream(fileName, FileMode.Create);
+                        XmlWriterSettings settings = new XmlWriterSettings
+                        {
+                            Indent = true,
+                            OmitXmlDeclaration = true,
+                            ConformanceLevel = ConformanceLevel.Auto
+                        };
+                        XmlWriter writer = XmlWriter.Create(stream, settings);
+                        SaveResults(rootCell, writer);
+                        writer.Close();
+                    }
+                    break;
+            }
+        }
+
+        public void BatchMove(GridCellGroup rootCell, string name)
+        {
+            return;
         }
 
         public string EngineName

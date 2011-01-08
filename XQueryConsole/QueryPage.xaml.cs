@@ -30,6 +30,7 @@ using System.IO;
 using System.Xml;
 using Microsoft.Win32;
 using ICSharpCode.AvalonEdit.Highlighting;
+using DataEngine.Export;
 
 namespace XQueryConsole
 {
@@ -58,6 +59,8 @@ namespace XQueryConsole
             new RoutedUICommand("Execute", "Execute", typeof(QueryPage));
         public static readonly ICommand SaveResultCommand =
             new RoutedUICommand("Save Result", "SaveResult", typeof(QueryPage));
+        public static readonly ICommand MoveResultCommand =
+            new RoutedUICommand("Move Result", "SaveResult", typeof(QueryPage));
 
         private class EmbeddedGrid : XmlGridView
         {
@@ -386,16 +389,37 @@ namespace XQueryConsole
             SaveFileDialog dlg = new SaveFileDialog();
             dlg.DefaultExt = ".xml";
             if (engine.CanExportDS(xmlGrid.Cell))
-                dlg.Filter = "XML Data File (*.xml)|*.xml";
-            else
                 dlg.Filter = "XML Data File (*.xml)|*.xml|Tab delimited text (*.txt)|*.txt|"+
-                    "Comma Separated Value (*.csv)|*.csv|Fixed Length Text (*.txt)|*.txt|Microsoft Office Excel 97-2003 Worksheet(*.xls)|*.xls|ADO .NET Dataset (*.xml)|*.xml";
+                    "Comma Separated Value (*.csv)|*.csv|Fixed Length Text (*.txt)|*.txt|ADO .NET Dataset (*.xml)|*.xml";
+            else
+                dlg.Filter = "XML Data File (*.xml)|*.xml";
             if (dlg.ShowDialog() == true)
             {
                 Cursor = Cursors.Wait;
                 try
                 {
-                    engine.ExportTo(xmlGrid.Cell, dlg.FileName);
+                    switch (dlg.FilterIndex)
+                    {
+                        case 0:
+                            engine.ExportTo(xmlGrid.Cell, dlg.FileName, ExportTarget.Xml);
+                            break;
+                        
+                        case 1:
+                            engine.ExportTo(xmlGrid.Cell, dlg.FileName, ExportTarget.TabDelimited);
+                            break;
+
+                        case 2:
+                            engine.ExportTo(xmlGrid.Cell, dlg.FileName, ExportTarget.Csv);
+                            break;
+                        
+                        case 3:
+                            engine.ExportTo(xmlGrid.Cell, dlg.FileName, ExportTarget.FixedLength);
+                            break;
+
+                        case 4:
+                            engine.ExportTo(xmlGrid.Cell, dlg.FileName, ExportTarget.AdoNet);
+                            break;
+                    }
                 }
                 finally
                 {
@@ -418,6 +442,17 @@ namespace XQueryConsole
         private void CommandBinding_CanStopExecute(object sender, CanExecuteRoutedEventArgs e)
         {
             e.CanExecute = queryTask != null;
+        }
+
+        private void CommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
+        {
+            engine.BatchMove(xmlGrid.Cell, 
+                System.IO.Path.GetFileNameWithoutExtension(ShortFileName).ToUpperInvariant());   
+        }
+
+        private void CommandBinding_BatchMoveCanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            e.CanExecute = xmlGrid != null && xmlGrid.Cell != null && engine.CanExportDS(xmlGrid.Cell);
         }
     }
 }

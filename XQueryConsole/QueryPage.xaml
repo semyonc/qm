@@ -30,6 +30,7 @@
         <CommandBinding Command="{x:Static w:QueryPage.ExecuteCommand}" Executed="CommandBinding_Execute" CanExecute="CommandBinding_CanExecute"></CommandBinding>
         <CommandBinding Command="{x:Static w:QueryPage.SaveResultCommand}" Executed="CommandBinding_SaveResExecuted" CanExecute="CommandBinding_SaveResCanExecute"></CommandBinding>
         <CommandBinding Command="Stop" Executed="CommandBinding_StopExecuted" CanExecute="CommandBinding_CanStopExecute"></CommandBinding>
+        <CommandBinding Command="{x:Static w:QueryPage.MoveResultCommand}" Executed="CommandBinding_Executed" CanExecute="CommandBinding_BatchMoveCanExecute"></CommandBinding>
     </Page.CommandBindings>
     <Grid Name="layout">
         <Grid.RowDefinitions>
@@ -67,10 +68,13 @@
                     <TextBlock Style="{StaticResource toolbarTextStyle}">Execute</TextBlock>
                 </StackPanel>
             </Button>
-            <Button Command="{x:Static w:QueryPage.SaveResultCommand}" ToolTip="Save results on disk...">
+            <Button Command="{x:Static w:QueryPage.SaveResultCommand}" ToolTip="Save results to disk...">
                 <Image Style="{StaticResource toolbarImageStyle}" Source="/XQueryConsole;component/Images/ExportFile.png"></Image>
             </Button>
-        </ToolBar>
+            <Button Command="{x:Static w:QueryPage.MoveResultCommand}" ToolTip="Move results to server...">
+                <Image Style="{StaticResource toolbarImageStyle}" Source="/XQueryConsole;component/Images/BatchMoveTable.png"></Image>
+            </Button>
+       </ToolBar>
         <Border Grid.Row="1" BorderBrush="{x:Static SystemColors.ActiveBorderBrush}" BorderThickness="1">
             <avalonEdit:TextEditor Name="textEditor" FontFamily="Consolas" Padding="5,3,0,0" 
 				FontSize="9pt" TextChanged="textEditor_TextChanged" PreviewDrop="textEditor_PreviewDrop"></avalonEdit:TextEditor>

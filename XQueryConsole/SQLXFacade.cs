@@ -20,6 +20,7 @@ using System.IO;
 using System.Text;
 using DataEngine.CoreServices.Data;
 using System.Reflection;
+using System.Globalization;
 
 namespace XQueryConsole
 {
@@ -28,9 +29,10 @@ namespace XQueryConsole
         private Command command;
         private DataReader reader;
         private QueryContext context;
+        private volatile bool canExportDS;
 
         public SQLXFacade()
-        {
+        {            
         }
 
         #region IQueryEngineFacade Members
@@ -74,8 +76,10 @@ namespace XQueryConsole
         public GridCellGroup Execute()
         {
             reader = (DataReader)command.ExecuteReader();
-            ResultsetGridBuilder builder = new ResultsetGridBuilder();
-            return builder.Parse(reader.Source);
+            ResultsetGridBuilder builder = new ResultsetGridBuilder();            
+            GridCellGroup res = builder.Parse(reader.Source);
+            canExportDS = builder.CanExportDS;
+            return res;
         }
 
         public void Terminate()
@@ -102,7 +106,7 @@ namespace XQueryConsole
 
         public bool CanExportDS(GridCellGroup rootCell)
         {
-            return false;
+            return rootCell is ResultsetGridBuilder.RootCell && canExportDS;
         }
 
         public string GetSourceXML(GridCellGroup rootCell)
@@ -119,9 +123,54 @@ namespace XQueryConsole
             return sb.ToString();
         }
 
-        public void ExportTo(GridCellGroup rootCell, string fileName)
+        public void ExportTo(GridCellGroup rootCell, string fileName, ExportTarget target)
         {
-            throw new NotImplementedException();
+            string ext = Path.GetExtension(fileName);
+            AbstractWriter writer = null;
+            switch (target)
+            {
+                case ExportTarget.Xml:
+                    writer = new XmlFileWriter(fileName);
+                    break;
+
+                case ExportTarget.Csv:
+                    writer = new CsvWriter(fileName, 
+                        CultureInfo.CurrentCulture.TextInfo.ListSeparator, true);
+                    break;
+
+                case ExportTarget.TabDelimited:
+                    writer = new CsvWriter(fileName, "\t", true);
+                    break;
+
+                case ExportTarget.FixedLength:
+                    writer = new FlvWriter(fileName, true);
+                    break;
+
+                case ExportTarget.AdoNet:
+                    writer = new AdoNetWriter(fileName);
+                    break;
+            }
+            if (writer != null)
+            {
+                ResultsetGridBuilder builder = new ResultsetGridBuilder();
+                Resultset rs = builder.CreateResultset((ResultsetGridBuilder.RootCell)rootCell);
+                writer.Write(rs);
+            }
+        }
+
+        public void BatchMove(GridCellGroup cell, string name)
+        {
+            ResultsetGridBuilder.RootCell rootCell = (ResultsetGridBuilder.RootCell)cell;
+            CreateTableDialog dlg = new CreateTableDialog();
+            dlg.TableName = name;
+            ResultsetGridBuilder builder = new ResultsetGridBuilder();
+            Resultset rs = builder.CreateResultset(rootCell);
+            dlg.BatchMove.Source = rs;
+            if (dlg.ShowDialog() == true)
+            {
+                AdoProviderWriter writer = new AdoProviderWriter(dlg.BatchMove);
+                writer.Write(rs);
+            }
         }
 
         public string EngineName

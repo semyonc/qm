@@ -151,6 +151,45 @@ Added SQLX extensions support
         <Key word="XMLCDATA"/>
         <Key word="XMLPARSE"/>
       </KeyWords>
+      <KeyWords name="DDLKeywords" bold="false" italic="false" color="Blue">
+        <Key word="CREATE"/>
+        <Key word="BIGINT"/>
+        <Key word="BINARY"/>
+        <Key word="BIT"/>
+        <Key word="CHAR"/>
+        <Key word="CHARACTER"/>
+        <Key word="DATETIME"/>
+        <Key word="DEC"/>
+        <Key word="DECIMAL"/>
+        <Key word="DOUBLE"/>
+        <Key word="FLOAT"/>
+        <Key word="INT"/>
+        <Key word="INTEGER"/>
+        <Key word="IMAGE"/>
+        <Key word="LONG"/>
+        <Key word="MONEY"/>
+        <Key word="NATIONAL"/>
+        <Key word="NCHAR"/>
+        <Key word="NTEXT"/>
+        <Key word="NUMBER"/>
+        <Key word="NVARCHAR"/>
+        <Key word="PRECISION"/>
+        <Key word="RAW"/>
+        <Key word="REAL"/>
+        <Key word="SINGLE"/>
+        <Key word="SMALLDATETIME"/>
+        <Key word="SMALLINT"/>
+        <Key word="SMALLMONEY"/>
+        <Key word="TIMESTAMP"/>
+        <Key word="TINYINT"/>
+        <Key word="UNIQUEIDENTIFIER"/>
+        <Key word="VARBINARY"/>
+        <Key word="VARCHAR"/>
+        <Key word="VARCHAR2"/>
+        <Key word="VARYING"/>
+        <Key word="DATE"/>
+        <Key word="NUMERIC"/>
+      </KeyWords>
     </RuleSet>
   </RuleSets>
 </SyntaxDefinition>

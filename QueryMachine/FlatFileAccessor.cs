@@ -33,7 +33,7 @@ namespace DataEngine
     public class FlatFileAccessor: QueryNode
     {
         public string FileName { get; set; }
-        public bool MultiFile { get; private set; }
+        public bool MultiFile { get; private set; }        
 
         public FlatFileAccessor(string fileName)
         {            
@@ -69,6 +69,7 @@ namespace DataEngine
 
         protected IEnumerator<Row> SearchLoop(QueryContext queryContext, Resultset rs)
         {
+            bool found = false;
             string[] pathset = queryContext.DatabaseDictionary.SearchPath.Split(new char[] { ';' });
             foreach (string baseDir in pathset)
             {
@@ -80,9 +81,12 @@ namespace DataEngine
                     Stream stm = new FileStream(fi.FullName, FileMode.Open, FileAccess.Read);
                     Row row = rs.NewRow();
                     row.SetObject(0, stm);
+                    found = true;
                     yield return row;
                 }
-            }            
+            }
+            if (!found)
+                throw new ESQLException(Properties.Resources.NoOneFileWasFound, FileName);
         }
 
 #if DEBUG

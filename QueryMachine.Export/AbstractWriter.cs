@@ -13,6 +13,7 @@ using DataEngine.CoreServices.Data;
 
 namespace DataEngine.Export
 {
+
     public abstract class AbstractWriter
     {
         public abstract void Write(Resultset rs);
