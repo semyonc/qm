@@ -26,7 +26,7 @@ using System.Threading.Tasks;
 namespace DataEngine.CoreServices
 {
 // Provide some dummy class for compatibility with .NET Parallel Extensions
-#if !PARALLEL
+#if NO_TPL
     public class Iterator
     {
         public static void For(int fromInclusive, int toExclusive, Action<int> body)

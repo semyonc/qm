@@ -35,7 +35,7 @@ namespace XQueryConsole
             DocumentController controller = mainWindow.Controller;
             if (command != null)
                 command.Dispose();
-            command = new XQueryCommand(new XQueryDsContext(mainWindow.DatasourceController));
+            command = new XQueryCommand(new XQueryDsContext(mainWindow.DatasourceController.Dictionary));
             command.CommandText = queryText;
             command.SearchPath = controller.SearchPath;
             if (!String.IsNullOrEmpty(baseUri))

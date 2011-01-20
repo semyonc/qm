@@ -509,11 +509,11 @@ namespace DataEngine.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to &quot;{0}&quot; - The Xml Query context must be a node..
+        ///   Looks up a localized string similar to Can&apos;t execute XQuery request because XQuery engine is not implemented..
         /// </summary>
-        internal static string XmlQueryContextMustBeANode {
+        internal static string XQueryEngineNotImplemented {
             get {
-                return ResourceManager.GetString("XmlQueryContextMustBeANode", resourceCulture);
+                return ResourceManager.GetString("XQueryEngineNotImplemented", resourceCulture);
             }
         }
     }

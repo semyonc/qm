@@ -190,6 +190,7 @@
     </Compile>
     <Compile Include="SQLXFacade.cs" />
     <Compile Include="XPathGridBuilder.cs" />
+    <Compile Include="XQueryAdapterImpl.cs" />
     <Compile Include="XQueryDsContext.cs" />
     <Compile Include="XQueryFacade.cs" />
     <Page Include="AboutBox.xaml">

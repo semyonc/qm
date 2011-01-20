@@ -9,6 +9,8 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.IO;
 
 using System.Xml;
 using System.Xml.XPath;
@@ -67,6 +69,12 @@ namespace DataEngine.Export
                 {
                     XPathNavigator nav = (XPathNavigator)obj;
                     nav.WriteSubtree(_writer);
+                }
+                else
+                {
+                    _writer.WriteStartElement("result");
+                    WriteRootResultset(rs, _writer);
+                    _writer.WriteEndElement();
                 }
             }
             else
@@ -127,9 +135,11 @@ namespace DataEngine.Export
                     else if (value is Array)
                     {
                         Array array = (Array)value;
-                        foreach (Object o in array)
-                            if (o != null)
-                                w.WriteValue(XmlDataAccessor.Serialize(o));
+                        BinaryFormatter formatter = new BinaryFormatter();
+                        MemoryStream ms = new MemoryStream();
+                        formatter.Serialize(ms, array);
+                        w.WriteBase64(ms.GetBuffer(), 0, (int)ms.Length);
+                        ms.Close();
                     }
                     else if (value is Resultset)
                     {

@@ -22,6 +22,7 @@ using System.Windows.Forms;
 using System.Windows.Threading;
 
 using DataEngine;
+using Data.Remote;
 
 namespace XQueryConsole
 {
@@ -77,7 +78,16 @@ namespace XQueryConsole
         public StartupPanel DefaultPanel { get; set; }
         public bool EnableServerQuery { get; set; }
         public bool HostADOProviders { get; set; }
-        public bool ReloadDatasources { get; set; }
+        
+        public bool IsHostADOProvidersEnabled
+        {
+            get
+            {
+                return RemoteDbProviderFactories.Isx64();
+            }
+        }
+        
+        public bool ReloadDatasources { get; set; }        
 
         public void FocusAndSelect()
         {

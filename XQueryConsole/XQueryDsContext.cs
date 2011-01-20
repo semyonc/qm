@@ -39,17 +39,22 @@ namespace XQueryConsole
 
     public class XQueryDsContext: XQueryContext
     {
-        private DataSourceTreeController controller;
+        private DatabaseDictionary dict;
         private Dictionary<string, XQueryDocument> cache;
         private Dictionary<String, OpenXmlPackage> packages;
 
 
-        public XQueryDsContext(DataSourceTreeController controller)
-            : base()
+        public XQueryDsContext(DatabaseDictionary dict, XmlNameTable nameTable)
+            : base(nameTable)
         {
-            this.controller = controller;
+            this.dict = dict;
             cache = new Dictionary<string, XQueryDocument>();
             packages = new Dictionary<String, OpenXmlPackage>();
+        }
+
+        public XQueryDsContext(DatabaseDictionary dict)
+            : this(dict, new NameTable())
+        {
         }
 
         public override void InitNamespaces()
@@ -69,8 +74,8 @@ namespace XQueryConsole
                 string prefix;
                 string[] identifierPart;
                 Util.ParseCollectionName(name, out prefix, out identifierPart);
-                Connection connectionData = controller.FindConnectionData(prefix);
-                if (connectionData == null)
+                DataSourceInfo dsi = dict.GetDataSource(prefix);
+                if (dsi == null)
                 {
                     String msg;
                     if (prefix == String.Empty)
@@ -79,12 +84,12 @@ namespace XQueryConsole
                         msg = String.Format(Properties.Resources.UnknownDsPrefix, prefix);
                     throw new XQueryException(msg, null);
                 }
-                DataProviderHelper helper = new DataProviderHelper(connectionData.InvariantName, 
-                    connectionData.ConnectionString);
-                DbConnection connection = DataProviderHelper.CreateDbConnection(connectionData.InvariantName);
+                DataProviderHelper helper = new DataProviderHelper(dsi.ProviderInvariantName,
+                    dsi.ConnectionString);
+                DbConnection connection = DataProviderHelper.CreateDbConnection(dsi.ProviderInvariantName);
                 try
                 {
-                    connection.ConnectionString = connectionData.ConnectionString;
+                    connection.ConnectionString = dsi.ConnectionString;
                     connection.Open();
                     DbCommand command = connection.CreateCommand();
                     StringBuilder sb = new StringBuilder();

@@ -6,8 +6,6 @@ using System.Xml.XPath;
 
 using DataEngine.CoreServices;
 using DataEngine.CoreServices.Data;
-using DataEngine.XQuery;
-using DataEngine.XQuery.Parser;
 
 namespace DataEngine
 {
@@ -304,57 +302,13 @@ namespace DataEngine
         public static object XmlQuery([Implict] Executive engine, object command, object context_item, object arg)
         {
             QueryNode.LispProcessingContext owner = (QueryNode.LispProcessingContext)engine.Owner;
-            XQueryCommand xcomm = (XQueryCommand)command;
-            lock (xcomm)
+            XQueryAdapter adapter = (XQueryAdapter)command;
+            lock (adapter)
             {
-                if (context_item != null)
-                {
-                    XmlNode node = context_item as XmlNode;
-                    if (node == null)
-                    {
-                        if (context_item is Resultset)
-                        {
-                            XmlReader reader = new ResultsetReader((Resultset)context_item,
-                                "context", xcomm.Context.GetSettings());
-                            XQueryDocument tmp = new XQueryDocument(reader);
-                            xcomm.ContextItem = tmp.CreateNavigator();
-                        }
-                        else
-                            throw new ESQLException(Properties.Resources.XmlQueryContextMustBeANode, context_item);
-                    }
-                    else
-                        xcomm.ContextItem = node.CreateNavigator();
-                }
+                object[] vargs = null;
                 if (arg != null)
-                {
-                    object[] values = Lisp.ToArray(arg);
-                    for (int k = 0; k < values.Length; k++)
-                    {
-                        XQueryParameter param = xcomm.Parameters[k];
-                        object val = values[k];
-                        if (val is Resultset)
-                        {
-                            XmlReader reader = new ResultsetReader((Resultset)val,
-                                XmlConvert.EncodeName(param.LocalName), xcomm.Context.GetSettings());
-                            XQueryDocument tmp = new XQueryDocument(reader);
-                            param.Value = tmp.CreateNavigator();
-                        }
-                        else if (val is XmlNode)
-                            param.Value = ((XmlNode)val).CreateNavigator();
-                        else if (val is XmlNodeList)
-                            param.Value = new XmlNodeListIterator((XmlNodeList)val);
-                        else
-                            param.Value = val;
-                    }
-                }
-                XQueryNodeIterator iter = xcomm.Execute();
-                DOMConverter converter = new DOMConverter(owner.QueryContext.XmlResult);
-                XmlDataAccessor.NodeList res = new XmlDataAccessor.NodeList();
-                while (iter.MoveNext())
-                    res.Add(converter.ToXmlNode(iter.Current));
-                if (res.Count == 1)
-                    return res[0];
-                return res;
+                    vargs = Lisp.ToArray(arg);
+                return adapter.Execute(context_item, vargs, owner.QueryContext.XmlResult);
             }
         }
     }
