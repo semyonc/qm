@@ -179,9 +179,8 @@
     <Compile Include="UnionJoin.cs" />
     <Compile Include="Util.cs" />
     <Compile Include="XmlDataAccessor.cs" />
-    <Compile Include="XmlNodeListIterator.cs" />
     <Compile Include="XmlTypeManager.cs" />
-    <Compile Include="XQueryDBContext.cs" />
+    <Compile Include="XQueryAdapter.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Properties\Resources.resx">
@@ -219,10 +218,6 @@
     <ProjectReference Include="..\CoreServices\CoreServices.csproj">
       <Project>{454016BE-0E1C-4DFB-A22F-2E642A1AE9A6}</Project>
       <Name>CoreServices</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\QueryMachine.XQuery\QueryMachine.XQuery.csproj">
-      <Project>{0FDD0A6C-E9FA-4CE2-B2A7-461C7444EEFF}</Project>
-      <Name>QueryMachine.XQuery</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup />

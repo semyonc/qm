@@ -922,11 +922,12 @@ namespace DataEngine
             recs = notation.Select(sym, Descriptor.XMLQuery, 3);
             if (recs.Length > 0)
             {
-                DataEngine.XQuery.XQueryCommand command = 
-                    new DataEngine.XQuery.XQueryCommand(new DataEngine.XQuery.XQueryDBContext(dictionary, context.NameTable));
-                command.SearchPath = dictionary.SearchPath;
-                command.CommandText = (String)recs[0].args[0];
-                context.AddResource(command);
+                //DataEngine.XQuery.XQueryCommand command = 
+                //    new DataEngine.XQuery.XQueryCommand(new DataEngine.XQuery.XQueryDBContext(dictionary, context.NameTable));
+                //command.SearchPath = dictionary.SearchPath;
+                string commandText = (String)recs[0].args[0];
+                XQueryAdapter adapter = XQueryAdapter.Create(dictionary, context.NameTable, commandText);
+                context.AddResource(adapter);
                 object context_item = null;
                 object arg = null;                
                 if (recs[0].args[1] != null)
@@ -945,9 +946,7 @@ namespace DataEngine
                         if (recs1.Length > 0)
                         {
                             Qname qname = (Qname)recs1[0].Arg0;
-                            DataEngine.XQuery.XQueryParameter parameter = new DataEngine.XQuery.XQueryParameter();
-                            parameter.LocalName = qname.Name;
-                            command.Parameters.Add(parameter);
+                            adapter.AddParameter(qname.Name);
                             form.Add(expr);
                         }
                         else
@@ -960,8 +959,7 @@ namespace DataEngine
                     if (form.Count > 1)
                         arg = Lisp.List(form.ToArray());
                 }
-                command.Compile();
-                return Lisp.List(ID.XmlQuery, command, context_item, arg);
+                return Lisp.List(ID.XmlQuery, adapter, context_item, arg);
             }
             recs = notation.Select(sym, Descriptor.XMLForestAll, 0);
             if (recs.Length > 0)

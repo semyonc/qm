@@ -4,7 +4,7 @@ using System.Xml.XPath;
 
 namespace DataEngine.XQuery
 {
-    internal sealed class XmlNodeListIterator : XQueryNodeIterator
+    public sealed class XmlNodeListIterator : XQueryNodeIterator
     {
         private XmlNodeList m_nodeList;
 

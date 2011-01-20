@@ -401,17 +401,6 @@ namespace XQueryConsole
             dataTree.EndUpdate();
         }
 
-        public Connection FindConnectionData(string prefix)
-        {
-            foreach (TreeNode node in dataTree.Nodes)
-            {
-                DatabaseNode dnode = node as DatabaseNode;                
-                if (dnode != null && (dnode.Connection.Prefix == prefix || (String.IsNullOrEmpty(prefix) && dnode.Connection.Default)))
-                    return dnode.Connection;
-            }
-            return null;
-        }
-
         public void SetDefaultConnection(Connection conn)
         {
             foreach (Node node in dataTree.Nodes)

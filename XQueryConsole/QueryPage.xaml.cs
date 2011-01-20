@@ -420,11 +420,15 @@ namespace XQueryConsole
                             engine.ExportTo(xmlGrid.Cell, dlg.FileName, ExportTarget.AdoNet);
                             break;
                     }
-                }
-                finally
-                {
                     Cursor = null;
                 }
+                catch (Exception ex)
+                {
+                    Cursor = null;
+                    MessageBox.Show(ex.Message + "\r\n" + ex.StackTrace, "Runtime error",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                
             }
         }
 
@@ -446,8 +450,16 @@ namespace XQueryConsole
 
         private void CommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
         {
-            engine.BatchMove(xmlGrid.Cell, 
-                System.IO.Path.GetFileNameWithoutExtension(ShortFileName).ToUpperInvariant());   
+            try
+            {
+                engine.BatchMove(xmlGrid.Cell,
+                    System.IO.Path.GetFileNameWithoutExtension(ShortFileName).ToUpperInvariant());
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message + "\r\n" + ex.StackTrace, "Runtime error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void CommandBinding_BatchMoveCanExecute(object sender, CanExecuteRoutedEventArgs e)

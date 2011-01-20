@@ -210,6 +210,16 @@ namespace XQueryConsole
             OpenFileDialog dlg = new OpenFileDialog();
             dlg.DefaultExt = ".xq";
             dlg.Filter = "XQuery files|*.xq|SQLX files|*.xsql|Text documents|*.txt|All files|*.*";
+            switch (Controller.DefaultPanel)
+            {
+                case StartupPanel.SQL:
+                    dlg.FilterIndex = 2;
+                    break;
+
+                case StartupPanel.XQuery:
+                    dlg.FilterIndex = 1;
+                    break;
+            }
             if (dlg.ShowDialog() == true)
                 Controller.OpenQuery(QueryTabs, dlg.FileName);        
         }

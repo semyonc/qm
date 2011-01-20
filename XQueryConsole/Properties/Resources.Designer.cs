@@ -104,5 +104,14 @@ namespace XQueryConsole.Properties {
                 return ResourceManager.GetString("UnknownDsPrefix", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to &quot;{0}&quot; - The Xml Query context must be a node..
+        /// </summary>
+        internal static string XmlQueryContextMustBeANode {
+            get {
+                return ResourceManager.GetString("XmlQueryContextMustBeANode", resourceCulture);
+            }
+        }
     }
 }

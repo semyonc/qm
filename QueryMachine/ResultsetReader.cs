@@ -10,7 +10,6 @@ using System.Data;
 using System.Data.Common;
 
 using DataEngine.CoreServices.Data;
-using DataEngine.XQuery;
 using System.Diagnostics;
 
 namespace DataEngine
@@ -111,7 +110,50 @@ namespace DataEngine
                 if (r["AllowDBNull"] != DBNull.Value && (bool)r["AllowDBNull"])
                     dataElem[k].MinOccurs = 0;
                 Type dataType = (Type)r["DataType"];
-                XmlTypeCode typeCode = XQuerySequenceType.GetXmlTypeCode(dataType);
+                XmlTypeCode typeCode = XmlTypeCode.Item;
+                switch (Type.GetTypeCode(dataType))
+                {
+                    case System.TypeCode.Boolean:
+                        typeCode = XmlTypeCode.Boolean;
+                        break;
+                    case System.TypeCode.Int16:
+                        typeCode = XmlTypeCode.Short;
+                        break;
+                    case System.TypeCode.Int32:
+                        typeCode = XmlTypeCode.Int;
+                        break;
+                    case System.TypeCode.Int64:
+                        typeCode = XmlTypeCode.Long;
+                        break;
+                    case System.TypeCode.UInt16:
+                        typeCode = XmlTypeCode.UnsignedShort;
+                        break;
+                    case System.TypeCode.UInt32:
+                        typeCode = XmlTypeCode.UnsignedInt;
+                        break;
+                    case System.TypeCode.UInt64:
+                        typeCode = XmlTypeCode.UnsignedLong;
+                        break;
+                    case System.TypeCode.SByte:
+                        typeCode = XmlTypeCode.Byte;
+                        break;
+                    case System.TypeCode.Byte:
+                        typeCode = XmlTypeCode.UnsignedByte;
+                        break;
+                    case System.TypeCode.Single:
+                        typeCode = XmlTypeCode.Float;
+                        break;
+                    case System.TypeCode.Decimal:
+                        typeCode = XmlTypeCode.Decimal;
+                        break;
+                    case System.TypeCode.Double:
+                        typeCode = XmlTypeCode.Double;
+                        break;
+                    case System.TypeCode.Char:
+                    case System.TypeCode.String:
+                        typeCode = XmlTypeCode.String;
+                        break;
+                }
                 if (typeCode == XmlTypeCode.Item)
                     dataContent[k] = null;
                 else

@@ -132,4 +132,7 @@
   <data name="UnknownDsPrefix" xml:space="preserve">
     <value>The database prefix {0} is undefined in DataSource explorer</value>
   </data>
+  <data name="XmlQueryContextMustBeANode" xml:space="preserve">
+    <value>"{0}" - The Xml Query context must be a node.</value>
+  </data>
 </root>

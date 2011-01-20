@@ -262,13 +262,13 @@
   <data name="DuplicateContextItem" xml:space="preserve">
     <value>XMLQUERY expression contains duplicate context item</value>
   </data>
-  <data name="XmlQueryContextMustBeANode" xml:space="preserve">
-    <value>"{0}" - The Xml Query context must be a node.</value>
-  </data>
   <data name="DyntableEmpty" xml:space="preserve">
     <value>Dynamic table "{0}" is empty set.</value>
   </data>
   <data name="NoOneFileWasFound" xml:space="preserve">
     <value>{0} - No one file was found.</value>
+  </data>
+  <data name="XQueryEngineNotImplemented" xml:space="preserve">
+    <value>Can't execute XQuery request because XQuery engine is not implemented.</value>
   </data>
 </root>

@@ -363,14 +363,15 @@ namespace WmHelp.XmlGrid
                         else if (baseCell is ArrayCell)
                         {
                             GridCellGroup group = (ArrayCell)baseCell;
-                            object[] arr = new object[group.Table.Height * group.Table.Width];
+                            Array arr = Array.CreateInstance(rs.RowType.Fields[k].DataType.GetElementType(), 
+                                group.Table.Height * group.Table.Width);
                             int index = 0;
                             for (int s = 0; s < group.Table.Height; s++)
                                 for (int p = 0; p < group.Table.Width; p++)
                                 {
                                     GridCell cell = group.Table[p, s];
                                     if (cell is ResultsetGridBuilder.DataValueCell)
-                                        arr[index] = ((ResultsetGridBuilder.DataValueCell)cell).Value;
+                                        arr.SetValue(((ResultsetGridBuilder.DataValueCell)cell).Value, index);
                                     index++;
                                 }
                             row.SetObject(k, arr);
@@ -402,8 +403,7 @@ namespace WmHelp.XmlGrid
                 rs.Enqueue(row);
                 return rs;
             }
-            else
-                return new Resultset(rootCell.RowType, new GridDemandContext(rootCell.Table));
+            return new Resultset(rootCell.RowType, new GridDemandContext(rootCell.Table));
         }
     }
 }

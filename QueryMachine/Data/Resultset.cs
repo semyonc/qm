@@ -107,9 +107,7 @@ namespace DataEngine.CoreServices.Data
         public void Enqueue(Row row)
         {
             CheckValid();
-#if PARALLEL
             lock(this) 
-#endif 
             {
                 if (_begin == null)
                     _begin = _end = row;
@@ -136,9 +134,7 @@ namespace DataEngine.CoreServices.Data
             if (_begin == null)
                 throw new InvalidOperationException();
             else
-#if PARALLEL
                 lock (this)
-#endif 
                 {
                     Row curr = _begin;
                     _begin = curr._next;

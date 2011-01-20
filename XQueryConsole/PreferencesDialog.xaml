@@ -32,7 +32,8 @@
                     <CheckBox Margin="5,8,0,0" IsChecked="{Binding RelativeSource={RelativeSource AncestorType=w:PreferencesDialog}, 
                         Path=EnableServerQuery}">Enable server query</CheckBox>
                     <CheckBox Margin="5,8,0,0" IsChecked="{Binding RelativeSource={RelativeSource AncestorType=w:PreferencesDialog}, 
-                        Path=HostADOProviders}">Use 32-bit ADO providers in 64-bit mode</CheckBox>
+                        Path=HostADOProviders}" IsEnabled="{Binding RelativeSource={RelativeSource AncestorType=w:PreferencesDialog}, 
+                        Path=IsHostADOProvidersEnabled}">Use 32-bit ADO providers in 64-bit mode</CheckBox>
                 </StackPanel>
             </TabItem>
             <TabItem Header="Folders">

@@ -43,7 +43,8 @@ namespace XQueryConsole
             ((RoutedUICommand)XQueryConsole.MainWindow.ShowResultsCommand).InputGestures.Add(ShowResultsCmdKeyGesture);
             
             // register extension function in wmh namespace
-            XQueryFunctionTable.Register(typeof(WmhFuncs));       
+            XQueryFunctionTable.Register(typeof(WmhFuncs));
+            XQueryAdapterImpl.Init();
         }
 
         private IHighlightingDefinition GetHighlightingDefinition(string resourceName)

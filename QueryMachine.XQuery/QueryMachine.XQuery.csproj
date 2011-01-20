@@ -152,6 +152,7 @@
     <Compile Include="Util\ShadowProxy.cs" />
     <Compile Include="Util\StringTokenizer.cs" />
     <Compile Include="DirectAccessPathExpr.cs" />
+    <Compile Include="XmlNodeListIterator.cs" />
     <Compile Include="XQueryCachedExpr.cs" />
     <Compile Include="XQueryFuncs.cs" />
     <Compile Include="Util\Base64BinaryValue.cs" />
