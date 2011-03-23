@@ -172,6 +172,16 @@ namespace DataEngine.CoreServices.Data
                 current = NextRow(current);
         }
 
+        public void Fill(int n)
+        {
+            Row current = Begin;
+            while (current != null && n > 0)
+            {
+                current = NextRow(current);
+                n--;
+            }
+        }
+
         public void Cancel()
         {
             if (_context != null)

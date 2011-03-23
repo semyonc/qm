@@ -56,14 +56,16 @@ namespace DataEngine.CoreServices
         private StringBuilder m_stringBuilder;
         
         public char Delimiter { get; set; }
-        public char QuoteChar { get; set; }
+        public char EncapsulatorChar { get; set; }
+        public char EscapeChar { get; set; }
 
         public CsvParser()
         {
             m_stringBuilder = new StringBuilder();
             Delimiter = ',';
-            QuoteChar = '"';
+            EncapsulatorChar = '"';
             CommentChar = '#';
+            EscapeChar = '\0';
         }
 
         public CsvParser(char delimiter)
@@ -76,6 +78,56 @@ namespace DataEngine.CoreServices
             : this(delimiter)
         {
             CommentChar = commentChar;
+        }
+
+        public CsvParser(char delimiter, char commentChar, char encapsulatorChar, char escapeChar)
+            : this(delimiter, commentChar)
+        {
+            EncapsulatorChar = encapsulatorChar;
+            EscapeChar = escapeChar;
+        }
+
+        private string ExpandEscapeChars(string str) // mySQL escape string rules
+        {
+            if (EscapeChar == '\0')
+                return str;
+            StringBuilder sb = new StringBuilder(str);
+            for (int k = 0; k < sb.Length -1; k++)
+                if (sb[k] == EscapeChar)
+                {
+                    sb.Remove(k, 1);
+                    switch (sb[k])
+                    {
+                        case '0':
+                            sb[k] = '\0';
+                            break;
+                        case 'N':
+                            sb.Remove(k, 1);
+                            break;
+                        case 'a':
+                            sb[k] = '\a';
+                            break;
+                        case 'b':
+                            sb[k] = '\b';
+                            break;
+                        case 't':
+                            sb[k] = '\t';
+                            break;
+                        case 'n':
+                            sb[k] = '\n';
+                            break;
+                        case 'r':
+                            sb[k] = '\r';
+                            break;
+                        case 'v':
+                            sb[k] = '\v';
+                            break;
+                        case 'Z':
+                            sb[k] = '\u001A';
+                            break;
+                    }
+                }
+            return sb.ToString();
         }
 
         public override int Get(TextReader reader, string[] values, TextParser.ColRow[] pos)
@@ -104,13 +156,13 @@ namespace DataEngine.CoreServices
                     pos[count].line = LineIndex;
                     pos[count].col = index;
                 }
-                if (input[index] == QuoteChar)
+                if (input[index] == EncapsulatorChar)
                 {
                     index++;
                     m_stringBuilder.Length = 0;
                     while (true)
                     {
-                        int k = input.IndexOf(QuoteChar, index);
+                        int k = input.IndexOf(EncapsulatorChar, index);
                         if (k == -1)
                         {
                             m_stringBuilder.Append(input.Substring(index));
@@ -121,10 +173,16 @@ namespace DataEngine.CoreServices
                         else
                         {
                             int next_ch;
-                            if (k < input.Length -1)
+                            if (k > 0 &&  input[k -1] == EscapeChar && 
+                                !(k > 1 && input[k -2] == EscapeChar))
+                            {
+                                m_stringBuilder.Append(input.Substring(index, k - index + 1));
+                                index = k + 1;
+                            }
+                            else if (k < input.Length - 1)
                             {
                                 next_ch = input[k + 1];
-                                if (next_ch == QuoteChar)
+                                if (next_ch == EncapsulatorChar)
                                 {
                                     m_stringBuilder.Append(input.Substring(index, k - index + 1));
                                     if (index == input.Length - 1)
@@ -158,7 +216,7 @@ namespace DataEngine.CoreServices
                             throw new ESQLException(Properties.Resources.InvalidTextFileFormat,
                                 LineIndex + 1, index + 1);
                     if (count < values.Length)
-                        values[count++] = m_stringBuilder.ToString();
+                        values[count++] = ExpandEscapeChars(m_stringBuilder.ToString());
                 }
                 else
                 {
@@ -166,13 +224,13 @@ namespace DataEngine.CoreServices
                     if (k > -1)
                     {
                         if (count < values.Length)
-                            values[count++] = input.Substring(index, k - index);
+                            values[count++] = ExpandEscapeChars(input.Substring(index, k - index));
                         index = k + 1;
                     }
                     else
                     {
                         if (count < values.Length)
-                            values[count++] = input.Substring(index);
+                            values[count++] = ExpandEscapeChars(input.Substring(index));
                         break;
                     }
                 }
@@ -203,22 +261,28 @@ namespace DataEngine.CoreServices
                     pos[count].line = lineindex;
                     pos[count].col = index;
                 }
-                if (line[index] == QuoteChar)
+                if (line[index] == EncapsulatorChar)
                 {
                     index++;
                     StringBuilder sb = new StringBuilder();
                     while (true)
                     {
-                        int k = line.IndexOf(QuoteChar, index);
+                        int k = line.IndexOf(EncapsulatorChar, index);
                         if (k == -1)
                             throw new ESQLException(Properties.Resources.UnexpectedTextFileEOL, lineindex + 1, index + 1);
                         else
                         {
                             int next_ch;
-                            if (k < line.Length -1)
+                            if (k > 0 && line[k - 1] == EscapeChar &&
+                                !(k > 1 && line[k - 2] == EscapeChar))
+                            {
+                                sb.Append(line.Substring(index, k - index + 1));
+                                index = k + 1;
+                            }
+                            else if (k < line.Length -1)
                             {
                                 next_ch = line[k + 1];
-                                if (next_ch == QuoteChar)
+                                if (next_ch == EncapsulatorChar)
                                 {
                                     sb.Append(line.Substring(index, k - index + 1));
                                     index = k + 2;
@@ -247,7 +311,7 @@ namespace DataEngine.CoreServices
                             throw new ESQLException(Properties.Resources.InvalidTextFileFormat,
                                 lineindex + 1, index + 1);
                     if (count < values.Length)
-                        values[count++] = sb.ToString();
+                        values[count++] = ExpandEscapeChars(sb.ToString());
                 }
                 else
                 {
@@ -255,13 +319,13 @@ namespace DataEngine.CoreServices
                     if (k > -1)
                     {
                         if (count < values.Length)
-                            values[count++] = line.Substring(index, k - index);
+                            values[count++] = ExpandEscapeChars(line.Substring(index, k - index));
                         index = k + 1;
                     }
                     else
                     {
                         if (count < values.Length)
-                            values[count++] = line.Substring(index);
+                            values[count++] = ExpandEscapeChars(line.Substring(index));
                         break;
                     }
                 }

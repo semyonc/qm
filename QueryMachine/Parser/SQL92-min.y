@@ -16,8 +16,8 @@
     You should have received a copy of the GNU Lesser General Public
     License along with this library; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
-*/
-/*
+*/ 
+/* 
 BNF for SQL92
 This file contains a depth-first tree traversal of the BNF
 for the  language done at about 27-AUG-1992 11:03:41.64.

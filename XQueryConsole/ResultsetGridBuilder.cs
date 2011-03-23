@@ -8,6 +8,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections;
 using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
@@ -20,7 +21,6 @@ using System.Data;
 using DataEngine;
 using DataEngine.CoreServices;
 using DataEngine.CoreServices.Data;
-
 
 namespace WmHelp.XmlGrid
 {
@@ -173,6 +173,80 @@ namespace WmHelp.XmlGrid
             }
         }
 
+        public class ValueTupleCell : GridCellGroup
+        {
+            public ValueTuple Tuple { get; private set; }
+
+            public ValueTupleCell(ValueTuple tuple)
+            {
+                Tuple = tuple;
+            }
+
+            public override void DrawCellText(XmlGridView gridView, Graphics graphics, Font font, Brush brush, 
+                StringFormat format, XmlGridView.DrawInfo drawInfo, Rectangle rect)
+            {
+                StringFormat sf = new StringFormat(format);
+                Font f = new Font(font, FontStyle.Italic);
+                Brush textBrush = new SolidBrush(SystemColors.GrayText);
+                sf.LineAlignment = StringAlignment.Center;
+                rect.Height = drawInfo.cyChar;
+                graphics.DrawString(Text, f, brush, rect, sf);              
+            }
+
+            public override string Text
+            {
+                get
+                {
+                    return String.Format("({0})", Tuple.Name);
+                }
+                set
+                {
+                    return;
+                }
+            }
+        }
+
+        public class EmptyTupleCell : GridCell
+        {
+            public ValueTuple Tuple { get; private set; }
+
+            public EmptyTupleCell(ValueTuple tuple)
+            {
+                Tuple = tuple;
+            }
+
+            public override StringFormat GetStringFormat()
+            {
+                StringFormat sf = base.GetStringFormat();
+                sf.LineAlignment = StringAlignment.Near;
+                sf.FormatFlags = 0;
+                return sf;
+            }
+
+            public override void DrawCellText(XmlGridView gridView, Graphics graphics, Font font, Brush brush,
+                 StringFormat format, XmlGridView.DrawInfo drawInfo, Rectangle rect)
+            {
+                StringFormat sf = new StringFormat(format);
+                Font f = new Font(font, FontStyle.Italic);
+                Brush textBrush = new SolidBrush(SystemColors.GrayText);
+                sf.LineAlignment = StringAlignment.Center;
+                rect.Height = drawInfo.cyChar;
+                graphics.DrawString(Text, f, brush, rect, sf);
+            }
+
+            public override string Text
+            {
+                get
+                {
+                    return String.Format("({0})", Tuple.Name);
+                }
+                set
+                {
+                    return;
+                }
+            }
+        }
+
         public class GridCellXmlGroup : GridCellGroup
         {
             public Object Node { get; private set; }
@@ -186,6 +260,8 @@ namespace WmHelp.XmlGrid
         public bool ShowColumnHeader { get; private set; }
         public bool CanExportXml { get; private set; }
         public bool CanExportDS { get; private set; }
+        public int TableLimit { get; set; }
+        public bool IsTruncated { get; set; }
 
         public GridCellGroup CreateResultsetCell(Resultset rs)
         {
@@ -271,6 +347,24 @@ namespace WmHelp.XmlGrid
                     }
                     return group;
                 }
+                else if (value is ValueTuple)
+                {
+                    ValueTuple tuple = (ValueTuple)value;
+                    if (tuple.Empty)
+                        return new EmptyTupleCell(tuple);
+                    else
+                    {
+                        GridCellGroup group = new ValueTupleCell(tuple);
+                        group.Table.SetBounds(2, tuple.Values.Count);
+                        int s = 0;
+                        foreach (DictionaryEntry entry in tuple.Values)
+                        {
+                            group.Table[0, s] = new DataValueCell(entry.Key);
+                            group.Table[1, s++] = GetCell(entry.Value);
+                        }
+                        return group;
+                    }
+                }
                 else
                     return new DataValueCell(value);
             }
@@ -282,7 +376,7 @@ namespace WmHelp.XmlGrid
         {
             GridBuilder builder = new GridBuilder();
             RootCell rootCell = new RootCell(rs.RowType);
-            rs.Fill();
+            rs.Fill(2);
             CanExportDS = CanExportXml = false;
             if (rs.Count == 1 && rs.RowType.Fields.Length == 1 &&
                  (rs.Begin.GetValue(0) is XmlNode || rs.Begin.GetValue(0) is XPathNavigator))
@@ -296,6 +390,10 @@ namespace WmHelp.XmlGrid
             }
             else
             {
+                if (TableLimit == 0)
+                    rs.Fill();
+                else
+                    rs.Fill(TableLimit - 1);
                 ShowColumnHeader = true;
                 CanExportDS = true;
                 foreach (RowType.TypeInfo ti in rs.RowType.Fields)
@@ -315,6 +413,11 @@ namespace WmHelp.XmlGrid
                 int s = 1;
                 while (rs.Begin != null)
                 {
+                    if (TableLimit > 0 && s > TableLimit)
+                    {
+                        IsTruncated = true;
+                        break;
+                    }
                     Row r = rs.Dequeue();
                     for (int k = 0; k < rootCell.Table.Width; k++)
                         rootCell.Table[k, s] = GetCell(r.GetValue(k));
@@ -363,7 +466,7 @@ namespace WmHelp.XmlGrid
                         else if (baseCell is ArrayCell)
                         {
                             GridCellGroup group = (ArrayCell)baseCell;
-                            Array arr = Array.CreateInstance(rs.RowType.Fields[k].DataType.GetElementType(), 
+                            Array arr = Array.CreateInstance(rs.RowType.Fields[k].DataType.GetElementType(),
                                 group.Table.Height * group.Table.Width);
                             int index = 0;
                             for (int s = 0; s < group.Table.Height; s++)
@@ -376,6 +479,10 @@ namespace WmHelp.XmlGrid
                                 }
                             row.SetObject(k, arr);
                         }
+                        else if (baseCell is ValueTupleCell)
+                            row.SetObject(k, ((ValueTupleCell)baseCell).Tuple);
+                        else if (baseCell is EmptyTupleCell)
+                            row.SetObject(k, ((EmptyTupleCell)baseCell).Tuple);
                     }
                     m_pos++;
                     rs.Enqueue(row);

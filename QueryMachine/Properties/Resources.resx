@@ -271,4 +271,7 @@
   <data name="XQueryEngineNotImplemented" xml:space="preserve">
     <value>Can't execute XQuery request because XQuery engine is not implemented.</value>
   </data>
+  <data name="InvalidCSVChar" xml:space="preserve">
+    <value>CSV Escape and Encapsulator must be a single character string</value>
+  </data>
 </root>

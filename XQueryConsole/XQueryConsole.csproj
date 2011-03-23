@@ -130,6 +130,7 @@
       <HintPath>lib\Microsoft.Data.ConnectionUI.Dialog.dll</HintPath>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
@@ -161,6 +162,10 @@
       <DependentUpon>AboutBox.xaml</DependentUpon>
     </Compile>
     <Compile Include="BracketHighlighter.cs" />
+    <Compile Include="CircularProgressBar.xaml.cs">
+      <DependentUpon>CircularProgressBar.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="CloseableTabItem.cs" />
     <Compile Include="ConfirmSaveDialog.xaml.cs">
       <DependentUpon>ConfirmSaveDialog.xaml</DependentUpon>
@@ -170,6 +175,9 @@
       <DependentUpon>ConnectionDialog.xaml</DependentUpon>
     </Compile>
     <Compile Include="BracketSearcher.cs" />
+    <Compile Include="ControlAdorner.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="CreateTableDialog.xaml.cs">
       <DependentUpon>CreateTableDialog.xaml</DependentUpon>
     </Compile>
@@ -177,6 +185,7 @@
     <Compile Include="DocumentController.cs" />
     <Compile Include="FileTreeController.cs" />
     <Compile Include="IQueryEngineFacade.cs" />
+    <Compile Include="IServiceExtension.cs" />
     <Compile Include="PreferencesDialog.xaml.cs">
       <DependentUpon>PreferencesDialog.xaml</DependentUpon>
     </Compile>
@@ -194,6 +203,10 @@
     <Compile Include="XQueryDsContext.cs" />
     <Compile Include="XQueryFacade.cs" />
     <Page Include="AboutBox.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="CircularProgressBar.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

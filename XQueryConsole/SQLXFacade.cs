@@ -10,25 +10,30 @@ using System;
 using System.ComponentModel;
 using System.Xml;
 using System.Windows;
+using System.IO;
+using System.Text;
+using DataEngine.CoreServices.Data;
+using System.Reflection;
+using System.Globalization;
+using System.Windows.Threading;
+using System.Diagnostics;
+using System.Data.Common;
 
 using DataEngine;
 using DataEngine.ADO;
 using DataEngine.Parser;
 using WmHelp.XmlGrid;
 using DataEngine.Export;
-using System.IO;
-using System.Text;
-using DataEngine.CoreServices.Data;
-using System.Reflection;
-using System.Globalization;
 
 namespace XQueryConsole
 {
-    class SQLXFacade : IQueryEngineFacade
+    class SQLXFacade : DispatcherObject, IQueryEngineFacade
     {
         private Command command;
         private DataReader reader;
         private QueryContext context;
+        private bool limitResults;
+        
         private volatile bool canExportDS;
 
         public SQLXFacade()
@@ -44,7 +49,8 @@ namespace XQueryConsole
             DocumentController docController = mainWindow.Controller;
             context = null;
             if (reader != null)
-                reader.Close();            
+                reader.Close();
+            limitResults = docController.LimitSQLQueryResults;
             command = new Command(dsController.Dictionary);
             string searchPath = docController.SearchPath;
             if (!String.IsNullOrEmpty(baseUri) && !String.IsNullOrEmpty(searchPath))
@@ -76,10 +82,18 @@ namespace XQueryConsole
         public GridCellGroup Execute()
         {
             reader = (DataReader)command.ExecuteReader();
-            ResultsetGridBuilder builder = new ResultsetGridBuilder();            
+            ResultsetGridBuilder builder = new ResultsetGridBuilder();
+            if (limitResults)
+                builder.TableLimit = 1000;
             GridCellGroup res = builder.Parse(reader.Source);
             canExportDS = builder.CanExportDS;
+            IsTruncated = builder.IsTruncated;
             return res;
+        }
+
+        public DbDataReader ExecuteReader()
+        {
+            return command.ExecuteReader();
         }
 
         public void Terminate()
@@ -123,7 +137,7 @@ namespace XQueryConsole
             return sb.ToString();
         }
 
-        public void ExportTo(GridCellGroup rootCell, string fileName, ExportTarget target)
+        public int ExportTo(string fileName, ExportTarget target)
         {
             string ext = Path.GetExtension(fileName);
             AbstractWriter writer = null;
@@ -134,7 +148,7 @@ namespace XQueryConsole
                     break;
 
                 case ExportTarget.Csv:
-                    writer = new CsvWriter(fileName, 
+                    writer = new CsvWriter(fileName,
                         CultureInfo.CurrentCulture.TextInfo.ListSeparator, true);
                     break;
 
@@ -150,28 +164,21 @@ namespace XQueryConsole
                     writer = new AdoNetWriter(fileName);
                     break;
             }
-            if (writer != null)
+            if (writer == null)
+                throw new ArgumentException("target");
+            DataReader reader = (DataReader)command.ExecuteReader();
+            try
             {
-                ResultsetGridBuilder builder = new ResultsetGridBuilder();
-                Resultset rs = builder.CreateResultset((ResultsetGridBuilder.RootCell)rootCell);
-                writer.Write(rs);
+                writer.Write(reader.Source);
+                return writer.RowCount;
+            }
+            finally
+            {
+                reader.Close();
             }
         }
 
-        public void BatchMove(GridCellGroup cell, string name)
-        {
-            ResultsetGridBuilder.RootCell rootCell = (ResultsetGridBuilder.RootCell)cell;
-            CreateTableDialog dlg = new CreateTableDialog();
-            dlg.TableName = name;
-            ResultsetGridBuilder builder = new ResultsetGridBuilder();
-            Resultset rs = builder.CreateResultset(rootCell);
-            dlg.BatchMove.Source = rs;
-            if (dlg.ShowDialog() == true)
-            {
-                AdoProviderWriter writer = new AdoProviderWriter(dlg.BatchMove);
-                writer.Write(rs);
-            }
-        }
+        public bool IsTruncated { get; private set; }
 
         public string EngineName
         {

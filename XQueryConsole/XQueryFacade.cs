@@ -11,17 +11,22 @@ using System.ComponentModel;
 using System.Xml;
 using System.Windows;
 using System.Text;
+using System.Diagnostics;
 
 using DataEngine.XQuery;
 using WmHelp.XmlGrid;
 using System.IO;
 using DataEngine.Export;
+using System.Xml.XPath;
+using System.Collections.Generic;
+
 
 namespace XQueryConsole
 {
     class XQueryFacade: IQueryEngineFacade
     {
         private XQueryCommand command;
+        private bool limitResults;
 
         public XQueryFacade()
         {
@@ -33,6 +38,7 @@ namespace XQueryConsole
         {
             MainWindow mainWindow = (MainWindow)Application.Current.MainWindow;
             DocumentController controller = mainWindow.Controller;
+            limitResults = controller.LimitSQLQueryResults;
             if (command != null)
                 command.Dispose();
             command = new XQueryCommand(new XQueryDsContext(mainWindow.DatasourceController.Dictionary));
@@ -44,11 +50,28 @@ namespace XQueryConsole
 
         public GridCellGroup Execute()
         {
-            XQueryNodeIterator res = command.Execute();
+            IsTruncated = false;
+            XQueryNodeIterator iter = command.Execute();
             XPathGridBuilder builder = new XPathGridBuilder();
             GridCellGroup rootCell = new GridCellGroup();
-            builder.ParseNodes(rootCell, res.ToList());
+            List<XPathItem> res = new List<XPathItem>();
+            while (iter.MoveNext())
+            {
+                if (limitResults && res.Count == 1000)
+                {
+                    IsTruncated = true;
+                    command.Terminate();
+                    break;
+                }
+                res.Add(iter.Current.Clone());
+            }
+            builder.ParseNodes(rootCell, res);
             return rootCell;            
+        }
+
+        public System.Data.Common.DbDataReader ExecuteReader()
+        {
+            throw new NotImplementedException();
         }
 
         public void Terminate()
@@ -95,7 +118,7 @@ namespace XQueryConsole
             return sb.ToString();
         }
 
-        public void ExportTo(GridCellGroup rootCell, string fileName, ExportTarget target)
+        public int ExportTo(string fileName, ExportTarget target)
         {
             switch (target)
             {
@@ -109,17 +132,36 @@ namespace XQueryConsole
                             ConformanceLevel = ConformanceLevel.Auto
                         };
                         XmlWriter writer = XmlWriter.Create(stream, settings);
-                        SaveResults(rootCell, writer);
-                        writer.Close();
+                        try
+                        {
+                            int i = 0;
+                            XQueryNodeIterator res = command.Execute();
+                            while (res.MoveNext())
+                            {
+                                if (i++ > 0)
+                                    writer.WriteWhitespace("\n");
+                                XPathItem item = res.Current;
+                                if (item.IsNode)
+                                {
+                                    XPathNavigator nav = (XPathNavigator)item;
+                                    nav.WriteSubtree(writer);
+                                }
+                                else
+                                    writer.WriteString(item.Value);
+                            }
+                            return i;
+                        }
+                        finally
+                        {
+                            writer.Close();
+                        }
                     }
-                    break;
+                default:
+                    throw new ArgumentException("target");
             }
         }
 
-        public void BatchMove(GridCellGroup rootCell, string name)
-        {
-            return;
-        }
+        public bool IsTruncated { get; private set; }
 
         public string EngineName
         {
@@ -134,23 +176,6 @@ namespace XQueryConsole
             get 
             { 
                 return ".xq"; 
-            }
-        }
-
-        private void SaveResults(GridCellGroup rootCell, XmlWriter writer)
-        {
-            for (int s = 0; s < rootCell.Table.Height; s++)
-            {
-                if (s > 0)
-                    writer.WriteWhitespace("\n");
-                GridCell cell = rootCell.Table[0, s];
-                if (cell is XPathGroupCell)
-                {
-                    XPathGroupCell groupCell = (XPathGroupCell)cell;
-                    groupCell.Navigator.WriteSubtree(writer);
-                }
-                else
-                    writer.WriteString(cell.Text);
             }
         }
 

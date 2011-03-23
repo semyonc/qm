@@ -232,6 +232,15 @@ namespace DataEngine.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to CSV Escape and Encapsulator must be a single character string.
+        /// </summary>
+        internal static string InvalidCSVChar {
+            get {
+                return ResourceManager.GetString("InvalidCSVChar", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Invalid argument of function {0}.
         /// </summary>
         internal static string InvalidFunctionArgument {

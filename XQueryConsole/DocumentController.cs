@@ -34,6 +34,8 @@ namespace XQueryConsole
         private bool confirmFileSave;
         private bool enableServerQuery;
         private StartupPanel startupPanel;
+        private bool limitSQLQueryResults;
+        private bool showDragDropPromo;
 
         public DocumentController()
         {
@@ -105,6 +107,36 @@ namespace XQueryConsole
             }
         }
 
+        public bool LimitSQLQueryResults
+        {
+            get
+            {
+                return limitSQLQueryResults;
+            }
+            set
+            {
+                limitSQLQueryResults = value;
+                OnPropertyChanged("LimitSQLQueryResults");
+            }
+        }
+
+        public bool ShowDragDropPromo
+        {
+            get
+            {
+                return showDragDropPromo;
+            }
+            set
+            {
+                showDragDropPromo = value;
+                RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\WMHelp Software\\QueryMachine", true);
+                if (key == null)
+                    key = Registry.CurrentUser.CreateSubKey("SOFTWARE\\WMHelp Software\\QueryMachine");
+                key.SetValue("ShowDragDropPromo", Convert.ToInt32(showDragDropPromo));
+                key.Close();
+            }
+        }
+
         #region INotifyPropertyChanged Members
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -120,7 +152,7 @@ namespace XQueryConsole
         public String GetApplicationTitle()
         {
             return Path.GetFileNameWithoutExtension(
-                Assembly.GetExecutingAssembly().CodeBase);
+                Assembly.GetExecutingAssembly().Location);
         }
 
         private void LoadSettings()
@@ -162,6 +194,15 @@ namespace XQueryConsole
                     if (hostADOProvidersValue != null)
                         DataProviderHelper.HostADOProviders = (int)hostADOProvidersValue == 1;
 
+                    object limitSQLQueryResultsValue = key.GetValue("LimitQueryResults");
+                    if (limitSQLQueryResultsValue != null)
+                        limitSQLQueryResults = (int)limitSQLQueryResultsValue == 1;
+
+                    showDragDropPromo = true;
+                    object showDragDropPromoValue = key.GetValue("ShowDragDropPromo");
+                    if (showDragDropPromoValue != null)
+                        showDragDropPromo = (int)showDragDropPromoValue == 1;
+
                     key.Close();
                 }
 
@@ -188,6 +229,7 @@ namespace XQueryConsole
             key.SetValue("StartupPanel", (int)DefaultPanel);
             key.SetValue("EnableServerQuery", Convert.ToInt32(EnableServerQuery));
             key.SetValue("HostADOProviders", Convert.ToInt32(DataProviderHelper.HostADOProviders));
+            key.SetValue("LimitQueryResults", Convert.ToInt32(LimitSQLQueryResults));
             key.Close();
         }
 

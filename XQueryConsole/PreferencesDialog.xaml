@@ -1,7 +1,7 @@
 ﻿<Window x:Class="XQueryConsole.PreferencesDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Preferences" Height="245" Width="396" WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Title="Preferences" Height="270" Width="396" WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
         xmlns:w="clr-namespace:XQueryConsole" ShowInTaskbar="False"
         TextOptions.TextFormattingMode="Display">
     <Grid Margin="3,2,5,0">
@@ -34,6 +34,8 @@
                     <CheckBox Margin="5,8,0,0" IsChecked="{Binding RelativeSource={RelativeSource AncestorType=w:PreferencesDialog}, 
                         Path=HostADOProviders}" IsEnabled="{Binding RelativeSource={RelativeSource AncestorType=w:PreferencesDialog}, 
                         Path=IsHostADOProvidersEnabled}">Use 32-bit ADO providers in 64-bit mode</CheckBox>
+                    <CheckBox Margin="5,8,0,0" IsChecked="{Binding RelativeSource={RelativeSource AncestorType=w:PreferencesDialog}, 
+                        Path=LimitSQLQueryResults}">Limit Query results by 1000 rows</CheckBox>
                 </StackPanel>
             </TabItem>
             <TabItem Header="Folders">

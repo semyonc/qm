@@ -70,6 +70,17 @@ namespace DataEngine.CoreServices.Data
                 else
                     return DBNull.Value;
             }
+
+            public Object ToObject(DataRow r, String columnName)
+            {
+                if (r.Table.Columns.Contains(columnName))
+                {
+                    object value = r[columnName];
+                    if (value != DBNull.Value)
+                        return value;
+                }
+                return null;
+            }
         }
 
         public class TypeInfo
@@ -101,6 +112,7 @@ namespace DataEngine.CoreServices.Data
             public readonly string ProviderColumnName;
             public readonly bool IsContainer;
             public readonly bool IsCaseSensitive;
+            public readonly Object Tag;
             public bool ExportAsPk;
             public bool ExportAsUnique;
             public String ExportDataType;
@@ -135,6 +147,7 @@ namespace DataEngine.CoreServices.Data
                 BaseColumnName = null;
                 IsContainer = false;
                 IsCaseSensitive = false;
+                Tag = null;
             }
 
             public TypeInfo(int ordinal, String name, TypeInfo src)
@@ -167,6 +180,7 @@ namespace DataEngine.CoreServices.Data
                 ProviderColumnName = src.ProviderColumnName;
                 IsContainer = src.IsContainer;
                 IsCaseSensitive = src.IsCaseSensitive;
+                Tag = src.Tag;
             }
 
             public TypeInfo(int ordinal, TypeInfo src1, TypeInfo src2)
@@ -243,6 +257,10 @@ namespace DataEngine.CoreServices.Data
                     IsCaseSensitive = src1.IsCaseSensitive;
                 else
                     IsCaseSensitive = false;
+                if (src1.Tag == src2.Tag)
+                    Tag = src1.Tag;
+                else
+                    Tag = null;
             }
             
             public TypeInfo(TypeInfo src)
@@ -290,6 +308,8 @@ namespace DataEngine.CoreServices.Data
                 ProviderColumnName = convert.To<String>(r, "ProviderColumnName");
                 IsContainer = convert.ToNullable<Boolean>(r, "IsContainer") ?? false;
                 IsCaseSensitive = convert.ToNullable<Boolean>(r, "IsCaseSensitive") ?? false;
+
+                Tag = convert.ToObject(r, "Tag");
             }
         }
 

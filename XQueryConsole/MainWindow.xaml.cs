@@ -34,7 +34,23 @@ namespace XQueryConsole
         public DocumentController Controller { get; private set; }
         public FileTreeController FileTreeController1 { get; private set; }
         public DataSourceTreeController DatasourceController { get; private set; }
-        public FileTreeController FileTreeController2 { get; private set; }        
+        public FileTreeController FileTreeController2 { get; private set; }
+
+        public TabControl ReferenceTab
+        {
+            get
+            {
+                return referenceTab;
+            }
+        }
+
+        public MenuItem MenuQuery
+        {
+            get
+            {
+                return menuQuery;
+            }
+        }
 
         public static readonly ICommand NewXQueryCommand =
             new RoutedUICommand("New XQuery", "NewXQuery", typeof(MainWindow));
@@ -95,12 +111,24 @@ namespace XQueryConsole
                     Dispatcher.BeginInvoke(new Action(() => Controller.NewQuery(QueryTabs, new SQLXFacade())));
                     break;
             }
+            InitAddins();
         }
 
         private void Controller_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
             if (e.PropertyName == "MyQueriesPath")
                 FileTreeController1.ChangeBasePath(Controller.MyQueriesPath);
+        }
+
+        private void InitAddins()
+        {
+            App application = (App)Application.Current;
+            foreach (IServiceExtension addin in application.Addins)
+            {
+                addin.Bind();
+                Type t = addin.GetType();
+                Trace.TraceInformation("Init addin {0}, {1}", t.FullName, t.Assembly.FullName);
+            }
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -114,25 +142,29 @@ namespace XQueryConsole
 
         private void TreeController2_ShowTooltip(object sender, EventArgs e)
         {
-            ToolTip toolTip = treeViewHost2.ToolTip as ToolTip;
-            if (toolTip == null)
-            {
-                toolTip = new ToolTip();
-                toolTip.Placement = System.Windows.Controls.Primitives.PlacementMode.Center;
-                toolTip.PlacementTarget = SelectedPage.textEditor;
-                toolTip.Content = treeViewHost2.ToolTip;
-                treeViewHost2.ToolTip = toolTip;
-            }
-            if (toolTip != null)
-                toolTip.IsOpen = true;
-            DispatcherTimer timer = new DispatcherTimer { Interval = new TimeSpan(0, 0, 5), IsEnabled = true };
-            timer.Tick += new EventHandler(delegate(object timerSender, EventArgs timerArgs)
-            {
+            if (Controller.ShowDragDropPromo)
+            {                
+                ToolTip toolTip = treeViewHost2.ToolTip as ToolTip;
+                if (toolTip == null)
+                {
+                    toolTip = new ToolTip();
+                    toolTip.Placement = System.Windows.Controls.Primitives.PlacementMode.Center;
+                    toolTip.PlacementTarget = SelectedPage.textEditor;
+                    toolTip.Content = treeViewHost2.ToolTip;
+                    treeViewHost2.ToolTip = toolTip;
+                }
                 if (toolTip != null)
-                    toolTip.IsOpen = false;
-                toolTip = null;
-                timer = null;
-            });
+                    toolTip.IsOpen = true;
+                DispatcherTimer timer = new DispatcherTimer { Interval = new TimeSpan(0, 0, 5), IsEnabled = true };
+                timer.Tick += new EventHandler(delegate(object timerSender, EventArgs timerArgs)
+                {
+                    if (toolTip != null)
+                        toolTip.IsOpen = false;
+                    toolTip = null;
+                    timer = null;
+                });
+                Controller.ShowDragDropPromo = false;
+            }
         }
 
         private string GetSamplesDirectory()

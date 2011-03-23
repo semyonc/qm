@@ -21,6 +21,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Data.Common;
 
 using WmHelp.XmlGrid;
 using DataEngine.XQuery;
@@ -54,6 +55,7 @@ namespace XQueryConsole
         
         private BracketHighlightRenderer bracketRenderer;
         private BracketSearcher bracketSearcher;
+        private ControlAdorner ctrlAdorner;
 
         public static readonly ICommand ExecuteCommand =
             new RoutedUICommand("Execute", "Execute", typeof(QueryPage));
@@ -61,6 +63,8 @@ namespace XQueryConsole
             new RoutedUICommand("Save Result", "SaveResult", typeof(QueryPage));
         public static readonly ICommand MoveResultCommand =
             new RoutedUICommand("Move Result", "SaveResult", typeof(QueryPage));
+
+        public delegate void QueryExecuteCallback(DbDataReader result);
 
         private class EmbeddedGrid : XmlGridView
         {
@@ -100,7 +104,8 @@ namespace XQueryConsole
             // see http://community.sharpdevelop.net/forums/t/10312.aspx          
             bracketSearcher = new BracketSearcher();
             bracketRenderer = new BracketHighlightRenderer(textEditor.TextArea.TextView);
-            textEditor.TextArea.Caret.PositionChanged += new EventHandler(Caret_PositionChanged);            
+            textEditor.TextArea.Caret.PositionChanged += new EventHandler(Caret_PositionChanged);
+            ctrlAdorner = new ControlAdorner(textEditor, new CircularProgressBar());
         }
 
         #region INotifyPropertyChanged Members
@@ -223,6 +228,14 @@ namespace XQueryConsole
             }
         }
 
+        public String QueryText
+        {
+            get
+            {
+                return textEditor.Text;
+            }
+        }
+        
         private void Update(bool modified)
         {
             if (hasModified != modified)
@@ -239,6 +252,27 @@ namespace XQueryConsole
         {
             windowsFormsHost.Dispose();
             engine.CloseQuery();
+        }
+
+        public void BeginQueryExecute(QueryExecuteCallback callback)
+        {
+            engine.OpenQuery(textEditor.Text, filePath);
+            textEditor.IsReadOnly = true;
+            AdornerLayer adornerLayer = AdornerLayer.GetAdornerLayer(textEditor);
+            ctrlAdorner.SetLayer(adornerLayer);
+            queryTask = Task.Factory.StartNew(() =>
+            {
+                try
+                {
+                    DbDataReader res = engine.ExecuteReader();
+                    Dispatcher.Invoke(new HideAdornerDelegate(HideAdorner));
+                    Dispatcher.BeginInvoke(callback, res);
+                }
+                catch (Exception ex)
+                {
+                    Dispatcher.BeginInvoke(new RuntimeExceptionDelegate(HandleException), ex);
+                }
+            });
         }
 
         private void Page_Loaded(object sender, RoutedEventArgs e)
@@ -280,8 +314,10 @@ namespace XQueryConsole
             sourceViewBorder.Visibility = System.Windows.Visibility.Visible;
         }
 
+        delegate void UpdateTextEditDelegate(int rows);
         delegate void UpdateXmlGridDelegate(GridCellGroup rootCell);
         delegate void RuntimeExceptionDelegate(Exception ex);
+        delegate void HideAdornerDelegate();
 
         private void CommandBinding_Execute(object sender, ExecutedRoutedEventArgs e)
         {
@@ -293,8 +329,8 @@ namespace XQueryConsole
             sourceViewer.Clear();
             hasTextContent = false;
             textEditor.IsReadOnly = true;
-            textEditor.Cursor = Cursors.Wait;
-            textEditor.ForceCursor = true;
+            AdornerLayer adornerLayer = AdornerLayer.GetAdornerLayer(textEditor);
+            ctrlAdorner.SetLayer(adornerLayer);
             workTime = new Stopwatch();     
             workTime.Start();
             queryTask = Task.Factory.StartNew(() =>
@@ -318,11 +354,11 @@ namespace XQueryConsole
 
         private void HandleException(Exception ex)
         {
-            workTime.Stop();
+            if (workTime != null)
+                workTime.Stop();
             queryTask = null;
             textEditor.IsReadOnly = false;
-            textEditor.Cursor = null;
-            textEditor.ForceCursor = false;
+            ctrlAdorner.RemoveLayer();
             if (engine.IsQueryException(ex))
                 MessageBox.Show(ex.Message /*+ "\r\n" + ex.StackTrace*/, "Query error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
@@ -339,32 +375,68 @@ namespace XQueryConsole
             engine.CloseQuery();
         }
 
+        private string FormatElapsedTime()
+        {
+            if (workTime.Elapsed.Hours > 0)
+                return String.Format("{0} hr, {1} min, {2} sec",
+                    workTime.Elapsed.Hours, workTime.Elapsed.Minutes, workTime.Elapsed.Seconds);
+            else if (workTime.Elapsed.Minutes > 0)
+                return String.Format("{0} min, {1} sec",
+                    workTime.Elapsed.Minutes, workTime.Elapsed.Seconds);
+            else
+                return String.Format("{0} sec ({1} ms)",
+                    workTime.Elapsed.Seconds, workTime.ElapsedMilliseconds);
+        }
+
+        private void UpdateTextEdit(int rowsExported)
+        {
+            workTime.Stop();
+            queryTask = null;
+            textEditor.IsReadOnly = false;
+            ctrlAdorner.RemoveLayer();
+            textEditor.Focus();
+            if (rowsExported != -1)
+            {
+                String elapsed = FormatElapsedTime();
+                status = String.Format("{0} node(s) exported. {1} elapsed.", rowsExported, elapsed);
+                OnPropertyChanged("StatusText");
+            }
+        }
+
         private void UpdateXmlGrid(GridCellGroup rootCell)
         {
             workTime.Stop();
             queryTask = null;
             textEditor.IsReadOnly = false;
-            textEditor.Cursor = null;
-            textEditor.ForceCursor = false;
+            ctrlAdorner.RemoveLayer();
             textEditor.Focus();
-            String elapsed;
-            if (workTime.Elapsed.Hours > 0)
-                elapsed = String.Format("{0} hr, {1} min, {2} sec",
-                    workTime.Elapsed.Hours, workTime.Elapsed.Minutes, workTime.Elapsed.Seconds);
-            else if (workTime.Elapsed.Minutes > 0)
-                elapsed = String.Format("{0} min, {1} sec",
-                    workTime.Elapsed.Minutes, workTime.Elapsed.Seconds);
-            else
-                elapsed = String.Format("{0} sec ({1} ms)",
-                    workTime.Elapsed.Seconds, workTime.ElapsedMilliseconds);
-            if (xmlGrid.ShowColumnHeader)
-                status = String.Format("{0} row(s) read. {1} elapsed.",
+            String elapsed = FormatElapsedTime();
+            if (rootCell.Table[0, 0] is GridHeadLabel)
+            {
+                xmlGrid.ShowColumnHeader = true;
+                status = String.Format("{0} node(s) read. {1} elapsed.",
                    rootCell.Table.Height - 1, elapsed);
+            }
             else
-                status = String.Format("{0} elapsed.", elapsed);
+            {
+                xmlGrid.ShowColumnHeader = false;
+                if (rootCell.Table.Height > 1)
+                    status = String.Format("{0} node(s) read. {1} elapsed.",
+                       rootCell.Table.Height, elapsed);
+                else
+                    status = String.Format("{0} elapsed.", elapsed);
+            }
+            MainWindow main = (MainWindow)Application.Current.MainWindow;
+            if (main.Controller.LimitSQLQueryResults && engine.IsTruncated)
+                status += " Possible not all results selected.";
             OnPropertyChanged("StatusText");
             xmlGrid.Cell = rootCell;
             ShowResultPane = true;
+            if (engine.DefaultExt == ".xq")
+            {
+                xmlSourceButton.IsChecked = true;
+                xmlSourceButton_Click(null, null);
+            }
         }
 
         private void CreateTextContent()
@@ -395,46 +467,47 @@ namespace XQueryConsole
                 dlg.Filter = "XML Data File (*.xml)|*.xml";
             if (dlg.ShowDialog() == true)
             {
-                Cursor = Cursors.Wait;
-                try
+                engine.OpenQuery(textEditor.Text, filePath);                    
+                textEditor.IsReadOnly = true;
+                AdornerLayer adornerLayer = AdornerLayer.GetAdornerLayer(textEditor);
+                ctrlAdorner.SetLayer(adornerLayer);
+                workTime = new Stopwatch();
+                workTime.Start();
+                queryTask = Task.Factory.StartNew(() =>
                 {
-                    switch (dlg.FilterIndex)
+                    try
                     {
-                        case 0:
-                            engine.ExportTo(xmlGrid.Cell, dlg.FileName, ExportTarget.Xml);
-                            break;
-                        
-                        case 1:
-                            engine.ExportTo(xmlGrid.Cell, dlg.FileName, ExportTarget.TabDelimited);
-                            break;
+                        int nRows = 0;
+                        switch (dlg.FilterIndex)
+                        {
+                            case 1:
+                                nRows = engine.ExportTo(dlg.FileName, ExportTarget.Xml);
+                                break;
 
-                        case 2:
-                            engine.ExportTo(xmlGrid.Cell, dlg.FileName, ExportTarget.Csv);
-                            break;
-                        
-                        case 3:
-                            engine.ExportTo(xmlGrid.Cell, dlg.FileName, ExportTarget.FixedLength);
-                            break;
+                            case 2:
+                                nRows = engine.ExportTo(dlg.FileName, ExportTarget.TabDelimited);
+                                break;
 
-                        case 4:
-                            engine.ExportTo(xmlGrid.Cell, dlg.FileName, ExportTarget.AdoNet);
-                            break;
+                            case 3:
+                                nRows = engine.ExportTo(dlg.FileName, ExportTarget.Csv);
+                                break;
+
+                            case 4:
+                                nRows = engine.ExportTo(dlg.FileName, ExportTarget.FixedLength);
+                                break;
+
+                            case 5:
+                                nRows = engine.ExportTo(dlg.FileName, ExportTarget.AdoNet);
+                                break;
+                        }
+                        Dispatcher.BeginInvoke(new UpdateTextEditDelegate(UpdateTextEdit), nRows);
                     }
-                    Cursor = null;
-                }
-                catch (Exception ex)
-                {
-                    Cursor = null;
-                    MessageBox.Show(ex.Message + "\r\n" + ex.StackTrace, "Runtime error",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-                
+                    catch (Exception ex)
+                    {
+                        Dispatcher.BeginInvoke(new RuntimeExceptionDelegate(HandleException), ex);
+                    }
+                });
             }
-        }
-
-        private void CommandBinding_SaveResCanExecute(object sender, CanExecuteRoutedEventArgs e)
-        {
-            e.CanExecute = xmlGrid != null && xmlGrid.Cell != null;
         }
 
         private void CommandBinding_StopExecuted(object sender, ExecutedRoutedEventArgs e)
@@ -448,23 +521,49 @@ namespace XQueryConsole
             e.CanExecute = queryTask != null;
         }
 
-        private void CommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
-        {
-            try
-            {
-                engine.BatchMove(xmlGrid.Cell,
-                    System.IO.Path.GetFileNameWithoutExtension(ShortFileName).ToUpperInvariant());
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message + "\r\n" + ex.StackTrace, "Runtime error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
         private void CommandBinding_BatchMoveCanExecute(object sender, CanExecuteRoutedEventArgs e)
         {
             e.CanExecute = xmlGrid != null && xmlGrid.Cell != null && engine.CanExportDS(xmlGrid.Cell);
+        }
+
+        private void CommandBinding_BatchMoveExecuted(object sender, ExecutedRoutedEventArgs e)
+        {
+            BeginQueryExecute(new QueryExecuteCallback(BeginBatchMove)); 
+        }
+
+        private void HideAdorner()
+        {
+            queryTask = null;
+            textEditor.IsReadOnly = false;
+            ctrlAdorner.RemoveLayer();
+        }
+
+        private void BeginBatchMove(DbDataReader reader)
+        {
+            CreateTableDialog dlg = new CreateTableDialog();
+            dlg.TableName = System.IO.Path.GetFileNameWithoutExtension(ShortFileName).ToUpperInvariant();
+            dlg.BatchMove.Source = ((DataEngine.ADO.DataReader)reader).Source;
+            if (dlg.ShowDialog() == true)
+            {
+                textEditor.IsReadOnly = true;
+                AdornerLayer adornerLayer = AdornerLayer.GetAdornerLayer(textEditor);
+                ctrlAdorner.SetLayer(adornerLayer);
+                workTime = new Stopwatch();
+                workTime.Start();
+                queryTask = Task.Factory.StartNew(() =>
+                {
+                    try
+                    {
+                        AdoProviderWriter writer = new AdoProviderWriter(dlg.BatchMove);
+                        writer.Write(dlg.BatchMove.Source);
+                        Dispatcher.BeginInvoke(new UpdateTextEditDelegate(UpdateTextEdit), writer.RowCount);
+                    }
+                    catch (Exception ex)
+                    {
+                        Dispatcher.BeginInvoke(new RuntimeExceptionDelegate(HandleException), ex);
+                    }
+                });
+            }
         }
     }
 }

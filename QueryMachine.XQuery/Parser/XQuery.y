@@ -2,8 +2,8 @@
 XQuery 1.0: An XML Query Language
 W3C Recommendation 23 January 2007
 
-http://www.w3.org/TR/xquery/
-http://www.w3.org/TR/xquery-xpath-parsing
+http://www.w3.org/TR/xquery/ 
+http://www.w3.org/TR/xquery-xpath-parsing 
 
 Copyright (c) 2009, Semyon A. Chertkov (semyonc@gmail.com)
 All rights reserved.

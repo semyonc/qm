@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
+using System.Collections;
 
 using System.Xml;
 using System.Xml.XPath;
@@ -29,7 +30,7 @@ namespace DataEngine.Export
         {
             XmlWriterSettings settings = new XmlWriterSettings();
             settings.Indent = true;
-            XmlWriter _writer = XmlWriter.Create(fileName, settings);
+            _writer = XmlWriter.Create(fileName, settings);
         }
 
         public XmlFileWriter(XmlWriter writer)
@@ -107,51 +108,65 @@ namespace DataEngine.Export
             foreach (RowType.TypeInfo ti in rs.RowType.Fields)
             {
                 w.WriteStartElement(XmlConvert.EncodeLocalName(ti.Name));
-                object value = row.GetValue(ti.Ordinal);
-                if (value != DBNull.Value && value != null)
-                {
-                    if (value is XmlNode)
-                    {
-                        XmlNode node = (XmlNode)value;
-                        node.WriteTo(w);
-                    }
-                    else if (value is XPathItem)
-                    {
-                        XPathNavigator nav = value as XPathNavigator;
-                        if (nav != null)
-                            nav.WriteSubtree(w);
-                        else
-                        {
-                            XPathItem item = (XPathItem)value;
-                            w.WriteString(item.Value);
-                        }
-                    }
-                    else if (value is XmlNodeList)
-                    {
-                        XmlNodeList nodeList = (XmlNodeList)value;
-                        foreach (XmlNode node in nodeList)
-                            node.WriteTo(w);
-                    }
-                    else if (value is Array)
-                    {
-                        Array array = (Array)value;
-                        BinaryFormatter formatter = new BinaryFormatter();
-                        MemoryStream ms = new MemoryStream();
-                        formatter.Serialize(ms, array);
-                        w.WriteBase64(ms.GetBuffer(), 0, (int)ms.Length);
-                        ms.Close();
-                    }
-                    else if (value is Resultset)
-                    {
-                        Resultset nested_rs = (Resultset)value;
-                        WriteNestedResultset(nested_rs, w);
-                    }
-                    else
-                        w.WriteValue(XmlDataAccessor.Serialize(value));
-                }
+                WriteValue(row.GetValue(ti.Ordinal), w);
                 w.WriteEndElement();
             }
             w.WriteEndElement();
+        }
+
+        private void WriteValue(object value, XmlWriter w)
+        {
+            if (value != DBNull.Value && value != null)
+            {
+                if (value is XmlNode)
+                {
+                    XmlNode node = (XmlNode)value;
+                    node.WriteTo(w);
+                }
+                else if (value is XPathItem)
+                {
+                    XPathNavigator nav = value as XPathNavigator;
+                    if (nav != null)
+                        nav.WriteSubtree(w);
+                    else
+                    {
+                        XPathItem item = (XPathItem)value;
+                        w.WriteString(item.Value);
+                    }
+                }
+                else if (value is XmlNodeList)
+                {
+                    XmlNodeList nodeList = (XmlNodeList)value;
+                    foreach (XmlNode node in nodeList)
+                        node.WriteTo(w);
+                }
+                else if (value is Array)
+                {
+                    Array array = (Array)value;
+                    BinaryFormatter formatter = new BinaryFormatter();
+                    MemoryStream ms = new MemoryStream();
+                    formatter.Serialize(ms, array);
+                    w.WriteBase64(ms.GetBuffer(), 0, (int)ms.Length);
+                    ms.Close();
+                }
+                else if (value is Resultset)
+                {
+                    Resultset nested_rs = (Resultset)value;
+                    WriteNestedResultset(nested_rs, w);
+                }
+                else if (value is ValueTuple)
+                {
+                    ValueTuple tuple = (ValueTuple)value;
+                    foreach (DictionaryEntry entry in tuple.Values)
+                    {
+                        w.WriteStartElement(XmlConvert.EncodeLocalName(entry.Key.ToString()));
+                        WriteValue(entry.Value, w);
+                        w.WriteEndElement();
+                    }
+                }
+                else
+                    w.WriteValue(XmlDataAccessor.Serialize(value));
+            }
         }
     }
 }

@@ -7,23 +7,29 @@
 //        any later version.
 
 using System;
-using WmHelp.XmlGrid;
+using System.Diagnostics;
+using System.Data.Common;
+
 using DataEngine.Export;
+using WmHelp.XmlGrid;
 
 namespace XQueryConsole
 {
     public interface IQueryEngineFacade
     {
         void OpenQuery(string queryText, string baseUri);
+        
         GridCellGroup Execute();
+        DbDataReader ExecuteReader();
+
         void Terminate();
         void CloseQuery();
         bool IsQueryException(Exception ex);
         bool CanExportDS(GridCellGroup rootCell);
         string GetSourceXML(GridCellGroup rootCell);
-        void ExportTo(GridCellGroup rootCell, string fileName, ExportTarget target);
-        void BatchMove(GridCellGroup rootCell, string name);
+        int ExportTo(string fileName, ExportTarget target);
 
+        bool IsTruncated { get; }
         string EngineName { get; }
         string DefaultExt { get; }        
     }

@@ -17,15 +17,25 @@ using DataEngine.CoreServices.Data;
 
 namespace DataEngine.Export
 {
+    public enum CsvWriterQuotePolicy
+    {
+        Auto,
+        Always,
+        Literal
+    }
+
     public class CsvWriter : AbstractWriter
     {
         private string m_fileName;
+
+        public CsvWriterQuotePolicy QuotePolicy { get; set; }
 
         public CsvWriter(string fileName, string commaSeparator, bool createSchemaIni)
         {
             m_fileName = fileName;
             CommaSeparator = commaSeparator;
             CreateSchemaIni = createSchemaIni;
+            QuotePolicy = CsvWriterQuotePolicy.Auto;
         }
 
         public override void Write(Resultset rs)
@@ -56,34 +66,85 @@ namespace DataEngine.Export
                 }
             }
             TextWriter sw = new StreamWriter(m_fileName, false, Encoding.Default);
-            for (int k = 0; k < rs.RowType.Fields.Length; k++)
+            try
             {
-                if (k > 0)
-                    sw.Write(CommaSeparator);
-                sw.Write(Util.UnquoteName(rs.RowType.Fields[k].Name));
-            }
-            sw.WriteLine();
-            while (rs.Begin != null)
-            {
-                Row row = rs.Dequeue();
-                for (int k = 0; k < row.Length; k++)
+                for (int k = 0; k < rs.RowType.Fields.Length; k++)
                 {
                     if (k > 0)
                         sw.Write(CommaSeparator);
-                    Object value = row.GetValue(k);
-                    if (value != DBNull.Value)
-                    {
-                        String data = value.ToString();
-                        if (data.Contains(CommaSeparator) || data.Contains("\""))
-                            data = String.Format("\"{0}\"", data.Replace("\"", "\"\""));
-                        sw.Write(data);
-                    }
+                    sw.Write(Util.UnquoteName(rs.RowType.Fields[k].Name));
                 }
                 sw.WriteLine();
-                RowProceded();
+                RowType.TypeInfo[] fields = rs.RowType.Fields;
+                while (rs.Begin != null)
+                {
+                    Row row = rs.Dequeue();
+                    for (int k = 0; k < row.Length; k++)
+                    {
+                        if (k > 0)
+                            sw.Write(CommaSeparator);
+                        WriteValue(sw, fields[k], row.GetValue(k));
+                    }
+                    sw.WriteLine();
+                    RowProceded();
+                }
             }
-            sw.Close();
-        }    
+            finally
+            {
+                sw.Close();
+            }
+        }
+
+        private bool NeedQuotes(String data, RowType.TypeInfo ti)
+        {
+            switch (QuotePolicy)
+            {
+                case CsvWriterQuotePolicy.Auto:
+                    if (data.Contains(CommaSeparator) || data.Contains("\""))
+                        return true;
+                    break;
+
+                case CsvWriterQuotePolicy.Always:
+                    return true;
+
+                case CsvWriterQuotePolicy.Literal:
+                    switch (Type.GetTypeCode(ti.DataType))
+                    {
+                        case TypeCode.Decimal:
+                        case TypeCode.Single:
+                        case TypeCode.Double:
+                        case TypeCode.Int16:
+                        case TypeCode.Int32:
+                        case TypeCode.Int64:
+                        case TypeCode.UInt16:
+                        case TypeCode.UInt32:
+                        case TypeCode.UInt64:
+                        case TypeCode.Byte:
+                        case TypeCode.SByte:
+                            return false;
+
+                        default:
+                            return true;
+                    }
+            }
+            return false;
+        }
+
+        protected virtual void WriteValue(TextWriter sw, RowType.TypeInfo ti, object value)
+        {
+            if (value != DBNull.Value)
+            {
+                String data = FormatValue(ti, value);
+                if (NeedQuotes(data, ti))
+                    data = String.Format("\"{0}\"", data.Replace("\"", "\"\""));
+                sw.Write(data);
+            }
+        }
+
+        protected virtual string FormatValue(RowType.TypeInfo ti, object value)
+        {
+            return value.ToString();
+        }
         
         public String CommaSeparator { get; set; }
 
