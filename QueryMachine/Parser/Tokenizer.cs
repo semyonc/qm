@@ -344,6 +344,27 @@ namespace DataEngine.Parser
 			{
 				if (c == '\0')
 					throw new ESQLException("Unterminated string literal");
+                if (c == '\\')
+                {
+                    c = NextChar();
+                    if (c == '\0')
+                        throw new ESQLException("Unterminated string literal");
+                    switch (c)
+                    {
+                        case 'n':
+                            c = '\n';
+                            break;
+                        case 'r':
+                            c = '\r';
+                            break;
+                        case 't':
+                            c = '\t';
+                            break;
+                        case 'a':
+                            c = '\a';
+                            break;
+                    }
+                }
 				sb.Append(c);
 			}
             NextChar();

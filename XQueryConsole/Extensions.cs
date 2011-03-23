@@ -95,6 +95,18 @@ namespace XQueryConsole
             }
         }
 
+        public static void SetTreeViewTheme(IntPtr handle)
+        {
+            try
+            {
+                SetWindowTheme(handle, "explorer", null);
+            }
+            catch (Exception ex)
+            {
+                Trace.TraceError(ex.Message);
+            }
+        }
+
         //
         // http://stackoverflow.com/questions/665719/wpf-animate-listbox-scrollviewer-horizontaloffset/665798#665798
         //

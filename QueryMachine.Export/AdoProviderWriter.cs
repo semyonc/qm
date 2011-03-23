@@ -23,6 +23,8 @@ namespace DataEngine.Export
 {
     public class AdoProviderWriter : AbstractWriter
     {
+        public static readonly int MAX_ROWS = 1000;
+
         private BatchMove m_batchMove;
 
         public AdoProviderWriter(BatchMove batchMove)
@@ -35,6 +37,23 @@ namespace DataEngine.Export
             DataProviderHelper helper =
                 new DataProviderHelper(m_batchMove.ProviderInvariantName, m_batchMove.ConnectionString);
 
+            if (RemoteDbProviderFactories.Isx64() &&
+                 (DataProviderHelper.HostADOProviders || m_batchMove.ProviderInvariantName == "System.Data.OleDb"))
+            {
+                ProxyDataAdapter proxy = m_batchMove.CreateProxyDataAdapter();
+                Load(rs, (DataTable dt) => proxy.Update(dt));
+            }
+            else
+            {
+                DbDataAdapter adapter = m_batchMove.CreateDataAdapter();
+                Load(rs, (DataTable dt) => adapter.Update(dt));
+            }
+        }
+
+        private delegate void UpdateDelegate(DataTable dt);
+
+        private void Load(Resultset rs, UpdateDelegate update)
+        {
             DataTable dt = new DataTable();
             dt.TableName = m_batchMove.TableName;
             for (int k = 0; k < m_batchMove.FieldNames.Count; k++)
@@ -44,7 +63,8 @@ namespace DataEngine.Export
                 column.DataType = rs.RowType.Fields[k].DataType;
                 dt.Columns.Add(column);
             }
-            
+
+            int count = 0;
             while (rs.Begin != null)
             {
                 Row row = rs.Dequeue();
@@ -53,19 +73,15 @@ namespace DataEngine.Export
                     dr[k] = row[k];
                 dt.Rows.Add(dr);
                 RowProceded();
+                if (++count > MAX_ROWS)
+                {
+                    count = 0;
+                    update(dt);
+                    dt.Clear();                    
+                }
             }
-
-            if (RemoteDbProviderFactories.Isx64() &&
-                 (DataProviderHelper.HostADOProviders || m_batchMove.ProviderInvariantName == "System.Data.OleDb"))
-            {
-                ProxyDataAdapter proxy = m_batchMove.CreateProxyDataAdapter();
-                proxy.Update(dt);
-            }
-            else
-            {
-                DbDataAdapter adapter = m_batchMove.CreateDataAdapter();
-                adapter.Update(dt);
-            }
+            if (count > 0)
+                update(dt);
         }
     }
 }

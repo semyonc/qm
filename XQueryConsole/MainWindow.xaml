@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:w="clr-namespace:XQueryConsole"
         xmlns:my="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"  
-        Title="XQuery Console" Height="443" Width="690" Closing="Window_Closing" ResizeMode="CanResizeWithGrip" Loaded="Window_Loaded" 
+        Title="QueryMachine Console" Height="443" Width="690" Closing="Window_Closing" ResizeMode="CanResizeWithGrip" Loaded="Window_Loaded" 
         Icon="/XQueryConsole;component/Images/App.ico" 
         TextOptions.TextFormattingMode="Display">
     <Window.Resources>
@@ -33,7 +33,7 @@
         <CommandBinding Command="{x:Static w:MainWindow.ShowResultsCommand}"
                         Executed="CommandBinding_ShowResultsExecuted"></CommandBinding>
     </Window.CommandBindings>
-    <Grid>
+    <Grid Name="contentGrid">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"></RowDefinition>
             <RowDefinition Height="*" MinHeight="50"></RowDefinition>
@@ -48,11 +48,11 @@
         </Grid.ColumnDefinitions>
         <Menu Name="mainMenu" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3">
             <MenuItem Header="File">
-                <MenuItem Header="New XQuery" Command="{x:Static w:MainWindow.NewXQueryCommand}">
+                <MenuItem Header="New SQL" InputGestureText="Ctrl+1" Command="{x:Static w:MainWindow.NewSQLXCommand}">
                 </MenuItem>
-                <MenuItem Header="New SQL" Command="{x:Static w:MainWindow.NewSQLXCommand}">
+                <MenuItem Header="New XQuery" InputGestureText="Ctrl+2" Command="{x:Static w:MainWindow.NewXQueryCommand}">
                 </MenuItem>
-                <MenuItem Header="Open..." Command="ApplicationCommands.Open">
+                <MenuItem Header="Open..." InputGestureText="Ctrl+O" Command="ApplicationCommands.Open">
                     <MenuItem.Icon>
                         <Image Source="/XQueryConsole;component/Images/Load.png" />
                     </MenuItem.Icon>
@@ -151,7 +151,7 @@
         <GridSplitter Grid.Row="2" Grid.Column="0" Height="3" 
                       VerticalAlignment="Center" HorizontalAlignment="Stretch">
         </GridSplitter>
-        <TabControl Grid.Row="3" Grid.Column="0" Grid.RowSpan="2" BorderThickness="1">
+        <TabControl Grid.Row="3" Grid.Column="0" Grid.RowSpan="2" BorderThickness="1" Name="referenceTab">
             <TabItem Header="My Queries">
                 <Grid>
                     <Grid.RowDefinitions>

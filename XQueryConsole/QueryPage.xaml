@@ -28,9 +28,9 @@
     </Page.Resources>    
     <Page.CommandBindings>
         <CommandBinding Command="{x:Static w:QueryPage.ExecuteCommand}" Executed="CommandBinding_Execute" CanExecute="CommandBinding_CanExecute"></CommandBinding>
-        <CommandBinding Command="{x:Static w:QueryPage.SaveResultCommand}" Executed="CommandBinding_SaveResExecuted" CanExecute="CommandBinding_SaveResCanExecute"></CommandBinding>
+        <CommandBinding Command="{x:Static w:QueryPage.SaveResultCommand}" Executed="CommandBinding_SaveResExecuted" CanExecute="CommandBinding_CanExecute"></CommandBinding>
         <CommandBinding Command="Stop" Executed="CommandBinding_StopExecuted" CanExecute="CommandBinding_CanStopExecute"></CommandBinding>
-        <CommandBinding Command="{x:Static w:QueryPage.MoveResultCommand}" Executed="CommandBinding_Executed" CanExecute="CommandBinding_BatchMoveCanExecute"></CommandBinding>
+        <CommandBinding Command="{x:Static w:QueryPage.MoveResultCommand}" Executed="CommandBinding_BatchMoveExecuted" CanExecute="CommandBinding_BatchMoveCanExecute"></CommandBinding>
     </Page.CommandBindings>
     <Grid Name="layout">
         <Grid.RowDefinitions>

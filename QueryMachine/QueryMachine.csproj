@@ -110,6 +110,7 @@
     <Compile Include="Ado\DataReader.cs" />
     <Compile Include="Ado\Parameter.cs" />
     <Compile Include="Ado\ParameterCollection.cs" />
+    <Compile Include="Data\ValueTuple.cs" />
     <Compile Include="Parser\SQL92-min.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>

@@ -98,14 +98,7 @@ namespace XQueryConsole
             dataTree.AfterCollapse += new TreeViewEventHandler(dataTree_AfterCollapse);
             dataTree.Font = new Font("Tahoma", 8.25f);
 
-            try
-            {
-                Extensions.SetWindowTheme(dataTree.Handle, "explorer", null);
-            }
-            catch(Exception ex)
-            {
-                Trace.TraceError(ex.Message);
-            }
+            Extensions.SetTreeViewTheme(dataTree.Handle);
             
             this.basePath = basePath;
             Reload();

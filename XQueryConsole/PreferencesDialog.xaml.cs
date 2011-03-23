@@ -58,6 +58,7 @@ namespace XQueryConsole
             DefaultPanel = controller.DefaultPanel;
             EnableServerQuery = controller.EnableServerQuery;
             HostADOProviders = DataProviderHelper.HostADOProviders;
+            LimitSQLQueryResults = controller.LimitSQLQueryResults;
             searchPathTextBox.Focus();
         }
 
@@ -78,6 +79,7 @@ namespace XQueryConsole
         public StartupPanel DefaultPanel { get; set; }
         public bool EnableServerQuery { get; set; }
         public bool HostADOProviders { get; set; }
+        public bool LimitSQLQueryResults { get; set; }
         
         public bool IsHostADOProvidersEnabled
         {
@@ -120,6 +122,7 @@ namespace XQueryConsole
             controller.EnableServerQuery = EnableServerQuery;
             ReloadDatasources = DataProviderHelper.HostADOProviders != HostADOProviders;
             DataProviderHelper.HostADOProviders = HostADOProviders;
+            controller.LimitSQLQueryResults = LimitSQLQueryResults;
             controller.SaveSettings();
             DialogResult = true;
         }

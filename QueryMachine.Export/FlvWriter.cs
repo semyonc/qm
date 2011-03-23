@@ -62,33 +62,39 @@ namespace DataEngine.Export
                 }
             }
             TextWriter sw = new StreamWriter(m_fileName, false, Encoding.Default);
-            for (int k = 0; k < rs.RowType.Fields.Length; k++)
+            try
             {
-                string name = Util.UnquoteName(rs.RowType.Fields[k].Name);
-                if (name.Length < width[k])
-                    sw.Write(name.PadRight(width[k]));
-                else
-                    sw.Write(name.Substring(0, width[k]));
-            }
-            sw.WriteLine();
-            while (rs.Begin != null)
-            {
-                Row row = rs.Dequeue();
-                for (int k = 0; k < row.Length; k++)
+                for (int k = 0; k < rs.RowType.Fields.Length; k++)
                 {
-                    String data = "";
-                    Object value = row.GetValue(k);
-                    if (value != DBNull.Value)
-                        data = value.ToString().TrimEnd();
-                    if (data.Length < width[k])
-                        sw.Write(data.PadRight(width[k]));
+                    string name = Util.UnquoteName(rs.RowType.Fields[k].Name);
+                    if (name.Length < width[k])
+                        sw.Write(name.PadRight(width[k]));
                     else
-                        sw.Write(data.Substring(0, width[k]));
+                        sw.Write(name.Substring(0, width[k]));
                 }
                 sw.WriteLine();
-                RowProceded();
+                while (rs.Begin != null)
+                {
+                    Row row = rs.Dequeue();
+                    for (int k = 0; k < row.Length; k++)
+                    {
+                        String data = "";
+                        Object value = row.GetValue(k);
+                        if (value != DBNull.Value)
+                            data = value.ToString().TrimEnd();
+                        if (data.Length < width[k])
+                            sw.Write(data.PadRight(width[k]));
+                        else
+                            sw.Write(data.Substring(0, width[k]));
+                    }
+                    sw.WriteLine();
+                    RowProceded();
+                }
             }
-            sw.Close();
+            finally
+            {
+                sw.Close();
+            }
         }
 
         public bool CreateSchemaIni { get; set; }

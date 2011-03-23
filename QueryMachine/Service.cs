@@ -755,25 +755,33 @@ namespace DataEngine
                         nodeList.Add(child);
         }
 
-        public static XmlNodeList Dref(object arg, string name)
+        public static object Dref(object arg, string name)
         {
-            XmlDataAccessor.NodeList nodeList = new XmlDataAccessor.NodeList();
-            if (arg != null)
+            if (arg is ValueTuple)
             {
-                name = Util.UnquoteName(name);
-                if (arg is XmlNode)
-                    ProcessNode(nodeList, (XmlNode)arg, name);
-                else if (arg is XmlNodeList)
-                {
-                    XmlNodeList nodes = (XmlNodeList)arg;
-                    foreach (XmlNode node in nodes)
-                        ProcessNode(nodeList, node, name);
-                }
+                ValueTuple tuple = (ValueTuple)arg;
+                return tuple.Values[name];
             }
-            if (nodeList.Count == 0)
-                return null;
             else
-                return nodeList;
+            {
+                XmlDataAccessor.NodeList nodeList = new XmlDataAccessor.NodeList();
+                if (arg != null)
+                {
+                    name = Util.UnquoteName(name);
+                    if (arg is XmlNode)
+                        ProcessNode(nodeList, (XmlNode)arg, name);
+                    else if (arg is XmlNodeList)
+                    {
+                        XmlNodeList nodes = (XmlNodeList)arg;
+                        foreach (XmlNode node in nodes)
+                            ProcessNode(nodeList, node, name);
+                    }
+                }
+                if (nodeList.Count == 0)
+                    return null;
+                else
+                    return nodeList;
+            }
         }
 
         public static XmlNodeList Wref(object arg, string name)

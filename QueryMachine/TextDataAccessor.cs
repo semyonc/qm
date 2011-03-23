@@ -58,6 +58,8 @@ namespace DataEngine
         public string CurrencyThousandSymbol { get; set; }
         public string CurrencyDecimalSymbol { get; set; }
         public bool SequentialProcessing { get; set; }
+        public char EncapsulatorChar { get; set; }
+        public char EscapeChar { get; set; }
     }
 
     public class TextDataAccessor: QueryNode
@@ -189,6 +191,26 @@ namespace DataEngine
 
             df.NullValue = GetIniString(ini, section, "NullValue", null);
 
+            string encapsulatorChar = GetIniString(ini, section, "Encapsulator", Convert.ToString(df.EncapsulatorChar));
+            if (encapsulatorChar == "#0")
+                df.EncapsulatorChar = '\0';
+            else
+            {
+                if (encapsulatorChar.Length > 1)
+                    throw new ESQLException(Properties.Resources.InvalidCSVChar);
+                df.EncapsulatorChar = encapsulatorChar[0];
+            }
+
+            string escapeChar = GetIniString(ini, section, "Escape", Convert.ToString(df.EscapeChar));
+            if (escapeChar == "#0")
+                df.EscapeChar = '\0';
+            else
+            {
+                if (escapeChar.Length > 1)
+                    throw new ESQLException(Properties.Resources.InvalidCSVChar);
+                df.EscapeChar = escapeChar[0];
+            }
+
             List<string> names = new List<string>();
             List<int> length = new List<int>();
             DataProviderHelper helper = new DataProviderHelper();
@@ -212,7 +234,7 @@ namespace DataEngine
                         if (values[2] == "Width" && values[3] != null)
                         {
                             int size = Int32.Parse(values[3]);
-                            if ((System.Type)dr["DataType"] == typeof(System.String))
+                            if ((Type)dr["DataType"] == typeof(System.String))
                                 dr["ColumnSize"] = size;
                             length.Add(size);
                         }
@@ -363,7 +385,7 @@ namespace DataEngine
             TextFileDataFormat df = new TextFileDataFormat();
             df.TextFormat = TextDataFormat.Delimited;
             df.Delimiter = CultureInfo.CurrentCulture.TextInfo.ListSeparator;
-            df.ColumnNameHeader = true;
+            //df.ColumnNameHeader = true;
             df.Encoding = Encoding.Default;
             df.MaxScanRows = 0;
 
@@ -376,6 +398,8 @@ namespace DataEngine
             df.CurrencyNegFormat = CultureInfo.CurrentCulture.NumberFormat.CurrencyNegativePattern;
             df.CurrencyPosFormat = CultureInfo.CurrentCulture.NumberFormat.CurrencyPositivePattern;
             df.CurrencySymbol = CultureInfo.CurrentCulture.NumberFormat.CurrencySymbol;
+            df.EncapsulatorChar = '"';
+            df.EscapeChar = '\0';
             return df;
         }
 
@@ -462,14 +486,14 @@ namespace DataEngine
                 reader = new StreamReader(stream, format.Encoding);
             }
             ProcessingContextBase context;
-            if (format.SequentialProcessing)
+            if (format.SequentialProcessing || format.EscapeChar != '\0')
             {
                 if (format.TextFormat == TextDataFormat.FixedLength)
                     context = new ProcessingContext(reader, format.Width, format.NullValue, format.ColumnNameHeader,
                         GetNumberFormatInfo(format), GetDateTimeFormatInfo(format));
                 else
                     context = new ProcessingContext(reader, format.Delimiter[0], format.NullValue, format.ColumnNameHeader,
-                        GetNumberFormatInfo(format), GetDateTimeFormatInfo(format));
+                        format.EncapsulatorChar, format.EscapeChar, GetNumberFormatInfo(format), GetDateTimeFormatInfo(format));
             }
             else
             {
@@ -478,7 +502,7 @@ namespace DataEngine
                         GetNumberFormatInfo(format), GetDateTimeFormatInfo(format));
                 else
                     context = new ParallelProcessingContext(reader, format.Delimiter[0], format.NullValue, format.ColumnNameHeader,
-                        GetNumberFormatInfo(format), GetDateTimeFormatInfo(format));
+                        format.EncapsulatorChar, format.EscapeChar, GetNumberFormatInfo(format), GetDateTimeFormatInfo(format));
             }
             return new Resultset(new RowType(dt), context);
         }
@@ -506,9 +530,9 @@ namespace DataEngine
             protected NumberFormatInfo m_numberFormat;
             protected DateTimeFormatInfo m_dateTimeFormat;
             protected String m_nullValue;
-            
 
-            public ProcessingContextBase(StreamReader reader, char delimiter, String nullValue, bool columnNameHeader,
+
+            public ProcessingContextBase(StreamReader reader, char delimiter, String nullValue, bool columnNameHeader, char encapsulatorChar, char escapeChar,
                 NumberFormatInfo nft, DateTimeFormatInfo dft)   
               : base(null)
             {
@@ -517,7 +541,7 @@ namespace DataEngine
                 m_numberFormat = nft;
                 m_dateTimeFormat = dft;
                 m_nullValue = nullValue;
-                m_parser = new CsvParser(delimiter, TextDataAccessor.CommentChar);
+                m_parser = new CsvParser(delimiter, TextDataAccessor.CommentChar, encapsulatorChar, escapeChar);                                
             }
 
             public ProcessingContextBase(StreamReader reader, int[] length, String nullValue, bool columnNameHeader,
@@ -605,9 +629,9 @@ namespace DataEngine
             private string[] values = null;
             private TextParser.ColRow[] pos;
 
-            public ProcessingContext(StreamReader reader, char delimiter, String nullValue, 
-                bool columnNameHeader, NumberFormatInfo nft, DateTimeFormatInfo dft) : 
-                    base(reader, delimiter, nullValue, columnNameHeader, nft, dft)
+            public ProcessingContext(StreamReader reader, char delimiter, String nullValue,
+                bool columnNameHeader, char encapsulatorChar, char escapeChar, NumberFormatInfo nft, DateTimeFormatInfo dft) :
+                base(reader, delimiter, nullValue, columnNameHeader, encapsulatorChar, escapeChar, nft, dft)
             {
             }
 
@@ -653,9 +677,9 @@ namespace DataEngine
             private int m_lineindex = -1;
             private string[] m_lines = new string[300];
 
-            public ParallelProcessingContext(StreamReader reader, char delimiter, String nullValue, 
-                bool columnNameHeader, NumberFormatInfo nft, DateTimeFormatInfo dft) : 
-                    base(reader, delimiter, nullValue, columnNameHeader, nft, dft)
+            public ParallelProcessingContext(StreamReader reader, char delimiter, String nullValue,
+                bool columnNameHeader, char encapsulatorChar, char escapeChar, NumberFormatInfo nft, DateTimeFormatInfo dft) :
+                base(reader, delimiter, nullValue, columnNameHeader, encapsulatorChar, escapeChar, nft, dft)
             {
             }
 

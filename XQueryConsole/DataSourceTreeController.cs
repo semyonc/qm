@@ -246,15 +246,8 @@ namespace XQueryConsole
             dataTree.ImageList = imageList;
             dataTree.ShowLines = false;
             dataTree.Font = new Font("Tahoma", 8.25f);
-            
-            try
-            {
-                Extensions.SetWindowTheme(dataTree.Handle, "explorer", null);
-            }
-            catch(Exception ex)
-            {
-                Trace.TraceError(ex.Message);
-            }
+
+            Extensions.SetTreeViewTheme(dataTree.Handle);
             
             dataTree.BeforeExpand += new TreeViewCancelEventHandler(dataTree_BeforeExpand);
             dataTree.AfterExpand += new TreeViewEventHandler(dataTree_AfterExpand);
@@ -446,7 +439,7 @@ namespace XQueryConsole
             dlg.Connection = node.Connection;
             if (dlg.ShowDialog() == true)
             {
-                node.Connection = dlg.Connection;
+                dlg.Connection.AssignTo(node.Connection);                
                 node.Text = node.Connection.ToString();
                 node.Nodes.Clear();
                 node.Nodes.Add(new TreeNode());

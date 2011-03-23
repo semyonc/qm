@@ -53,6 +53,14 @@ namespace XQueryConsole
 
         public bool Default { get; set; }
 
+        public void AssignTo(Connection conn)
+        {
+            conn.Prefix = Prefix;
+            conn.InvariantName = InvariantName;
+            conn.ConnectionString = ConnectionString;
+            conn.Default = Default;
+        }
+
         public override string ToString()
         {
             return String.Format("{1}:{0}", 

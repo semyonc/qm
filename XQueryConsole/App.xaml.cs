@@ -8,7 +8,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Data;
 using System.Linq;
 using System.Windows;
@@ -16,9 +15,16 @@ using System.IO;
 using System.Xml;
 using ICSharpCode.AvalonEdit.Highlighting;
 using System.Windows.Input;
+using System.Diagnostics;
+using System.ComponentModel.Composition;
+using System.ComponentModel.Composition.Hosting;
+using Microsoft.Win32;
 
 using DataEngine.CoreServices;
 using DataEngine.XQuery;
+using System.Reflection;
+
+
 
 namespace XQueryConsole
 {
@@ -27,6 +33,8 @@ namespace XQueryConsole
     /// </summary>
     public partial class App : Application
     {
+        private CompositionContainer _compositionContainer = null;
+
         public App()
         {
             HighlightingManager.Instance.RegisterHighlighting("XQuery", new string[] { ".xq" }, 
@@ -41,10 +49,37 @@ namespace XQueryConsole
             ((RoutedUICommand)QueryPage.ExecuteCommand).InputGestures.Add(ExecuteCmdKeyGesture);
             ApplicationCommands.Stop.InputGestures.Add(CancelExecuteCmdKeyGesture);
             ((RoutedUICommand)XQueryConsole.MainWindow.ShowResultsCommand).InputGestures.Add(ShowResultsCmdKeyGesture);
-            
+
+            KeyGesture NewSQLXCmdKeyGesture = new KeyGesture(Key.D1, ModifierKeys.Control);
+            KeyGesture NewXQueryCmdKeyGesture = new KeyGesture(Key.D2, ModifierKeys.Control);
+            ((RoutedUICommand)XQueryConsole.MainWindow.NewSQLXCommand).InputGestures.Add(NewSQLXCmdKeyGesture);
+            ((RoutedUICommand)XQueryConsole.MainWindow.NewXQueryCommand).InputGestures.Add(NewXQueryCmdKeyGesture);
+
             // register extension function in wmh namespace
             XQueryFunctionTable.Register(typeof(WmhFuncs));
             XQueryAdapterImpl.Init();
+
+            // register MEF extensions
+            string probePath = Path.GetDirectoryName(Assembly.GetAssembly(typeof(App)).Location);
+            AggregateCatalog catalog = new AggregateCatalog();
+            catalog.Catalogs.Add(new AssemblyCatalog(typeof(App).Assembly));
+            catalog.Catalogs.Add(new DirectoryCatalog(probePath));
+            using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\WMHelp Software\\QueryMachine"))
+            {
+                if (key != null)
+                {
+                    String addinCatalog = (String)key.GetValue("AddinCatalog");
+                    if (addinCatalog != null)
+                    {
+                        string[] paths = addinCatalog.Split(';');
+                        foreach (String p in paths)
+                            catalog.Catalogs.Add(new DirectoryCatalog(p));
+                    }
+                    key.Close();
+                }
+            }
+            _compositionContainer = new CompositionContainer(catalog);
+            _compositionContainer.ComposeParts(this);
         }
 
         private IHighlightingDefinition GetHighlightingDefinition(string resourceName)
@@ -63,5 +98,8 @@ namespace XQueryConsole
             }
             return customHighlighting;
         }
+
+        [ImportMany]
+        public IEnumerable<IServiceExtension> Addins { get; set; }
     }
 }
