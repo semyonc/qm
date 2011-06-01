@@ -274,4 +274,7 @@
   <data name="InvalidCSVChar" xml:space="preserve">
     <value>CSV Escape and Encapsulator must be a single character string</value>
   </data>
+  <data name="ArrayIndexIsOutOfBound" xml:space="preserve">
+    <value>Array index is out of bound.</value>
+  </data>
 </root>

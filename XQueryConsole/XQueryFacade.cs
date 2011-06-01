@@ -50,6 +50,9 @@ namespace XQueryConsole
 
         public GridCellGroup Execute()
         {
+#if DEBUG
+            DataEngine.CoreServices.PerfMonitor.Global.Clear();
+#endif
             IsTruncated = false;
             XQueryNodeIterator iter = command.Execute();
             XPathGridBuilder builder = new XPathGridBuilder();
@@ -66,6 +69,9 @@ namespace XQueryConsole
                 res.Add(iter.Current.Clone());
             }
             builder.ParseNodes(rootCell, res);
+#if DEBUG
+            DataEngine.CoreServices.PerfMonitor.Global.TraceStats();
+#endif
             return rootCell;            
         }
 

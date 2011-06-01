@@ -28,7 +28,7 @@ namespace DataEngine.CoreServices
     {
         public static bool IsRowConstuctor(object lval)
         {
-            return !Lisp.IsNode(lval) && !Lisp.IsFunctor(lval);
+            return Lisp.IsFunctor(lval, Funcs.List);
         }
         
         public static string CreateUniqueName(List<string> fieldNames, string name)

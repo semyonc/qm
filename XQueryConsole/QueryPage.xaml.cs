@@ -411,7 +411,8 @@ namespace XQueryConsole
             ctrlAdorner.RemoveLayer();
             textEditor.Focus();
             String elapsed = FormatElapsedTime();
-            if (rootCell.Table[0, 0] is GridHeadLabel)
+            if (rootCell.Table.Height > 0 &&
+                rootCell.Table[0, 0] is GridHeadLabel)
             {
                 xmlGrid.ShowColumnHeader = true;
                 status = String.Format("{0} node(s) read. {1} elapsed.",

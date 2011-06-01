@@ -662,7 +662,7 @@ namespace DataEngine.CoreServices
             if (lval == null)
                 return null;
             if (IsNode(lval))
-                return lval.Equals(old_value) ? new_value : lval;
+                return Object.ReferenceEquals(lval, old_value) ? new_value : lval;
             else
             {
                 object result = null;

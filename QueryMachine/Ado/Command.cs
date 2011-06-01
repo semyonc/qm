@@ -23,11 +23,13 @@ using System.Text;
 using System.Data;
 using System.Data.Common;
 using System.Threading;
+using System.Diagnostics;
 
 using DataEngine;
 using DataEngine.Parser;
 using DataEngine.CoreServices;
 using DataEngine.CoreServices.Data;
+using System.IO;
 
 namespace DataEngine.ADO
 {
@@ -173,6 +175,15 @@ namespace DataEngine.ADO
             binder.IsServerQuery = optimizer.IsServerQuery;
             binder.Process(notation);
             optimizer.PostProcess(notation);
+#if DEBUG
+            StringWriter w = new StringWriter();
+            notation.Dump(w);
+            SqlWriter tracer = new SqlWriter(notation);
+            tracer.ShowHints = true;
+            tracer.Write();
+            Trace.WriteLine(w.ToString());            
+            Trace.WriteLine(tracer.ToString());
+#endif
             if (BeforeExecute != null)
                 BeforeExecute(this, notation, optimizer, context);
             Notation.Record[] recs = notation.Select(Descriptor.Root, 1);
@@ -197,6 +208,11 @@ namespace DataEngine.ADO
             }
             Translator translator = new Translator(context);
             QueryNode rootNode = translator.Process(notation);
+#if DEBUG
+            w = new StringWriter();
+            rootNode.Dump(w);
+            Trace.WriteLine(w.ToString());
+#endif
             Resultset rs = rootNode.Get(context, raw_parameters);
             optimizer.ProcessResults(rs);
             return new DataReader(rs, context);

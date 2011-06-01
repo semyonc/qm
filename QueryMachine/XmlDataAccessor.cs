@@ -396,7 +396,7 @@ namespace DataEngine
                     TableColumn last = Last();
                     if (last.type == col.type && last.name == col.name &&
                         last.pos == col.pos)
-                        last.count++;
+                        last.count += col.count;
                     else
                         _list.Add(col);
                 }
@@ -593,6 +593,24 @@ namespace DataEngine
         static private Regex XSDDateTime = new Regex(@"^[-]?(\d{4})-([1-9]|(0[1-9])|(1[0-2]))-([0-9]|(0[1-9])|(1[0-9])|(2[0-9])|(30|31))T((([0]?[1-9]|1[0-2])(:|\.)[0-5][0-9]((:|\.)\d{2}(\.\d+)?)( )?)|(([0]?[0-9]|1[0-9]|2[0-3])(:|\.)[0-5][0-9]((:|\.)\d{2}(\.\d+)?)))(Z|(([+|-]((0[0-9])|(1[0-2]))):00))?$");
         static private Regex XSDBoolean  = new Regex(@"^([T|t]rue|[F|f]alse)$");
 
+        private static Type DecodeTypeByRegex(string text)
+        {
+            if (String.IsNullOrEmpty(text))
+                return null;
+            else if (text.Length < 18 && (XSDInteger.IsMatch(text) ||
+                XSDDecimal.IsMatch(text) || XSDFloat.IsMatch(text)) && !Literal.IsMatch(text) &&
+                    text != "-" && text != "+")
+                return typeof(System.Decimal);
+            else if (XSDDuration.IsMatch(text))
+                return typeof(System.TimeSpan);
+            else if (XSDDate.IsMatch(text) || XSDDateTime.IsMatch(text))
+                return typeof(System.DateTime);
+            else if (XSDBoolean.IsMatch(text))
+                return typeof(System.Boolean);
+            else
+                return typeof(System.String);
+        }
+
         public static Type GetNodeType(XmlNode node, XmlTypeManager manager)
         {
             if (manager != null)
@@ -606,24 +624,15 @@ namespace DataEngine
                 if (IsPairNode(node))
                 {
                     XmlElement elem = (XmlElement)node;
-                    string text = elem.InnerText;
-                    if (String.IsNullOrEmpty(text))
-                        return null;
-                    else if (text.Length < 18 && (XSDInteger.IsMatch(text) ||
-                        XSDDecimal.IsMatch(text) || XSDFloat.IsMatch(text)) && !Literal.IsMatch(text) && 
-                            text != "-" && text != "+")
-                        return typeof(System.Decimal);
-                    else if (XSDDuration.IsMatch(text))
-                        return typeof(System.TimeSpan);
-                    else if (XSDDate.IsMatch(text) || XSDDateTime.IsMatch(text))
-                        return typeof(System.DateTime);
-                    else if (XSDBoolean.IsMatch(text))
-                        return typeof(System.Boolean);
-                    else
-                        return typeof(System.String);
+                    return DecodeTypeByRegex(elem.InnerText);
                 }
                 else
                     return typeof(System.Object);
+            }
+            else if (node is XmlAttribute)
+            {
+                XmlAttribute atr = (XmlAttribute)node;
+                return DecodeTypeByRegex(atr.Value);
             }
             else
                 return typeof(System.String);
@@ -816,6 +825,7 @@ namespace DataEngine
                                         break;
                                     s++;
                                 }
+                                break; 
                             }
                             else
                                 pos--;

@@ -164,7 +164,7 @@ namespace DataEngine
                         sb.Append(")");
                 }
             }
-            if (SortColumns != null)
+            if (SortColumns != null && SortColumns.Length > 0)
             {
                 sb.AppendLine(" ORDER BY ");
                 for (int k = 0; k < SortColumns.Length; k++)               

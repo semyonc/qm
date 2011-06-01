@@ -391,7 +391,7 @@ namespace DataEngine.XQuery
 
         private XdmNode[] ReadPage(Page page)
         {
-#if PF
+#if DEBUG
             try
             {
                 PerfMonitor.Global.Begin("PageFile.ReadPage()");
@@ -418,7 +418,7 @@ namespace DataEngine.XQuery
                 }
                 Interlocked.Increment(ref miss_count);
                 return nodes;
-#if PF
+#if DEBUG
             }
             finally
             {
