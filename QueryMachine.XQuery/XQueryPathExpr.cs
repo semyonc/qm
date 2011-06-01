@@ -121,7 +121,7 @@ namespace DataEngine.XQuery
             XQueryNodeIterator res = (XQueryNodeIterator)pool.GetData(_cache);
             if (res != null)
                 return res.Clone();
-#if PF
+#if DEBUG
             PerfMonitor.Global.Begin(this);
 #endif
             XQueryNodeIterator rootIter = 
@@ -133,7 +133,7 @@ namespace DataEngine.XQuery
                 res = res.CreateBufferedIterator();
                 pool.SetData(_cache, res.Clone());
             }
-#if PF
+#if DEBUG
             PerfMonitor.Global.End(this);
 #endif
             return res;
@@ -304,7 +304,7 @@ namespace DataEngine.XQuery
 
             protected override XPathItem NextItem()
             {
-#if PF
+#if DEBUG
                 try
                 {
                     PerfMonitor.Global.Begin(owner);
@@ -312,7 +312,7 @@ namespace DataEngine.XQuery
                 if (iter.MoveNext())
                     return iter.Current;
                 return null;
-#if PF
+#if DEBUG
                 }
                 finally
                 {

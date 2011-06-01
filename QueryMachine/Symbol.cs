@@ -355,6 +355,14 @@ namespace DataEngine
             }
         }
 
+        public String UnqoutedName
+        {
+            get
+            {
+                return Util.UnquoteName(Name);
+            }
+        }
+
         public override bool Equals(object obj)
         {
             if (obj is Qname)

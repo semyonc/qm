@@ -1007,10 +1007,10 @@ namespace DataEngine
                         string name;
                         recs1 = notation.Select(arr[k], Descriptor.Alias, 1);
                         if (recs1.Length > 0)
-                            name = ((Qname)recs1[0].Arg0).Name;
+                            name = ((Qname)recs1[0].Arg0).UnqoutedName;
                         else
                             if (arr[k].Tag == Tag.Qname)
-                                name = ((Qname)arr[k]).Name;
+                                name = ((Qname)arr[k]).UnqoutedName;
                             else
                                 throw new ESQLException(Properties.Resources.ParameterMustBeAliased, k + 1, "XMLForest");
                         func[k + 1] = Lisp.List(ID.XmlValueElem, name, Lisp.List(ID.XmlValueConcat,
@@ -1081,7 +1081,7 @@ namespace DataEngine
                     else
                         value = Lisp.List(Funcs.LambdaQuote, ProcessValueExpr(notation, arr[0]));
                 }
-                object elem = Lisp.List(ID.XmlValueElem, ((Qname)recs[0].Arg0).Name, value, XmlValueOption.EmptyOnNull);
+                object elem = Lisp.List(ID.XmlValueElem, ((Qname)recs[0].Arg0).UnqoutedName, value, XmlValueOption.EmptyOnNull);
                 recs = notation.Select(sym, Descriptor.XMLAttributes, 1);
                 if (recs.Length > 0)
                 {
@@ -1127,10 +1127,10 @@ namespace DataEngine
                                 string name;
                                 recs1 = notation.Select(arr[k], Descriptor.Alias, 1);
                                 if (recs1.Length > 0)
-                                    name = ((Qname)recs1[0].Arg0).Name;
+                                    name = ((Qname)recs1[0].Arg0).UnqoutedName;
                                 else
                                     if (arr[k].Tag == Tag.Qname)
-                                        name = ((Qname)arr[k]).Name;
+                                        name = ((Qname)arr[k]).UnqoutedName;
                                     else
                                         throw new ESQLException(Properties.Resources.ParameterMustBeAliased, k + 1, "XMLAttributes");
                                 elem = Lisp.List(ID.XmlValueAtt, elem,
@@ -1632,7 +1632,7 @@ namespace DataEngine
                 object[] value = new object[arr.Length + 1];
                 value[0] = Funcs.List;
                 for (int i = 0; i < arr.Length; i++)
-                    value[i+1] = ProcessRowConstructorElem(notation, arr[i]);
+                    value[i + 1] = ProcessRowConstructorElem(notation, arr[i]);
                 return Lisp.List(value);
             }
             else

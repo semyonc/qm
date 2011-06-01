@@ -473,7 +473,7 @@ namespace WmHelp.XmlGrid
                     TableColumn last = Last();
                     if (last.nodeType == col.nodeType && last.localName == col.localName && 
                         last.ns == col.ns && last.pos == col.pos)
-                        last.count++;
+                        last.count += col.count;
                     else
                         _list.Add(col);
                 }
@@ -801,6 +801,7 @@ namespace WmHelp.XmlGrid
                                         break;
                                     s++;
                                 }
+                                break;
                             }
                             else
                                 pos--;

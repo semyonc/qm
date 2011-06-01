@@ -75,7 +75,7 @@ namespace DataEngine.CoreServices
         {
             foreach (KeyValuePair<Object, Slot> kvp in stats)
             {
-                output.WriteLine("{0}\t{1}\t{2}\t{3}", kvp.Key.ToString(),
+                output.WriteLine("{0}\t\t{1}\t\t{2}\t\t{3}", kvp.Key.ToString(),
                     kvp.Value.count, TicksToMilliseconds(kvp.Value.ticks), 
                         TicksToMilliseconds(kvp.Value.ticks / kvp.Value.count));
             }
@@ -89,11 +89,11 @@ namespace DataEngine.CoreServices
                 double ms = TicksToMilliseconds(kvp.Value.ticks);
                 total += ms;
                 if (kvp.Value.count > 0)
-                    Trace.TraceInformation("{0}\t{1}\t{2}\t{3}", kvp.Key.ToString(),
+                    Trace.WriteLine(String.Format("{0}\t\t{1}\t\t{2}\t\t{3}", kvp.Key.ToString(),
                         kvp.Value.count, ms,
-                            TicksToMilliseconds(kvp.Value.ticks / kvp.Value.count));
+                            TicksToMilliseconds(kvp.Value.ticks / kvp.Value.count)));
             }
-            Trace.TraceInformation("Total: {0}", total);
+            Trace.WriteLine(String.Format("Total: {0}", total));
         }
     }
 }

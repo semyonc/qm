@@ -125,36 +125,27 @@ namespace DataEngine
         {
             public NaturalJoin()
             {
-            }
+            }            
 
             public override Key[] GetJoinKeys(Binder binder1, Binder binder2, JoinSpec spec)
             {
-                //foreach (RowType.TypeInfo ti in rs1.RowType.Fields)
-                //    foreach (RowType.TypeInfo ti_det in ti.NestedType.Fields)
-                //        if (!ti_det.IsHidden && !names1.Contains(ti_det.Name))
-                //            names1.Add(ti_det.Name);
-                List<String> names1 = new List<string>();
-                foreach (ColumnBinding b in binder1.Bindings)
-                    if (!names1.Contains(b.Name))
-                        names1.Add(b.Name);
-                List<String> names2 = new List<string>();
-                foreach (ColumnBinding b in binder2.Bindings)
-                    if (!names2.Contains(b.Name))
-                        names2.Add(b.Name);
                 List<Key> keys = new List<Key>();
-                foreach (String s in names1.Intersect(names2))
+                foreach (ColumnBinding b1 in binder1.Bindings)
                 {
-                    Key key = new Key();
-                    RowType.Locator loc1 = binder1.GetLocator(s);
-                    RowType.Locator loc2 = binder2.GetLocator(s);
-                    key.r1 = loc1.master;
-                    key.c1 = loc1.detail.Value;
-                    key.r2 = loc2.master;
-                    key.c2 = loc2.detail.Value;
-                    key.name1 = binder1.GetName(loc1);
-                    key.name2 = binder2.GetName(loc2);
-                    keys.Add(key);
-
+                    ColumnBinding b2 = binder2.Get(b1.Name);
+                    if (b2 != null)
+                    {
+                        Key key = new Key();
+                        RowType.Locator loc1 = binder1.GetLocator(b1.Name);
+                        RowType.Locator loc2 = binder2.GetLocator(b2.Name);
+                        key.r1 = loc1.master;
+                        key.c1 = loc1.detail.Value;
+                        key.r2 = loc2.master;
+                        key.c2 = loc2.detail.Value;
+                        key.name1 = b1.Name;
+                        key.name2 = b2.Name;
+                        keys.Add(key);
+                    }
                 }
                 return keys.ToArray();
             }
@@ -342,10 +333,11 @@ namespace DataEngine
                 switch (_joinMethod)
                 {
                     case JoinMethod.NestedLoops:
-                        if (keys != null && (IsSmartTableAccessor(ChildNodes[0]) || IsSmartTableAccessor(ChildNodes[1])))
+                        if (keys != null && keys.Length > 0 && 
+                             (IsSmartTableAccessor(ChildNodes[0]) || IsSmartTableAccessor(ChildNodes[1])))
                             context.Iterator = OptimizedJoin(rs, rs1, rs2, keys, nested_ti, queryContext, parameters);
                         else
-                            if (keys != null)
+                            if (keys != null && keys.Length > 0)
                                 context.Iterator = HashJoin(rs, rs1, rs2, keys, nested_ti);
                             else
                                 context.Iterator = NestedLoops(rs, rs1, rs2, keys, nested_ti);                            

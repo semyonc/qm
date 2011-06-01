@@ -483,6 +483,8 @@ namespace WmHelp.XmlGrid
                             row.SetObject(k, ((ValueTupleCell)baseCell).Tuple);
                         else if (baseCell is EmptyTupleCell)
                             row.SetObject(k, ((EmptyTupleCell)baseCell).Tuple);
+                        else if (baseCell is XmlGroupCell)
+                            row.SetObject(k, ((XmlGroupCell)baseCell).Node);
                     }
                     m_pos++;
                     rs.Enqueue(row);

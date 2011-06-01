@@ -143,7 +143,8 @@ namespace DataEngine
             GlobalSymbols.DefineStaticOperator(ID.NodeText, typeof(Service), "NodeText");
             GlobalSymbols.DefineStaticOperator(ID.Parse, typeof(Service), "Parse");
             GlobalSymbols.DefineStaticOperator(ID.Rval, typeof(Service), "Rval");
-
+            
+            GlobalSymbols.DefineStaticOperator("#isnull", typeof(Service), "IsNull");
             GlobalSymbols.DefineStaticOperator("#cmp", typeof(Service), "ExpandRowConstructor");
 
             GlobalSymbols.Defmacro(ID.EQ, "(a b)", "(#cmp 'eq a b)");
@@ -161,7 +162,7 @@ namespace DataEngine
             GlobalSymbols.Defmacro(ID.Between, "(a b c)", "(list 'and (list 'le b a) (list 'le a c))");
             GlobalSymbols.Defmacro(ID.NullIf, "(a b)", "(list 'cond (list (list 'eq a b) 'DBNull) (list 't a))");
             GlobalSymbols.Defmacro(ID.Case, "(a b c)", "(list 'let (list (list 'x a)) (append (cons 'cond) (#ec 'x b c)))");
-            GlobalSymbols.Defmacro(ID.IsNull, "(a)", "(list 'null (list 'weak a))");
+            GlobalSymbols.Defmacro(ID.IsNull, "(a)", "(list '#isnull (list 'weak a))");
             GlobalSymbols.Defmacro(ID.IsTrue, "(a)", "(list 'not (list 'null (list 'lambda-qoute a)))");
             GlobalSymbols.Defmacro(ID.IsFalse, "(a)", "(list 'null (list 'lambda-qoute a))");
             GlobalSymbols.Defmacro(ID.IsUnknown, "(a)", "(list 'eq (list 'lambda-qoute a) 'unknown)");
@@ -181,7 +182,7 @@ namespace DataEngine
                 if (row1.Length != row2.Length)
                     throw new ESQLException(Properties.Resources.NotEnoughValues);
                 object expr = null;
-                for (int k = 0; k < row1.Length; k++)
+                for (int k = 1; k < row1.Length; k++)
                     if (expr == null)
                         expr = Lisp.List(id, row1[k], row2[k]);
                     else
@@ -274,6 +275,11 @@ namespace DataEngine
                 if (paramsArray[k] != DBNull.Value)
                     return paramsArray[k];
             return DBNull.Value;
+        }
+
+        public static bool IsNull(object arg)
+        {
+            return arg == null || arg == DBNull.Value;
         }
 
         public static String Concat(String str1, String str2)
@@ -714,8 +720,10 @@ namespace DataEngine
             return rs;
         }
 
-        public static XmlNode At(Object arg, int index)
+        public static Object At(Object arg, int index)
         {
+            if (index <= 0)
+                throw new ESQLException(Properties.Resources.ArrayIndexIsOutOfBound);
             if (arg == null)
                 return null;
             else if (arg is XmlNodeList)
@@ -726,8 +734,17 @@ namespace DataEngine
                 else
                     return null;
             }
+            else if (arg is Array)
+            {
+                Array arr = (Array)arg;
+                if (index <= arr.Length)
+                    return arr.GetValue(index - 1);
+                return null;
+            }
+            else if (index == 1)
+                return arg;
             else
-                throw new ESQLException(Properties.Resources.ArgumentIsNotArray);
+                return null;
         }
 
         private static void ProcessNode(XmlDataAccessor.NodeList nodeList, XmlNode node, string name)

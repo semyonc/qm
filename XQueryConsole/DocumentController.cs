@@ -157,6 +157,10 @@ namespace XQueryConsole
 
         private void LoadSettings()
         {
+            showDragDropPromo = true;
+            startupPanel = StartupPanel.XQuery;
+            enableServerQuery = true;
+            DataProviderHelper.HostADOProviders = true;
             using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\WMHelp Software\\QueryMachine", true))
             {
                 if (key != null)
@@ -168,8 +172,7 @@ namespace XQueryConsole
                         ConfirmFileSave = true;
                     SearchPath = (string)key.GetValue("SearchPath");
                     MyQueriesPath = (string)key.GetValue("QueryPath");
-
-                    startupPanel = StartupPanel.XQuery;
+                    
                     object startupPanelValue = key.GetValue("StartupPanel");
                     if (startupPanelValue != null)
                     {
@@ -187,8 +190,6 @@ namespace XQueryConsole
                     object enableServerQueryValue = key.GetValue("EnableServerQuery");
                     if (enableServerQueryValue != null)
                         enableServerQuery = (int)enableServerQueryValue == 1;
-                    else
-                        enableServerQuery = true;
 
                     object hostADOProvidersValue = key.GetValue("HostADOProviders");
                     if (hostADOProvidersValue != null)
@@ -198,7 +199,6 @@ namespace XQueryConsole
                     if (limitSQLQueryResultsValue != null)
                         limitSQLQueryResults = (int)limitSQLQueryResultsValue == 1;
 
-                    showDragDropPromo = true;
                     object showDragDropPromoValue = key.GetValue("ShowDragDropPromo");
                     if (showDragDropPromoValue != null)
                         showDragDropPromo = (int)showDragDropPromoValue == 1;

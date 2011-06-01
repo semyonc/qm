@@ -31,6 +31,7 @@ using System.Collections;
 using System.Xml;
 using System.Xml.Schema;
 using System.Xml.XPath;
+using System.Runtime.CompilerServices;
 
 namespace DataEngine.XQuery.DocumentModel
 {
@@ -49,10 +50,7 @@ namespace DataEngine.XQuery.DocumentModel
 
         public override int GetHashCode()
         {
-            int hashCode = localName.GetHashCode();
-            hashCode = (hashCode << 7) ^ prefix.GetHashCode();
-            hashCode = (hashCode << 7) ^ ns.GetHashCode();
-            return hashCode;
+            return RuntimeHelpers.GetHashCode(localName);
         }
 
         public override bool Equals(object obj)
