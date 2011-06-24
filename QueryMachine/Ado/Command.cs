@@ -164,10 +164,13 @@ namespace DataEngine.ADO
         {
             if (behavior != CommandBehavior.Default)
                 throw new NotSupportedException();
+            DatabaseDictionary dict = DatabaseDictionary;
+            if (dict == null)
+                dict = new DataEngine.DatabaseDictionary();
             Notation notation = new Notation();
             YYParser parser = new YYParser(notation);
             object result = parser.yyparseSafe(new Tokenizer(_commandText));
-            QueryContext context = new QueryContext(DatabaseDictionary);
+            QueryContext context = new QueryContext(dict);
             context.DatabaseDictionary.SearchPath = _searchPath;
             Optimizer optimizer = new Optimizer(context);
             optimizer.Process(notation);

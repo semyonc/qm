@@ -76,6 +76,10 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\XQueryConsole\lib\Data.Remote.dll</HintPath>
     </Reference>
+    <Reference Include="DocumentFormat.OpenXml, Version=2.0.5022.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\QueryMachine.XQuery.OpenXML\lib\DocumentFormat.OpenXml.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
@@ -89,6 +93,7 @@
     </Reference>
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BatchMove.cs" />
@@ -98,6 +103,7 @@
     <Compile Include="AdoProviderWriter.cs" />
     <Compile Include="CsvWriter.cs" />
     <Compile Include="FlvWriter.cs" />
+    <Compile Include="XlFileWriter.cs" />
     <Compile Include="XmlFileWriter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
@@ -119,6 +125,10 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\CoreServices\CoreServices.csproj">
+      <Project>{454016BE-0E1C-4DFB-A22F-2E642A1AE9A6}</Project>
+      <Name>CoreServices</Name>
+    </ProjectReference>
     <ProjectReference Include="..\QueryMachine\QueryMachine.csproj">
       <Project>{30559E5B-115F-4C16-B265-CA4EF7973BEC}</Project>
       <Name>QueryMachine</Name>

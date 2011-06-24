@@ -437,7 +437,7 @@ namespace XQueryConsole
 
         private void HelpAbout_Click(object sender, RoutedEventArgs e)
         {
-            AboutBox.Run();
+            AboutBox.Run();            
         }
     }
 }

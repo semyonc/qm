@@ -277,4 +277,16 @@
   <data name="ArrayIndexIsOutOfBound" xml:space="preserve">
     <value>Array index is out of bound.</value>
   </data>
+  <data name="XlSheetNotExists" xml:space="preserve">
+    <value>Sheet "{0}" not exists in workbook {1}</value>
+  </data>
+  <data name="XlBadFormat" xml:space="preserve">
+    <value>Bad or unrecognized package format at cell {0}</value>
+  </data>
+  <data name="XlTableNameInvalid" xml:space="preserve">
+    <value>The table name "{0}" is invalid as excel data source</value>
+  </data>
+  <data name="PrefixNotAvailableForDynExpr" xml:space="preserve">
+    <value>Prefix {0} is not available in dynamic table expression</value>
+  </data>
 </root>

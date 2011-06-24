@@ -26,10 +26,12 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Linq;
 
 using System.Xml;
 using System.Xml.Schema;
 using System.Xml.XPath;
+using System.Xml.Linq;
 
 using DataEngine.CoreServices;
 using DataEngine.XQuery.Parser;
@@ -373,5 +375,101 @@ namespace DataEngine.XQuery
         }
 
         #endregion
+
+        public static IEnumerable<T> Select<T>(string xquery, IXmlNamespaceResolver resolver, XNode node)
+            where T : XObject
+        {
+            XPathContext context = new XPathContext(new NameTable());
+            XQueryCommand command = new XQueryCommand(context);
+            if (resolver != null)
+                context.CopyNamespaces(resolver);
+            if (node != null)
+                command.ContextItem = node.CreateNavigator(context.NameTable);
+            command.CommandText = xquery;
+            foreach (XPathItem item in command.Execute())
+                if (item.IsNode)
+                {
+                    XObject o = XConverter.ToXNode((XPathNavigator)item);
+                    if (!(o is T))
+                        throw new InvalidOperationException(String.Format("Unexpected evalution {0}", o.GetType()));
+                    yield return (T)o;
+                }
+            command.Dispose();
+        }
+
+        public static IEnumerable<Object> Select(string xquery, IXmlNamespaceResolver resolver, XNode node)
+        {
+            XPathContext context = new XPathContext(new NameTable());
+            XQueryCommand command = new XQueryCommand(context);
+            if (resolver != null)
+                context.CopyNamespaces(resolver);
+            if (node != null)
+                command.ContextItem = node.CreateNavigator(context.NameTable);
+            command.CommandText = xquery;
+            foreach (XPathItem item in command.Execute())
+            {
+                if (item.IsNode)
+                    yield return XConverter.ToXNode((XPathNavigator)item);
+                else
+                    yield return item.TypedValue;
+            }
+            command.Dispose();
+        }
+
+        public static IEnumerable<T> Select<T>(string xquery)
+            where T : XObject
+        {
+            return Select<T>(xquery, null, null);
+        }
+
+        public static IEnumerable<T> Select<T>(string xquery, IXmlNamespaceResolver nsResolver)
+            where T : XObject
+        {
+            return Select<T>(xquery, nsResolver, null);
+        }
+
+        public static IEnumerable<Object> Select(string xquery)
+        {
+            return Select(xquery, null, null);
+        }
+
+        public static IEnumerable<Object> Select(string xquery, IXmlNamespaceResolver nsResolver)
+        {
+            return Select(xquery, nsResolver, null);
+        }
+
+        public static T SelectOne<T>(string xquery, IXmlNamespaceResolver nsResolver, XNode context)
+            where T: XObject
+        {
+            return Select<T>(xquery, nsResolver, context).FirstOrDefault();
+        }
+
+        public static T SelectOne<T>(string xquery, IXmlNamespaceResolver nsResolver)
+            where T: XObject
+        {
+            return SelectOne<T>(xquery, nsResolver, null);
+        }
+
+        public static T SelectOne<T>(string xquery)
+            where T : XObject
+        {
+            return SelectOne<T>(xquery, null, null);
+        }
+
+        public static Object SelectOne(string xquery, IXmlNamespaceResolver nsResolver, XNode context)
+        {
+            return Select(xquery, nsResolver, context).FirstOrDefault<Object>();
+        }
+
+        public static Object SelectOne(string xquery, IXmlNamespaceResolver nsResolver)
+        {
+            return SelectOne(xquery, nsResolver, null);
+        }
+
+        public static Object SelectOne(string xquery)
+        {
+            return SelectOne(xquery, null, null);
+        }
+
     }
 }

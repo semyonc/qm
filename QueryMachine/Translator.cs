@@ -474,6 +474,13 @@ namespace DataEngine
                         }
                         break;
 
+                    case AcessorType.XlFile:
+                        accessor = new XLDataAccessor(dictionary, tableType.QualifiedName, false);
+                        break;
+
+                    case AcessorType.XlFileTable:
+                        accessor = new XLDataAccessor(dictionary, tableType.QualifiedName, true);
+                        break;
 
                     case AcessorType.DataSet:
                         DataSet ds = (DataSet)tableType.DataSource.DataContext;

@@ -411,7 +411,7 @@ namespace XQueryConsole
             ctrlAdorner.RemoveLayer();
             textEditor.Focus();
             String elapsed = FormatElapsedTime();
-            if (rootCell.Table.Height > 0 &&
+            if (rootCell.Table.Height > 0 && rootCell.Table.Width > 0 &&
                 rootCell.Table[0, 0] is GridHeadLabel)
             {
                 xmlGrid.ShowColumnHeader = true;
@@ -463,7 +463,7 @@ namespace XQueryConsole
             dlg.DefaultExt = ".xml";
             if (engine.CanExportDS(xmlGrid.Cell))
                 dlg.Filter = "XML Data File (*.xml)|*.xml|Tab delimited text (*.txt)|*.txt|"+
-                    "Comma Separated Value (*.csv)|*.csv|Fixed Length Text (*.txt)|*.txt|ADO .NET Dataset (*.xml)|*.xml";
+                    "Comma Separated Value (*.csv)|*.csv|Fixed Length Text (*.txt)|*.txt|ADO .NET Dataset (*.xml)|*.xml|MS Office Excel 2007-2010 Workbook (*.xlsx)|*.xlsx";
             else
                 dlg.Filter = "XML Data File (*.xml)|*.xml";
             if (dlg.ShowDialog() == true)
@@ -499,6 +499,10 @@ namespace XQueryConsole
 
                             case 5:
                                 nRows = engine.ExportTo(dlg.FileName, ExportTarget.AdoNet);
+                                break;
+
+                            case 6:
+                                nRows = engine.ExportTo(dlg.FileName, ExportTarget.Xls);
                                 break;
                         }
                         Dispatcher.BeginInvoke(new UpdateTextEditDelegate(UpdateTextEdit), nRows);
