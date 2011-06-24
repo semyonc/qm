@@ -143,7 +143,7 @@ namespace DataEngine
                 return new Resultset(RowType.CreateContainerType(typeof(System.Object)), null);
         }
 
-        public static object OpenXmlFile(QueryNode node, QueryContext context, string fileName)
+        public static object OpenFile(QueryNode node, QueryContext context, string fileName)
         {
             FlatFileAccessor accessor = new FlatFileAccessor(fileName);
             Resultset rs = accessor.Get(context, null);

@@ -37,7 +37,9 @@ namespace DataEngine
         DataTable,  
         DataSet,
         XMLFile,
-        FlatFile
+        FlatFile,
+        XlFile,
+        XlFileTable
     }
 
     public class DataSourceInfo
@@ -275,6 +277,11 @@ namespace DataEngine
                         }
                         break;
 
+                    case AcessorType.XlFile:
+                    case AcessorType.XlFileTable:
+                        tableType = new TableType(qualifiedName, qualifiedName, dsi, null);
+                        break;
+
                     default:
                         throw new NotImplementedException();
                 }
@@ -464,6 +471,10 @@ namespace DataEngine
                     return new DataSourceInfo(null, false, AcessorType.DataTable, null, null, null);
                 else if (prefix.Equals("TXT"))
                     return new DataSourceInfo(null, false, AcessorType.FlatFile, null, null, null);
+                else if (prefix.Equals("XL"))
+                    return new DataSourceInfo(null, false, AcessorType.XlFile, null, null, null);
+                else if (prefix.Equals("XLT"))
+                    return new DataSourceInfo(null, false, AcessorType.XlFileTable, null, null, null);
                 else
                 {
                     string fileName = GetFilePath(identifierPart[0], prefix.ToLowerInvariant());

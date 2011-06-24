@@ -34,6 +34,7 @@ using System.Diagnostics;
 using System.Xml;
 using System.Xml.Schema;
 using System.Xml.XPath;
+using System.Xml.Linq;
 
 using DataEngine.CoreServices;
 

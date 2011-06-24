@@ -66,7 +66,7 @@ namespace DataEngine
                                 break;
 
                             case AcessorType.XMLFile:
-                                result = new SymbolLink(XmlDataAccessor.OpenXmlFile(_owner, _queryContext, tableType.TableName), _pool);
+                                result = new SymbolLink(XmlDataAccessor.OpenFile(_owner, _queryContext, tableType.TableName), _pool);
                                 break;
 
                             case AcessorType.DataSet:
@@ -84,7 +84,7 @@ namespace DataEngine
                                 break;
 
                             default:
-                                throw new NotImplementedException();
+                                throw new ESQLException(Properties.Resources.PrefixNotAvailableForDynExpr, a.prefix);
                         }
                         return true;
                     }

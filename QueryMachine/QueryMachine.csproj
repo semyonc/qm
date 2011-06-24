@@ -88,6 +88,10 @@
     <Reference Include="Data.Remote">
       <HintPath>..\XQueryConsole\lib\Data.Remote.dll</HintPath>
     </Reference>
+    <Reference Include="DocumentFormat.OpenXml, Version=2.0.5022.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\QueryMachine.XQuery.OpenXML\lib\DocumentFormat.OpenXml.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
@@ -101,6 +105,7 @@
     </Reference>
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AdoTableAccessor.cs" />
@@ -179,6 +184,11 @@
     <Compile Include="TypeConverter.cs" />
     <Compile Include="UnionJoin.cs" />
     <Compile Include="Util.cs" />
+    <Compile Include="XLDataAccessor.cs" />
+    <Compile Include="XL\CellError.cs" />
+    <Compile Include="XL\Loader.cs" />
+    <Compile Include="XL\CellRef.cs" />
+    <Compile Include="XL\WorksheetData.cs" />
     <Compile Include="XmlDataAccessor.cs" />
     <Compile Include="XmlTypeManager.cs" />
     <Compile Include="XQueryAdapter.cs" />

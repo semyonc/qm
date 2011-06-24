@@ -71,6 +71,7 @@ namespace DataEngine
         {
             bool found = false;
             string[] pathset = queryContext.DatabaseDictionary.SearchPath.Split(new char[] { ';' });
+            HashSet<string> hs = new HashSet<string>();
             foreach (string baseDir in pathset)
             {
                 string fileName = Path.Combine(baseDir, FileName);
@@ -78,11 +79,14 @@ namespace DataEngine
                 DirectoryInfo di = new DirectoryInfo(filePath);
                 foreach (FileInfo fi in di.GetFiles(Path.GetFileName(FileName)))
                 {
+                    if (hs.Contains(fi.FullName))
+                        continue;
                     Stream stm = new FileStream(fi.FullName, FileMode.Open, FileAccess.Read);
                     Row row = rs.NewRow();
                     row.SetObject(0, stm);
                     found = true;
                     yield return row;
+                    hs.Add(fi.FullName);
                 }
             }
             if (!found)

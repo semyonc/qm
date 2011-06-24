@@ -29,9 +29,11 @@ using System.Collections.Generic;
 using System.Text;
 using System.Globalization;
 
+using System.Linq;
 using System.Xml;
 using System.Xml.XPath;
 using System.Xml.Schema;
+using System.Xml.Linq;
 
 using DataEngine.CoreServices;
 using DataEngine.XQuery.Parser;
@@ -211,7 +213,7 @@ namespace DataEngine.XQuery
             return QueryNodes(node, xquery, null);
         }
 
-        public static XmlNodeList QueryNodes(this XmlNode node, string xquery, XmlNamespaceManager nsmgr)
+        public static XmlNodeList QueryNodes(this XmlNode node, string xquery, IXmlNamespaceResolver nsmgr)
         {
             XPathNavigator nav = node.CreateNavigator();
             XPathContext context = new XPathContext(nav.NameTable);
@@ -231,10 +233,74 @@ namespace DataEngine.XQuery
             return QuerySingleNode(node, xquery, null);
         }
 
-        public static XmlNode QuerySingleNode(this XmlNode node, string xquery, XmlNamespaceManager nsmgr)
+        public static XmlNode QuerySingleNode(this XmlNode node, string xquery, IXmlNamespaceResolver nsResolver)
         {
-            XmlNodeList nodes = QueryNodes(node, xquery, nsmgr);
+            XmlNodeList nodes = QueryNodes(node, xquery, nsResolver);
             return nodes[0];
+        }
+
+        public static IEnumerable<T> XQuerySelect<T>(this XNode node, string xquery)
+            where T : XObject
+        {
+            return XQuerySelect<T>(node, xquery, null);
+        }
+
+        public static IEnumerable<T> XQuerySelect<T>(this XNode node, string xquery, IXmlNamespaceResolver nsResolver) 
+            where T: XObject
+        {
+            return XQueryCommand.Select<T>(xquery, nsResolver, node);
+        }
+
+        public static IEnumerable<Object> XQuerySelect(this XNode node, string xquery, IXmlNamespaceResolver nsResolver)
+        {
+            return XQueryCommand.Select(xquery, nsResolver, node);
+        }
+
+        public static IEnumerable<Object> XQuerySelect(this XNode node, string xquery)
+        {
+            return XQuerySelect(node, xquery, null);
+        }
+
+        public static T XQuerySelectOne<T>(this XNode node, string xquery, IXmlNamespaceResolver nsResolver)
+            where T : XObject
+        {
+            return XQueryCommand.SelectOne<T>(xquery, nsResolver, node);
+        }
+
+        public static T XQuerySelectOne<T>(this XNode node, string xquery)
+            where T : XObject
+        {
+            return XQuerySelectOne<T>(node, xquery, null);
+        }
+
+        public static Object XQuerySelectOne(this XNode node, string xquery, IXmlNamespaceResolver nsResolver)
+        {
+            return XQueryCommand.SelectOne(xquery, nsResolver, node);
+        }
+
+        public static Object XQuerySelectOne(this XNode node, string xquery)
+        {
+            return XQuerySelectOne(node, xquery, null);
+        }
+
+        public static IEnumerable<XElement> XQuerySelectElements(this XNode node, string xquery, IXmlNamespaceResolver nsResolver)
+        {
+            return XQuerySelect<XElement>(node, xquery, nsResolver);
+        }
+
+        public static IEnumerable<XElement> XQuerySelectElements(this XNode node, string xquery)
+        {
+            return XQuerySelectElements(node, xquery, null);
+        }
+
+        public static XElement XQuerySelectElement(this XNode node, string xquery, IXmlNamespaceResolver nsResolver)
+        {
+            return XQuerySelectOne<XElement>(node, xquery, nsResolver);
+        }
+
+        public static XElement XQuerySelectElement(this XNode node, string xquery)
+        {
+            return XQuerySelectElement(node, xquery, null);
         }
       
         public static Type GetNavigatorValueType(XPathNavigator nav, Type valueType)

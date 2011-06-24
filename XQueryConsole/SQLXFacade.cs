@@ -163,6 +163,10 @@ namespace XQueryConsole
                 case ExportTarget.AdoNet:
                     writer = new AdoNetWriter(fileName);
                     break;
+
+                case ExportTarget.Xls:
+                    writer = new XlFileWriter(fileName);
+                    break;
             }
             if (writer == null)
                 throw new ArgumentException("target");
