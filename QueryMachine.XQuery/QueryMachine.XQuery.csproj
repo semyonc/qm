@@ -128,6 +128,7 @@
     </Compile>
     <Compile Include="DocumentModel\DmPI.cs" />
     <Compile Include="DocumentModel\DmRoot.cs" />
+    <Compile Include="DocumentModel\DmSchemaInfo.cs" />
     <Compile Include="DocumentModel\DmText.cs" />
     <Compile Include="DOMConverter.cs" />
     <Compile Include="DTD\DTD.cs">
@@ -137,6 +138,7 @@
     </Compile>
     <Compile Include="DTD\Tokenizer.cs" />
     <Compile Include="Collections\ItemSet.cs" />
+    <Compile Include="Optimizer.cs" />
     <Compile Include="Parser\XQuery.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -155,7 +157,6 @@
     <Compile Include="DirectAccessPathExpr.cs" />
     <Compile Include="XConverter.cs" />
     <Compile Include="XmlNodeListIterator.cs" />
-    <Compile Include="XQueryCachedExpr.cs" />
     <Compile Include="XQueryFuncs.cs" />
     <Compile Include="Util\Base64BinaryValue.cs" />
     <Compile Include="Util\DateTimeValue.cs" />
@@ -188,7 +189,6 @@
     <Compile Include="XQueryPathExpr.cs" />
     <Compile Include="XQueryStepExpr.cs" />
     <Compile Include="XQueryValueExpr.cs" />
-    <Compile Include="XQueryAbstractWriter.cs" />
     <Compile Include="XQueryWrappedValue.cs" />
     <Compile Include="XQueryCommand.cs" />
     <Compile Include="XQueryFunctionTable.cs" />
@@ -221,7 +221,6 @@
     <Compile Include="Symbol.cs" />
     <Compile Include="XmlCharType.cs" />
     <Compile Include="XQueryException.cs" />
-    <Compile Include="Xdm.cs" />
     <Compile Include="XQueryNodeIterator.cs" />
     <Compile Include="XmlQualifiedNameTest.cs" />
     <Compile Include="XQueryResolver.cs" />

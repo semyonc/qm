@@ -282,6 +282,8 @@ namespace DataEngine
                     fieldType = new RowType.TypeInfo(null, typeof(Decimal), 0);
                 else if (Lisp.IsFunctor(expr, ID.ToDateTime))
                     fieldType = new RowType.TypeInfo(null, typeof(DateTime), 0);
+                else if (Lisp.IsFunctor(expr, ID.ConvertTimestamp))
+                    fieldType = new RowType.TypeInfo(null, typeof(DateTime), 0);
                 else
                     fieldType = new RowType.TypeInfo(null, resType, 0);
                 if (!String.IsNullOrEmpty(columns[k].Alias))

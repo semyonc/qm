@@ -482,6 +482,10 @@ namespace DataEngine
                         accessor = new XLDataAccessor(dictionary, tableType.QualifiedName, true);
                         break;
 
+                    case AcessorType.CustomAccessor:
+                        accessor = tableType.DataSource.DataAccessorFactory.CreateAccessor(tableType);
+                        break;
+
                     case AcessorType.DataSet:
                         DataSet ds = (DataSet)tableType.DataSource.DataContext;
                         accessor = new AdoTableAccessor(ds.Tables[tableType.TableName]);

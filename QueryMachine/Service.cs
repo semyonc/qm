@@ -85,6 +85,7 @@ namespace DataEngine
         public static readonly object NodeText = ATOM.Create("$text");
         public static readonly object Parse = ATOM.Create("$parse");
         public static readonly object Rval = ATOM.Create("$rval");
+        public static readonly object ConvertTimestamp = ATOM.Create("$dts");
     }
 
     public class Service
@@ -143,6 +144,7 @@ namespace DataEngine
             GlobalSymbols.DefineStaticOperator(ID.NodeText, typeof(Service), "NodeText");
             GlobalSymbols.DefineStaticOperator(ID.Parse, typeof(Service), "Parse");
             GlobalSymbols.DefineStaticOperator(ID.Rval, typeof(Service), "Rval");
+            GlobalSymbols.DefineStaticOperator(ID.ConvertTimestamp, typeof(Service), "ConvertTimestamp");
             
             GlobalSymbols.DefineStaticOperator("#isnull", typeof(Service), "IsNull");
             GlobalSymbols.DefineStaticOperator("#cmp", typeof(Service), "ExpandRowConstructor");
@@ -636,7 +638,9 @@ namespace DataEngine
             DirectorySearcher searcher = new DirectorySearcher(entry);
             if (owner.QueryContext.LdapClientTimeout != TimeSpan.Zero)
                 searcher.ClientTimeout = owner.QueryContext.LdapClientTimeout;
-            searcher.SizeLimit = owner.QueryContext.LdapSearchLimit;
+            if (owner.QueryContext.LdapSearchLimit > 0)
+                searcher.SizeLimit = owner.QueryContext.LdapSearchLimit;
+            searcher.PageSize = 100;
             searcher.CacheResults = true;
             searcher.Filter = filter;
             string[] properties_array = properties.Split(new char[] { ',' });
@@ -1012,6 +1016,15 @@ namespace DataEngine
                 return ProcessNodeList(owner, (XmlNodeList)arg);
             else
                 return arg;
+        }
+
+        public static object ConvertTimestamp(object arg)
+        {
+            if (arg == null || arg == DBNull.Value)
+                return null;
+            long ts = Convert.ToInt64(arg);
+            DateTime baseDate = new DateTime(1970, 1, 1, 0, 0, 0);
+            return baseDate.AddMilliseconds(ts);
         }
 
     }

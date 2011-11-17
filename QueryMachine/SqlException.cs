@@ -29,10 +29,11 @@ namespace DataEngine
 
 		public ESQLException (string message, Exception innerException) : base (message, innerException) {}
 
+        public ESQLException(Exception innerException, string message, params object[] args) : base(String.Format(message, args), innerException) { }
+
 		internal ESQLException (string message) : base (message, null) {}
 
-        internal ESQLException(string message, params object [] args) : base(String.Format(message, args), null) { }
+        internal ESQLException(string message, params object[] args) : base(String.Format(message, args), null) { }
 
-        internal ESQLException(Exception innerException, string message, params object[] args) : base(String.Format(message, args), innerException) { }
 	}
 }

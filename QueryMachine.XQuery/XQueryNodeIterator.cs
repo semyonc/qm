@@ -1,27 +1,10 @@
-﻿//        Copyright (c) 2009, Semyon A. Chertkov (semyonc@gmail.com)
+﻿//        Copyright (c) 2009-2011, Semyon A. Chertkov (semyonc@gmail.com)
 //        All rights reserved.
 //
-//        Redistribution and use in source and binary forms, with or without
-//        modification, are permitted provided that the following conditions are met:
-//            * Redistributions of source code must retain the above copyright
-//              notice, this list of conditions and the following disclaimer.
-//            * Redistributions in binary form must reproduce the above copyright
-//              notice, this list of conditions and the following disclaimer in the
-//              documentation and/or other materials provided with the distribution.
-//            * Neither the name of author nor the
-//              names of its contributors may be used to endorse or promote products
-//              derived from this software without specific prior written permission.
-//
-//        THIS SOFTWARE IS PROVIDED ''AS IS'' AND ANY
-//        EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-//        WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-//        DISCLAIMED. IN NO EVENT SHALL  AUTHOR BE LIABLE FOR ANY
-//        DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//        (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-//        LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-//        ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//        (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-//        SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//        This program is free software: you can redistribute it and/or modify
+//        it under the terms of the GNU General Public License as published by
+//        the Free Software Foundation, either version 3 of the License, or
+//        any later version.
 
 using System;
 using System.Collections;
@@ -34,7 +17,6 @@ using System.Diagnostics;
 using System.Xml;
 using System.Xml.Schema;
 using System.Xml.XPath;
-using System.Xml.Linq;
 
 using DataEngine.CoreServices;
 
@@ -93,7 +75,7 @@ namespace DataEngine.XQuery
 
     [DebuggerDisplay("{curr}")]
     [DebuggerTypeProxy(typeof(XQueryNodeIteratorDebugView))]
-    public abstract class XQueryNodeIterator: ICloneable, IEnumerable, IEnumerable<XPathItem>
+    public abstract class XQueryNodeIterator: ICloneable, IThreadCloneable, IEnumerable, IEnumerable<XPathItem>
     {
         internal int count = -1;
         private XPathItem curr;
@@ -108,6 +90,11 @@ namespace DataEngine.XQuery
         }
 
         public abstract XQueryNodeIterator Clone();
+
+        public virtual object ThreadClone()
+        {
+            return new BufferedNodeIterator(this);
+        }
 
         public virtual int Count
         {
@@ -163,7 +150,7 @@ namespace DataEngine.XQuery
             }
         }
 
-        public bool IsFinished
+        public virtual bool IsFinished
         {
             get
             {
@@ -203,45 +190,6 @@ namespace DataEngine.XQuery
         }
 
         public abstract XQueryNodeIterator CreateBufferedIterator();
-
-        public XQueryNodeIterator Preload()
-        {
-            XQueryNodeIterator res = CreateBufferedIterator();
-            while (res.MoveNext())
-                ;
-            return res.Clone();
-        }
-
-        public XQueryNodeIterator Preload(CancellationToken token)
-        {
-            XQueryNodeIterator res = CreateBufferedIterator();
-            while (res.MoveNext())
-                token.ThrowIfCancellationRequested();
-            return res.Clone();
-        }
-
-        public Task<XQueryNodeIterator> BeginPreload()
-        {
-            XQueryNodeIterator iter = CreateBufferedIterator();
-            return Task<XQueryNodeIterator>.Factory.StartNew(() =>
-            {
-                while (iter.MoveNext())
-                    ;
-                return iter.Clone();
-            });
-        }
-
-        public Task<XQueryNodeIterator> BeginPreload(CancellationToken token)
-        {
-            XQueryNodeIterator iter = CreateBufferedIterator();
-            return Task<XQueryNodeIterator>.Factory.StartNew(() =>
-                {
-                    while (iter.MoveNext() && 
-                        !token.IsCancellationRequested)
-                        ;
-                    return iter.Clone();
-                });
-        }
 
         protected virtual void Init()
         {
@@ -433,6 +381,65 @@ namespace DataEngine.XQuery
                 {
                     return iter.pos;
                 }
+            }
+        }
+
+        public class Combinator
+        {
+            private XQueryNodeIterator[] baseIter;
+            private XQueryNodeIterator[] curr;
+            private XPathItem[] items;
+
+            public Combinator(XQueryNodeIterator[] iter)
+            {
+                baseIter = iter;
+                curr = new XQueryNodeIterator[iter.Length];
+                curr[0] = iter[0].Clone();
+                items = new XPathItem[iter.Length];
+            }
+
+            private bool Next(int index)
+            {
+                if (curr[index] != null && curr[index].MoveNext())
+                    return true;
+                else
+                    if (index > 0)
+                    {
+                        if (Next(index - 1))
+                        {
+                            curr[index] = baseIter[index].Clone();
+                            if (curr[index].MoveNext())
+                                return true;
+                        }
+                    }
+                return false;
+            }
+
+            public bool Next()
+            {
+                if (Next(baseIter.Length - 1))
+                {
+                    for (int k = 0; k < curr.Length; k++)
+                        items[k] = curr[k].Current;
+                    return true;
+                }
+                return false;
+            }
+
+            public XPathItem[] Current
+            {
+                get
+                {
+                    return items; 
+                }
+            }
+
+            public Combinator Clone()
+            {
+                XQueryNodeIterator[] iter = new XQueryNodeIterator[baseIter.Length];
+                for (int k = 0; k < iter.Length; k++)
+                    iter[k] = baseIter[k].Clone();
+                return new Combinator(iter);
             }
         }
     }

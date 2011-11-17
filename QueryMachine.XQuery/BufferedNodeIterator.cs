@@ -1,27 +1,10 @@
-﻿//        Copyright (c) 2009, Semyon A. Chertkov (semyonc@gmail.com)
+﻿//        Copyright (c) 2009-2011, Semyon A. Chertkov (semyonc@gmail.com)
 //        All rights reserved.
 //
-//        Redistribution and use in source and binary forms, with or without
-//        modification, are permitted provided that the following conditions are met:
-//            * Redistributions of source code must retain the above copyright
-//              notice, this list of conditions and the following disclaimer.
-//            * Redistributions in binary form must reproduce the above copyright
-//              notice, this list of conditions and the following disclaimer in the
-//              documentation and/or other materials provided with the distribution.
-//            * Neither the name of author nor the
-//              names of its contributors may be used to endorse or promote products
-//              derived from this software without specific prior written permission.
-//
-//        THIS SOFTWARE IS PROVIDED ''AS IS'' AND ANY
-//        EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-//        WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-//        DISCLAIMED. IN NO EVENT SHALL  AUTHOR BE LIABLE FOR ANY
-//        DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//        (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-//        LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-//        ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//        (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-//        SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//        This program is free software: you can redistribute it and/or modify
+//        it under the terms of the GNU General Public License as published by
+//        the Free Software Foundation, either version 3 of the License, or
+//        any later version.
 
 using System;
 using System.Collections.Generic;
@@ -30,10 +13,12 @@ using System.Text;
 using System.Xml;
 using System.Xml.Schema;
 using System.Xml.XPath;
+using System.Threading;
 using System.Diagnostics;
 
 using DataEngine.CoreServices;
 using DataEngine.XQuery.Collections;
+
 
 namespace DataEngine.XQuery
 {
@@ -57,13 +42,13 @@ namespace DataEngine.XQuery
         {
             this.src = clone ? src.Clone() : src;
             buffer = new ItemList();
-        }        
+        }
 
         public override int Count
         {
             get
             {
-                if (IsFinished)
+                if (buffer._finished)
                     return buffer.Count;
                 return base.Count;
             }
@@ -77,7 +62,7 @@ namespace DataEngine.XQuery
                     return false;
                 else
                 {
-                    if (IsFinished && buffer.Count == 1)
+                    if (buffer._finished && buffer.Count == 1)
                         return true;
                     return base.IsSingleIterator;
                 }
@@ -86,9 +71,25 @@ namespace DataEngine.XQuery
 
         public void Fill()
         {
-            XQueryNodeIterator iter = Clone();
-            while (iter.MoveNext())
-                ;
+            if (!buffer._finished)
+            {
+                lock (src)
+                {
+                    if (!buffer._finished)
+                    {
+                        while (src.MoveNext())
+                            buffer.Add(src.Current.Clone());
+                        buffer._finished = true;
+                    }
+                }
+            }
+        }
+
+        public static BufferedNodeIterator Preload(XQueryNodeIterator baseIter)
+        {
+            BufferedNodeIterator res = new BufferedNodeIterator(baseIter);
+            res.Fill();
+            return res;
         }
 
         [DebuggerStepThrough]
@@ -107,29 +108,38 @@ namespace DataEngine.XQuery
 
         protected override XPathItem NextItem()
         {
-            int index = CurrentPosition + 1;
-            if (index < buffer.Count)
-                return iter[index];
-            else
-                if (!src.IsFinished)
+            bool lockTaken = false;
+            if (!buffer._finished)
+                Monitor.Enter(src, ref lockTaken);
+            try
+            {
+                int index = CurrentPosition + 1;
+                if (index < buffer.Count)
+                    return iter[index];
+                else
                 {
-                    lock (src)
+                    if (!buffer._finished)
                     {
-                        int n = 0;
-                        XPathItem res = null;
-                        while (src.MoveNext())
+                        if (src.MoveNext())
                         {
-                            if (res == null)
-                                res = src.Current.Clone();
                             buffer.Add(src.Current);
-                            if (n == XQueryLimits.IteratorPrefetchSize)
-                                break;
-                            n++;
+                            return src.Current.Clone();
                         }
-                        return res;
+                        buffer._finished = true;
                     }
+                    return null;
                 }
-            return null;
+            }
+            finally
+            {
+                if (lockTaken)
+                    Monitor.Exit(src);
+            }
+        }
+
+        public override object ThreadClone()
+        {
+            return Clone();
         }
         
         public override XQueryNodeIterator CreateBufferedIterator()

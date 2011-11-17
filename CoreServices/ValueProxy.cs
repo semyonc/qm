@@ -25,6 +25,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace DataEngine.CoreServices
 {
@@ -111,7 +112,7 @@ namespace DataEngine.CoreServices
 
         private static readonly Type dynamicValueType = typeof(ValueProxy);
         protected static readonly Dictionary<Type, ValueProxyFactory> valueFactory =
-            new Dictionary<Type, ValueProxyFactory>(TYPES_MAX);
+            new Dictionary<Type, ValueProxyFactory>();
         private static int[,] conv_t = null;
 
         public static ValueProxy New(object value)
@@ -140,7 +141,7 @@ namespace DataEngine.CoreServices
             {
                 if (valueFactory.Count == TYPES_MAX)
                     throw new InvalidOperationException();
-                valueFactory.Add(curr.GetValueType(), curr);
+                valueFactory[curr.GetValueType()] = curr;
             }
             Bind();
         }

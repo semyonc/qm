@@ -289,4 +289,7 @@
   <data name="PrefixNotAvailableForDynExpr" xml:space="preserve">
     <value>Prefix {0} is not available in dynamic table expression</value>
   </data>
+  <data name="AccessorPrefixAlreadyRegistered" xml:space="preserve">
+    <value>Accessor prefix {0} is already registered</value>
+  </data>
 </root>

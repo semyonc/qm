@@ -1,27 +1,10 @@
-﻿//        Copyright (c) 2009-2010, Semyon A. Chertkov (semyonc@gmail.com)
+﻿//        Copyright (c) 2009-2011, Semyon A. Chertkov (semyonc@gmail.com)
 //        All rights reserved.
 //
-//        Redistribution and use in source and binary forms, with or without
-//        modification, are permitted provided that the following conditions are met:
-//            * Redistributions of source code must retain the above copyright
-//              notice, this list of conditions and the following disclaimer.
-//            * Redistributions in binary form must reproduce the above copyright
-//              notice, this list of conditions and the following disclaimer in the
-//              documentation and/or other materials provided with the distribution.
-//            * Neither the name of author nor the
-//              names of its contributors may be used to endorse or promote products
-//              derived from this software without specific prior written permission.
-//
-//        THIS SOFTWARE IS PROVIDED ''AS IS'' AND ANY
-//        EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-//        WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-//        DISCLAIMED. IN NO EVENT SHALL  AUTHOR BE LIABLE FOR ANY
-//        DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//        (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-//        LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-//        ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//        (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-//        SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//        This program is free software: you can redistribute it and/or modify
+//        it under the terms of the GNU General Public License as published by
+//        the Free Software Foundation, either version 3 of the License, or
+//        any later version.
 
 using System;
 using System.Collections;
@@ -38,38 +21,18 @@ namespace DataEngine.XQuery.DocumentModel
 {
     internal class NodeSet
     {
-        public readonly int[] hindex;
-        public readonly DmNode[] anchors;
-        public readonly HashSet<DmNode> targets;
-        public bool mixed;
+        public readonly HashSet<int> hindex;
+        public readonly DmNode[] anchors;        
 
         public NodeSet(List<DmNode> nodes)
         {
             List<DmNode> anchors = new List<DmNode>();
             foreach (DmNode node in nodes)
-                if (!node.IsText)
-                    anchors.Add(node);
-            foreach (DmNode node in nodes)
-                if (node.IsText)
-                {
-                    mixed = true;
-                    if (targets == null)
-                        targets = new HashSet<DmNode>(anchors);
-                    if (node._index != -1)
-                    {
-                        anchors.Add(node);
-                        targets.Add(node);
-                    }
-                    if (node.ParentNode.NodeType == XPathNodeType.Element && 
-                        !anchors.Contains(node.ParentNode))
-                        anchors.Add(node.ParentNode);
-                    targets.Add(node);                    
-                }
+                anchors.Add(node);
             this.anchors = anchors.ToArray();
-            hindex = new int[anchors.Count];
+            hindex = new HashSet<int>();
             for (int k = 0; k < anchors.Count; k++)
-                hindex[k] = anchors[k]._index;
-            Array.Sort(hindex);
+                hindex.Add(anchors[k]._index);
         }
 
         public void GetBounds(out int inf, out int sup)
@@ -84,11 +47,6 @@ namespace DataEngine.XQuery.DocumentModel
                     sup = n._end_pos;
             }
         }
-
-        public bool Accept(XQueryNavigator nav)
-        {
-            return targets == null || targets.Contains(nav.DmNode);
-        }
     }
 
     internal abstract class DmNode
@@ -99,9 +57,10 @@ namespace DataEngine.XQuery.DocumentModel
         internal Dictionary<object, NodeSet> _cached_set;
         internal int _begin_pos = -1;
         internal int _end_pos = -1;
-        
-        public abstract XdmNode CreateNode();
 
+        internal int _builder_pos = -1;
+        internal int _builder_prior_pos = -1;
+        
         public DmNode()
         {
         }
@@ -136,6 +95,14 @@ namespace DataEngine.XQuery.DocumentModel
         }
 
         public virtual bool HasAttributes
+        {
+            get
+            {
+                return false;
+            }
+        }
+
+        public virtual bool HasNamespaces
         {
             get
             {
@@ -231,12 +198,21 @@ namespace DataEngine.XQuery.DocumentModel
         }                
 
 #if DEBUG
-        public override string  ToString()
+        public override string ToString()
         {
-            string name = Name;
-            if (name == "")
-                return GetType().Name;
-            return String.Format("{0}:{1}", GetType().Name, name);
+            switch (NodeType)
+            {
+                case XPathNodeType.Element:
+                    return String.Format("<{0}>[{1}]", Name, NamespaceURI);
+                case XPathNodeType.Attribute:
+                    return String.Format("@{0}[{1}]", Name, NamespaceURI);
+                case XPathNodeType.Namespace:
+                    return String.Format("NS {0}", Name);
+                case XPathNodeType.Text:
+                    return "T";
+                default:
+                    return String.Format("{0}:{1}", GetType().Name, Name);
+            }
         }
 #endif
 
@@ -248,20 +224,6 @@ namespace DataEngine.XQuery.DocumentModel
                     return true;
             }
             return false;
-        }
-
-        protected class DmSchemaInfo : XmlSchemaInfo
-        {
-            public DmSchemaInfo(IXmlSchemaInfo xmlSchemaInfo)
-            {
-                IsDefault = xmlSchemaInfo.IsDefault;
-                IsNil = xmlSchemaInfo.IsNil;
-                MemberType = xmlSchemaInfo.MemberType;
-                SchemaAttribute = xmlSchemaInfo.SchemaAttribute;
-                SchemaElement = xmlSchemaInfo.SchemaElement;
-                SchemaType = xmlSchemaInfo.SchemaType;
-                Validity = xmlSchemaInfo.Validity;
-            }
         }
 
         public bool TestNode(XmlQualifiedNameTest nameTest, XQuerySequenceType typeTest)
@@ -315,6 +277,10 @@ namespace DataEngine.XQuery.DocumentModel
                     nodes = curr.GetChilds();
                     break;
 
+                case XQueryPathExprType.Attribute:
+                    nodes = curr.GetAttributes();
+                    break;
+
                 case XQueryPathExprType.Descendant:
                     nodes = curr.GetDescendants();
                     break;
@@ -334,6 +300,16 @@ namespace DataEngine.XQuery.DocumentModel
                     else
                         res.Add(node);
                 }
+        }
+
+        protected void UpdateNodeSet()
+        {
+            DmNode node = this;
+            while (node != null)
+            {
+                node._cached_set = null;
+                node = node._parent;
+            }
         }
 
         public NodeSet GetNodeSet(object key)
@@ -366,6 +342,15 @@ namespace DataEngine.XQuery.DocumentModel
         {
             List<DmNode> res = new List<DmNode>();
             DescendantsVisitor(res, false, null);
+            return res.ToArray();
+        }
+
+        public DmNode[] GetAttributes()
+        {
+            List<DmNode> res = new List<DmNode>();
+            if (ChildAttributes != null)
+                foreach (DmNode node in ChildAttributes)
+                    res.Add(node);
             return res.ToArray();
         }
 

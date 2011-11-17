@@ -1,27 +1,10 @@
-﻿//        Copyright (c) 2009, Semyon A. Chertkov (semyonc@gmail.com)
+﻿//        Copyright (c) 2009-2011, Semyon A. Chertkov (semyonc@gmail.com)
 //        All rights reserved.
 //
-//        Redistribution and use in source and binary forms, with or without
-//        modification, are permitted provided that the following conditions are met:
-//            * Redistributions of source code must retain the above copyright
-//              notice, this list of conditions and the following disclaimer.
-//            * Redistributions in binary form must reproduce the above copyright
-//              notice, this list of conditions and the following disclaimer in the
-//              documentation and/or other materials provided with the distribution.
-//            * Neither the name of author nor the
-//              names of its contributors may be used to endorse or promote products
-//              derived from this software without specific prior written permission.
-//
-//        THIS SOFTWARE IS PROVIDED ''AS IS'' AND ANY
-//        EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-//        WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-//        DISCLAIMED. IN NO EVENT SHALL  AUTHOR BE LIABLE FOR ANY
-//        DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//        (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-//        LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-//        ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//        (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-//        SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//        This program is free software: you can redistribute it and/or modify
+//        it under the terms of the GNU General Public License as published by
+//        the Free Software Foundation, either version 3 of the License, or
+//        any later version.
 
 using System;
 using System.Collections.Generic;
@@ -61,6 +44,14 @@ namespace DataEngine.XQuery
 
         private object syncRoot = new Object();
         private CancellationToken token;
+
+        public Object SyncRoot
+        {
+            get
+            {
+                return syncRoot;
+            }
+        }
 
         public bool IsIndexed
         {
@@ -161,6 +152,20 @@ namespace DataEngine.XQuery
             this.token = token;
         }
 
+        public void Open(Stream stream, XmlReaderSettings settings, XmlSpace space, CancellationToken token)
+        {
+            pagefile = new PageFile(false);
+            input = XmlReader.Create(stream, settings);
+            nameTable = input.NameTable;
+            builder = new XQueryDocumentBuilder(this);
+            builder.SchemaInfo = input.SchemaInfo;
+            pagefile.HasSchemaInfo = (input.SchemaInfo != null);
+            baseUri = input.BaseURI;
+            preserveSpace = (space == XmlSpace.Preserve);
+            this.token = token;
+        }
+
+
         XPathNavigator IXPathNavigable.CreateNavigator()
         {
             if (pagefile == null)
@@ -233,10 +238,14 @@ namespace DataEngine.XQuery
                                 if (elemIdTable.TryGetValue(elemName, out name) &&
                                     name == input.Name)
                                 {
-                                    if (IdTable == null)
-                                        IdTable = new Dictionary<string, int>();
-                                    if (!IdTable.ContainsKey(input.Value))
-                                        IdTable.Add(input.Value, builder.Position);
+                                    string id = input.Value;
+                                    builder.AddCompleteElementAction(() =>  
+                                    {
+                                        if (IdTable == null)
+                                            IdTable = new Dictionary<string, int>();
+                                        if (!IdTable.ContainsKey(id))
+                                            IdTable.Add(id, builder.Position -1);
+                                    });
                                 }
                             }
                             if (pagefile.HasSchemaInfo)
@@ -247,10 +256,14 @@ namespace DataEngine.XQuery
                                     XmlTypeCode typeCode = schemaInfo.SchemaType.TypeCode;
                                     if (typeCode == XmlTypeCode.Id)
                                     {
-                                        if (IdTable == null)
-                                            IdTable = new Dictionary<string, int>();
-                                        if (!IdTable.ContainsKey(input.Value))
-                                            IdTable.Add(input.Value, builder.Position);
+                                        string id = input.Value;
+                                        builder.AddCompleteElementAction(() =>
+                                        {
+                                            if (IdTable == null)
+                                                IdTable = new Dictionary<string, int>();
+                                            if (!IdTable.ContainsKey(id))
+                                                IdTable.Add(id, builder.Position -1);
+                                        });
                                     }
                                 }
                             }
@@ -317,7 +330,7 @@ namespace DataEngine.XQuery
                 input.Close();
                 input = null;
                 builder = null;
-            }
+             }
         }
 
         internal void ExpandPageFile(int pos)
@@ -336,8 +349,23 @@ namespace DataEngine.XQuery
             lock (syncRoot)
             {
                 if (input != null && pagefile[pos] == 0)
-                    while (input != null && pos != builder.LastElementEnd)
+                {
+                    while (input != null && pagefile[pos] == 0)
                         Read();
+                }
+            }
+        }
+
+        internal void ExpandUtilElementEnd(int pos, int size)
+        {
+            lock (syncRoot)
+            {
+                if (input != null && pagefile[pos] == 0 && size > 0)
+                {
+                    int count = pagefile.Count;
+                    while (size > pagefile.Count - count && input != null && pagefile[pos] == 0)
+                        Read();
+                }
             }
         }
 

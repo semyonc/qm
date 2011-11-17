@@ -288,7 +288,8 @@ namespace XQueryConsole
                 part = GetPartList(package).SingleOrDefault(p => p.Uri == partUri);
             if (part == null)
                 throw new XQueryException(String.Format(Properties.Resources.PartNotFound, partUri, fileName), null);
-            doc = new XQueryDocument(part.GetStream(), GetSettings());
+            doc = CreateDocument();
+            doc.Open(part.GetStream(), GetSettings(), XmlSpace.Default, Token);
             cache.Add(cacheKey, doc);
             return doc;
         }

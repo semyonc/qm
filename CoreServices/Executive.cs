@@ -321,6 +321,13 @@ namespace DataEngine.CoreServices
             }
         }
 
+        public bool IsParameterSensitive(FunctionLink dynamicFunc)
+        {
+            if (dynamicFunc.Value == null)
+                throw new ArgumentNullException();
+            return dynamicFunc.Value.ParametersBinded;
+        }
+
         internal Type Compile(LambdaExpr expr)
         {
             Compile(expr._parameters, expr._body, expr._compiledBody);
@@ -434,6 +441,7 @@ namespace DataEngine.CoreServices
                 lambda.Values = localAccess.GetValues();
                 lambda.Consts = localAccess.GetConsts();
                 lambda.Dependences = localAccess.GetDependences();
+                lambda.ParametersBinded = localAccess.ParametersBinded;
                 Type retType = st.Pop();
                 if (ValueProxy.IsProxyType(retType))
                 {

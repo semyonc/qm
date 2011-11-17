@@ -61,6 +61,15 @@ namespace DataEngine.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Accessor prefix {0} is already registered.
+        /// </summary>
+        internal static string AccessorPrefixAlreadyRegistered {
+            get {
+                return ResourceManager.GetString("AccessorPrefixAlreadyRegistered", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Input argument is not indexed collection.
         /// </summary>
         internal static string ArgumentIsNotArray {

@@ -9,6 +9,7 @@ using System.Net;
 using System.IO;
 using System.Diagnostics;
 using System.Reflection;
+using System.Threading;
 
 using System.Xml;
 using System.Xml.Schema;
@@ -16,7 +17,7 @@ using System.Xml.XPath;
 using System.Xml.Xsl;
 
 using DataEngine.XQuery;
-using System.Threading;
+using DataEngine.CoreServices;
 
 namespace XQTSRun
 {
@@ -53,6 +54,7 @@ namespace XQTSRun
         internal ToolStripStatusLabel _statusLabel;
         internal int _total;
         internal int _passed;
+        internal int _repeatCount;
 
 
         public Form1()
@@ -427,7 +429,7 @@ namespace XQTSRun
                 MessageBox.Show("No test case selected.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-            else if (count > 100)
+            else if (count > 100 && _repeatCount == 0)
             {
                 if (MessageBox.Show(String.Format("{0} test case(s) selected. Continue ?", count),
                     "Confirmation", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK)
@@ -443,23 +445,76 @@ namespace XQTSRun
             toolStripStatusLabel1.Text = "Running";
             statusStrip1.Items.Add(_progressBar);
             statusStrip1.Items.Add(_statusLabel);
-            Thread worker = new Thread(new ThreadStart(BatchTestThread));
-            worker.Start();
+            BatchRun();
+        }
+
+        private void repeatRunToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            _repeatCount = 100;
+            richTextBox1.Clear();
+            dataGridView1.EndEdit();
+            int count = 0;
+            foreach (DataRow r in _testTab.Select(""))
+                if ((bool)r[0])
+                    count++;
+            if (count == 0)
+            {
+                MessageBox.Show("No test case selected.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            else if (count > 100 && _repeatCount == 0)
+            {
+                if (MessageBox.Show(String.Format("{0} test case(s) selected. Continue ?", count),
+                    "Confirmation", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK)
+                    return;
+            }
+            _total = 0;
+            _passed = 0;
+            _progressBar = new ToolStripProgressBar();
+            _progressBar.Minimum = 0;
+            _progressBar.Value = 0;
+            _progressBar.Maximum = count * _repeatCount;
+            _statusLabel = new ToolStripStatusLabel();
+            toolStripStatusLabel1.Text = "Running";
+            statusStrip1.Items.Add(_progressBar);
+            statusStrip1.Items.Add(_statusLabel);
+            BatchRun();
         }
 
         delegate void CompleteDelegate(ResultFile resFile);
 
+        private void BatchRun()
+        {
+            Thread worker = new Thread(new ThreadStart(BatchTestThread));
+            worker.Start();
+        }
+
         private void CompleteBatchTest(ResultFile resFile)
         {
-            foreach (DataRow row in _testTab.Rows)
-                row[0] = false;
-            string fileName = _basePath + "\\ReportingResults\\XQTS_QM_Result.xml";
-            resFile.Create(fileName);
-            statusStrip1.Items.Remove(_statusLabel);
-            statusStrip1.Items.Remove(_progressBar);
-            toolStripStatusLabel1.Text = "Done";
-            _progressBar = null;
-            _statusLabel = null;
+            if (_repeatCount > 1)
+            {
+                _repeatCount--;
+                BatchRun();
+            }
+            else
+            {
+                if (_total > 0)
+                {
+                    decimal total = _total;
+                    decimal passed = _passed;
+                    _out.WriteLine("{0} executed, {1} ({2}%) successed.", total, passed,
+                        Math.Round(passed / total * 100, 2));
+                }
+                foreach (DataRow row in _testTab.Rows)
+                    row[0] = false;
+                string fileName = _basePath + "\\ReportingResults\\XQTS_QM_Result.xml";
+                resFile.Create(fileName);
+                statusStrip1.Items.Remove(_statusLabel);
+                statusStrip1.Items.Remove(_progressBar);
+                toolStripStatusLabel1.Text = "Done";
+                _progressBar = null;
+                _statusLabel = null;
+            }
         }
 
         private void CreateHtmlReport(bool detail)
@@ -533,13 +588,6 @@ namespace XQTSRun
                 }
             }
             resFile.Worktime.Stop();
-            if (_total > 0)
-            {
-                decimal total = _total;
-                decimal passed = _passed;
-                _out.WriteLine("{0} executed, {1} ({2}%) successed.", total, passed,
-                    Math.Round(passed / total * 100, 2));
-            }
             Invoke(new CompleteDelegate(CompleteBatchTest), resFile);
         }
 
@@ -567,6 +615,7 @@ namespace XQTSRun
             XQueryCommand command = new XQueryCommand();
             try
             {
+                command.OptimizerGoal = QueryPlanTarget.AllItems;
                 TextReader textReader = new StreamReader(fileName, true);
                 command.CommandText = textReader.ReadToEnd();
                 textReader.Close();
@@ -649,6 +698,9 @@ namespace XQTSRun
         {
             try
             {
+#if DEBUG
+                PerfMonitor.Global.Clear();
+#endif
                 XQueryCommand command;
                 try
                 {

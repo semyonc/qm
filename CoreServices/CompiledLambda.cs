@@ -58,6 +58,7 @@ namespace DataEngine.CoreServices
         public Object[] Consts { get; set; }
         public LambdaExpr[] Dependences { get; set; }
         public Type ReturnType { get; set; }
+        public bool ParametersBinded { get; set; }
 
         [SecurityCritical]
         public object Invoke(MemoryPool pool, object[] args)
