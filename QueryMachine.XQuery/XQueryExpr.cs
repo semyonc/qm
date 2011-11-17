@@ -1,27 +1,10 @@
-﻿//        Copyright (c) 2009, Semyon A. Chertkov (semyonc@gmail.com)
+﻿//        Copyright (c) 2009-2011, Semyon A. Chertkov (semyonc@gmail.com)
 //        All rights reserved.
 //
-//        Redistribution and use in source and binary forms, with or without
-//        modification, are permitted provided that the following conditions are met:
-//            * Redistributions of source code must retain the above copyright
-//              notice, this list of conditions and the following disclaimer.
-//            * Redistributions in binary form must reproduce the above copyright
-//              notice, this list of conditions and the following disclaimer in the
-//              documentation and/or other materials provided with the distribution.
-//            * Neither the name of author nor the
-//              names of its contributors may be used to endorse or promote products
-//              derived from this software without specific prior written permission.
-//
-//        THIS SOFTWARE IS PROVIDED ''AS IS'' AND ANY
-//        EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-//        WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-//        DISCLAIMED. IN NO EVENT SHALL  AUTHOR BE LIABLE FOR ANY
-//        DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//        (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-//        LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-//        ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//        (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-//        SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//        This program is free software: you can redistribute it and/or modify
+//        it under the terms of the GNU General Public License as published by
+//        the Free Software Foundation, either version 3 of the License, or
+//        any later version.
 
 using System;
 using System.Collections.Generic;
@@ -31,7 +14,13 @@ using System.Xml;
 using System.Xml.Schema;
 using System.Xml.XPath;
 
+using System.Collections.Concurrent;
+using System.Threading.Tasks;
+using System.Threading;
+
 using DataEngine.CoreServices;
+using System.Diagnostics;
+
 
 namespace DataEngine.XQuery
 {
@@ -46,11 +35,12 @@ namespace DataEngine.XQuery
     {
         internal object[] m_expr;
         internal FunctionLink[] m_compiledBody;
-        private FunctionLink[] m_compiledAnnotation;        
+        private FunctionLink[] m_compiledAnnotation;
         private SymbolLink m_context;
 
         public XQueryOrder QueryOrder { get; set; }
         public object[] Annotation { get; set; }
+        public bool Parallel { get; set; }
 
         public XQueryExpr(XQueryContext context, object[] expr)
             : base(context)
@@ -139,10 +129,14 @@ namespace DataEngine.XQuery
                         else
                             annotation[k] = Core.Atomize(res);
                 }
+                if (Parallel && QueryContext.EnableHPC)
+                    return new XQueryExprIteratorHPC(this, args, annotation, pool);
                 return new XQueryExprIterator(this, args, annotation, pool);
             }
             if (m_expr.Length == 1)
                 return QueryContext.Engine.Apply(null, null, m_expr[0], args, m_compiledBody[0], pool);
+            if (Parallel && QueryContext.EnableHPC)
+                return new XQueryExprIteratorHPC(this, args, null, pool);
             return new XQueryExprIterator(this, args, null, pool);
         }
 
@@ -153,18 +147,20 @@ namespace DataEngine.XQuery
             return base.ToLispFunction();
         }
 
-        private sealed class XQueryExprIterator : XQueryNodeIterator
-        {
-            private XQueryExpr owner;
-            private object[] args;
-            private MemoryPool pool;
-            private XQueryNodeIterator childIter;
-            private object[] annotation;
-            private int index;
+        #region Iterators
 
+        private abstract class XQueryExprIteratorBase : XQueryNodeIterator
+        {
+            protected XQueryExpr owner;
+            protected object[] args;
+            protected MemoryPool pool;
+            protected XQueryNodeIterator childIter;
+            protected object[] annotation;
+            
+            private int index = 0;
             private XQueryItem currItem = new XQueryItem();
 
-            public XQueryExprIterator(XQueryExpr owner, object[] args, object[] annotation, MemoryPool pool)
+            public XQueryExprIteratorBase (XQueryExpr owner, object[] args, object[] annotation, MemoryPool pool)
             {
                 this.owner = owner;
                 this.args = args;
@@ -172,20 +168,12 @@ namespace DataEngine.XQuery
                 this.pool = pool;
             }
 
-            public override XQueryNodeIterator Clone()
-            {
-                return new XQueryExprIterator(owner, args, annotation, pool);
-            }
-
             public override XQueryNodeIterator CreateBufferedIterator()
             {
                 return new BufferedNodeIterator(this);
             }
 
-            protected override void Init()
-            {
-                index = 0;
-            }
+            protected abstract object GetItemAtIndex(int index);
 
             protected override XPathItem NextItem()
             {
@@ -205,9 +193,7 @@ namespace DataEngine.XQuery
                     }
                     if (index == owner.m_expr.Length)
                         return null;
-                    object res = owner.QueryContext.Engine.Apply(null, null,
-                        owner.m_expr[index], args, owner.m_compiledBody[index], pool);
-                    index++;
+                    object res = GetItemAtIndex(index++);
                     if (res != Undefined.Value)
                     {
                         childIter = res as XQueryNodeIterator;
@@ -229,6 +215,71 @@ namespace DataEngine.XQuery
             }
         }
 
+        private sealed class XQueryExprIterator : XQueryExprIteratorBase
+        {
+            public XQueryExprIterator(XQueryExpr owner, object[] args, object[] annotation, MemoryPool pool)
+                : base(owner, args, annotation, pool)
+            {
+            }
+
+            public override XQueryNodeIterator Clone()
+            {
+                return new XQueryExprIterator(owner, args, annotation, pool);
+            }
+
+            protected override object GetItemAtIndex(int index)
+            {
+                return owner.QueryContext.Engine.Apply(null, null,
+                    owner.m_expr[index], args, owner.m_compiledBody[index], pool);
+            }
+        }
+
+        private sealed class XQueryExprIteratorHPC : XQueryExprIteratorBase
+        {
+            private ConcurrentDictionary<int, Object> orderedBag = new ConcurrentDictionary<int, object>();
+
+            public XQueryExprIteratorHPC(XQueryExpr owner, object[] args, object[] annotation, MemoryPool pool)
+                : base(owner, args, annotation, pool)
+            {
+            }
+
+            public override XQueryNodeIterator Clone()
+            {
+                return new XQueryExprIteratorHPC(owner, args, annotation, pool);
+            }
+
+            protected override void Init()
+            {
+                ParallelOptions options = new ParallelOptions();
+                options.CancellationToken = owner.QueryContext.Token;
+                ConcurrentBag<Exception> exceptions = new ConcurrentBag<Exception>();
+                ParallelLoopResult result = System.Threading.Tasks.Parallel.For(0, owner.m_expr.Length - 1, options, 
+                    () => pool.Fork(),
+                    (int index, ParallelLoopState state, MemoryPool localPool) =>
+                    {
+                        try
+                        {
+                            orderedBag[index] = owner.QueryContext.Engine.Apply(null, null,
+                                owner.m_expr[index], args, owner.m_compiledBody[index], localPool);
+                        }
+                        catch (Exception ex)
+                        {
+                            exceptions.Add(ex);
+                            state.Break();
+                        }
+                        return localPool;
+                    },
+                    (MemoryPool localPool) => { });
+                if (exceptions.Count > 0)
+                    owner.QueryContext.AggregateMultiplyException(exceptions.ToArray());
+            }
+
+            protected override object GetItemAtIndex(int index)
+            {
+                return orderedBag[index];
+            }
+        }
+        #endregion
 
 #if DEBUG
         public override string ToString()
@@ -249,11 +300,13 @@ namespace DataEngine.XQuery
                 }
             }
             sb.Append("]");
+            if (Parallel)
+                sb.Append("{PARALLEL}");
             return sb.ToString();
         }
 #endif
 
-        public static XQueryExprBase Create(XQueryContext context, object[] expr)
+        public static XQueryExprBase Create(XQueryContext context, params object[] expr)
         {
             if (expr.Length == 1 && Lisp.IsFunctor(expr[0], ID.DynExecuteExpr, 4))
               return (XQueryExprBase)Lisp.Arg1(expr[0]);

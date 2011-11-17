@@ -31,6 +31,8 @@ namespace XQueryConsole
     /// </summary>
     public partial class MainWindow : Window
     {
+        public const String MainWindowTitle = "QueryMachine Console";
+
         public DocumentController Controller { get; private set; }
         public FileTreeController FileTreeController1 { get; private set; }
         public DataSourceTreeController DatasourceController { get; private set; }
@@ -198,6 +200,7 @@ namespace XQueryConsole
         {
             if (QueryTabs.Items.Count == 0)
             {
+                Title = MainWindowTitle;
                 menuEdit.Visibility = System.Windows.Visibility.Collapsed;
                 menuQuery.Visibility = System.Windows.Visibility.Collapsed;
             }
@@ -206,6 +209,15 @@ namespace XQueryConsole
                 menuEdit.Visibility = System.Windows.Visibility.Visible;
                 menuQuery.Visibility = System.Windows.Visibility.Visible;
             }
+        }
+
+        private void QueryTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (SelectedPage != null)
+                        Title = String.Format("{0}: {1}", MainWindowTitle, SelectedPage.QueryFacade.EngineName);
+                }));
         }
 
         private void MenuItem_ExitClick(object sender, RoutedEventArgs e)
@@ -437,7 +449,8 @@ namespace XQueryConsole
 
         private void HelpAbout_Click(object sender, RoutedEventArgs e)
         {
-            AboutBox.Run();            
+            AboutBox.Run();
+            GC.Collect();
         }
     }
 }

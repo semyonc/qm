@@ -39,7 +39,8 @@ namespace DataEngine
         XMLFile,
         FlatFile,
         XlFile,
-        XlFileTable
+        XlFileTable,
+        CustomAccessor
     }
 
     public class DataSourceInfo
@@ -51,6 +52,7 @@ namespace DataEngine
         public readonly String ConnectionString;
         public readonly Object DataContext;
         public readonly FormatIdentifierDelegate FormatIdentifier;
+        public readonly DataAccessorFactory DataAccessorFactory;
 
         public DataSourceInfo(string prefix, bool isDefault, AcessorType tableAccessor, String providerInvariantName, 
             String connectionString, Object dataContext)
@@ -75,8 +77,16 @@ namespace DataEngine
             FormatIdentifier = formatIdentifier;
         }
 
+        public DataSourceInfo(DataAccessorFactory dataAccessorFactory)
+        {
+            DataAccessorFactory = dataAccessorFactory;
+            TableAccessor = AcessorType.CustomAccessor;
+        }
+
         public DbConnection CreateConnection()
-        {            
+        {
+            if (ProviderInvariantName == null)
+                throw new InvalidOperationException();
             DbConnection connection = DataProviderHelper.CreateDbConnection(ProviderInvariantName);
             connection.ConnectionString = ConnectionString;
             return connection;
@@ -157,7 +167,7 @@ namespace DataEngine
     }
 
     public delegate void ResolveDataSourceInfoDelegate(Object sender, ResolveArgs arg);
-    public delegate string[] FormatIdentifierDelegate(Object sender, string[] identifierParts);
+    public delegate string[] FormatIdentifierDelegate(Object sender, string[] identifierParts);    
 
     public class DatabaseDictionary
     {
@@ -280,6 +290,10 @@ namespace DataEngine
                     case AcessorType.XlFile:
                     case AcessorType.XlFileTable:
                         tableType = new TableType(qualifiedName, qualifiedName, dsi, null);
+                        break;
+
+                    case AcessorType.CustomAccessor:
+                        tableType = dsi.DataAccessorFactory.CreateTableType(this, qualifiedName, dsi);
                         break;
 
                     default:
@@ -465,6 +479,7 @@ namespace DataEngine
 
             if (prefix != null)
             {
+                DataAccessorFactory dataAccessorFactory;
                 if (prefix.Equals("XML"))
                     return _xmldsi;
                 else if (prefix.Equals("ADO"))
@@ -475,6 +490,8 @@ namespace DataEngine
                     return new DataSourceInfo(null, false, AcessorType.XlFile, null, null, null);
                 else if (prefix.Equals("XLT"))
                     return new DataSourceInfo(null, false, AcessorType.XlFileTable, null, null, null);
+                else if (AccessorCatalog.Instance.TryGet(prefix, out dataAccessorFactory))
+                    return new DataSourceInfo(dataAccessorFactory);
                 else
                 {
                     string fileName = GetFilePath(identifierPart[0], prefix.ToLowerInvariant());
@@ -559,6 +576,51 @@ namespace DataEngine
         private string EscapeRegExprString(string str)
         {
             return str;
+        }
+    }
+
+    public abstract class DataAccessorFactory
+    {
+        public virtual TableType CreateTableType(DatabaseDictionary databaseDictionary,
+            String qualifiedName, DataSourceInfo dataSource)
+        {
+            return new TableType(qualifiedName, qualifiedName, dataSource, null);
+        }
+
+        public abstract QueryNode CreateAccessor(TableType tableType);
+    }
+
+    public class AccessorCatalog
+    {
+        public static AccessorCatalog Instance { get; private set; }
+
+        private Dictionary<String, DataAccessorFactory> m_factories = new Dictionary<string, DataAccessorFactory>();
+
+        private AccessorCatalog()
+        {
+        }
+
+        public void RegisterFactory(string prefix, DataAccessorFactory factory)
+        {
+            try
+            {
+                m_factories.Add(prefix, factory);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new ArgumentException(
+                    String.Format(Properties.Resources.AccessorPrefixAlreadyRegistered, prefix), ex);
+            }
+        }
+
+        public bool TryGet(string prefix, out DataAccessorFactory result)
+        {
+            return m_factories.TryGetValue(prefix, out result);
+        }
+
+        static AccessorCatalog()
+        {
+            Instance = new AccessorCatalog();
         }
     }
 }

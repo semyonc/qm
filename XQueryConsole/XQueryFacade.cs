@@ -46,6 +46,7 @@ namespace XQueryConsole
             command.SearchPath = controller.SearchPath;
             if (!String.IsNullOrEmpty(baseUri))
                 command.BaseUri = baseUri;
+            command.OptimizerGoal = QueryPlanTarget.AllItems;
         }
 
         public GridCellGroup Execute()

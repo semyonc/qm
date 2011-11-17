@@ -44,6 +44,8 @@
             this.runCurrentToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.batchRunToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator5 = new System.Windows.Forms.ToolStripSeparator();
+            this.repeatTestToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem6 = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem4 = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem5 = new System.Windows.Forms.ToolStripMenuItem();
@@ -126,7 +128,9 @@
             this.toolStripSeparator2,
             this.runCurrentToolStripMenuItem,
             this.toolStripMenuItem1,
-            this.batchRunToolStripMenuItem});
+            this.batchRunToolStripMenuItem,
+            this.toolStripSeparator5,
+            this.repeatTestToolStripMenuItem});
             this.testToolStripMenuItem.Name = "testToolStripMenuItem";
             this.testToolStripMenuItem.Size = new System.Drawing.Size(41, 20);
             this.testToolStripMenuItem.Text = "Test";
@@ -193,6 +197,20 @@
             this.batchRunToolStripMenuItem.Size = new System.Drawing.Size(184, 22);
             this.batchRunToolStripMenuItem.Text = "Batch Test";
             this.batchRunToolStripMenuItem.Click += new System.EventHandler(this.batchRunToolStripMenuItem_Click);
+            // 
+            // toolStripSeparator5
+            // 
+            this.toolStripSeparator5.Name = "toolStripSeparator5";
+            this.toolStripSeparator5.Size = new System.Drawing.Size(181, 6);
+            this.toolStripSeparator5.Visible = false;
+            // 
+            // repeatTestToolStripMenuItem
+            // 
+            this.repeatTestToolStripMenuItem.Name = "repeatTestToolStripMenuItem";
+            this.repeatTestToolStripMenuItem.Size = new System.Drawing.Size(184, 22);
+            this.repeatTestToolStripMenuItem.Text = "Repeat Test";
+            this.repeatTestToolStripMenuItem.Visible = false;
+            this.repeatTestToolStripMenuItem.Click += new System.EventHandler(this.repeatRunToolStripMenuItem_Click);
             // 
             // toolStripMenuItem6
             // 
@@ -265,8 +283,8 @@
             // 
             // treeView1
             // 
-            this.treeView1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-                        | System.Windows.Forms.AnchorStyles.Left)));
+            this.treeView1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left)));
             this.treeView1.HideSelection = false;
             this.treeView1.Location = new System.Drawing.Point(12, 44);
             this.treeView1.Name = "treeView1";
@@ -319,9 +337,9 @@
             // 
             // panel1
             // 
-            this.panel1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-                        | System.Windows.Forms.AnchorStyles.Left)
-                        | System.Windows.Forms.AnchorStyles.Right)));
+            this.panel1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.panel1.Controls.Add(this.panel2);
             this.panel1.Controls.Add(this.splitter1);
             this.panel1.Controls.Add(this.richTextBox1);
@@ -442,6 +460,8 @@
         private System.Windows.Forms.ToolStripMenuItem toolStripMenuItem7;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator4;
         private System.Windows.Forms.ToolStripMenuItem toolStripFind;
+        private System.Windows.Forms.ToolStripMenuItem repeatTestToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator5;
 
     }
 }

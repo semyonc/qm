@@ -93,6 +93,7 @@ namespace DataEngine.CoreServices
         bool scope_active = false;
 
         public Executive.Parameter[] Parameters { get; private set; }
+        public bool ParametersBinded { get; private set; }
 
         public LocalAccess(ILGen il, Executive.Parameter[] parameters)
         {
@@ -195,6 +196,7 @@ namespace DataEngine.CoreServices
                         localVar = il.DeclareLocal(b.type);
                         locals.Add(atom, localVar);
                         b.binded = true;
+                        ParametersBinded = true;
                         return;
                     }
                     else

@@ -29,6 +29,11 @@ using System.Threading;
 
 namespace DataEngine.CoreServices
 {
+    public interface IThreadCloneable
+    {
+        Object ThreadClone();
+    }
+
     public class MemoryPool
     {
         public static readonly int InitPoolSize = 16;
@@ -36,36 +41,56 @@ namespace DataEngine.CoreServices
 
         private static int s_maxID = 0;
 
+        private struct ValueSocket
+        {
+            public IThreadCloneable masterValue;
+            public object value;
+        }
+
         private int _id;
         private int _count;
         private bool _protected;
-        private object[] _values;
+        private ValueSocket[] _data;
 
         public MemoryPool()
         {
             _id = Interlocked.Increment(ref s_maxID);
-            _values = new object[InitPoolSize];
+            _data = new ValueSocket[InitPoolSize];
         }
 
         public MemoryPool(MemoryPool src)
         {
             _id = src._id;
-            _values = new object[src._values.Length];
-            Array.Copy(src._values, 0, _values, 0, src._values.Length);
+            _data = new ValueSocket[src._data.Length];
+            Array.Copy(src._data, 0, _data, 0, src._data.Length);
             _protected = true;
             src._protected = true;
         }
 
+        private MemoryPool PrepareLazyClone()
+        {
+            for (int k = 0; k < _data.Length; k++)
+            {
+                IThreadCloneable masterValue = _data[k].value as IThreadCloneable;
+                if (masterValue != null)
+                {
+                    _data[k].masterValue = masterValue;
+                    _data[k].value = null;
+                }
+            }
+            return this;
+        }
+
         private void EnsureCapacity()
         {
-            if (_values.Length < _count)
+            if (_data.Length < _count)
             {
-                int num = (_values.Length == 0) ? 4 : (_values.Length * 2);
+                int num = (_data.Length == 0) ? 4 : (_data.Length * 2);
                 if (num < _count)
                     num = _count;
-                object[] dest = new object[num];                
-                Array.Copy(_values, 0, dest, 0, _values.Length);
-                _values = dest;
+                ValueSocket[] dest = new ValueSocket[num];                
+                Array.Copy(_data, 0, dest, 0, _data.Length);
+                _data = dest;
             }
         }
 
@@ -93,19 +118,32 @@ namespace DataEngine.CoreServices
         public object GetData(SymbolLink link)
         {
             CheckSymbolLink(link);
-            return _values[link.index];
+            Object value = _data[link.index].value;
+            if (value == null && 
+                _data[link.index].masterValue != null)
+            {
+                value = _data[link.index].masterValue.ThreadClone();
+                _data[link.index].value = value;
+            }
+            return value;
         }
 
         public void SetData(SymbolLink link, object value)
         {
             CheckSymbolLink(link);
-            _values[link.index] = value;
+            _data[link.index].masterValue = null;
+            _data[link.index].value = value;
             link.ChangeValue(this);
         }
 
         public MemoryPool Clone()
         {
             return new MemoryPool(this);
-        }       
+        }
+
+        public MemoryPool Fork()
+        {
+            return new MemoryPool(this).PrepareLazyClone();
+        }
     }
 }

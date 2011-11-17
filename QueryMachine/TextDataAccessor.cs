@@ -62,7 +62,7 @@ namespace DataEngine
         public char EscapeChar { get; set; }
     }
 
-    public class TextDataAccessor: QueryNode
+    public class TextDataAccessor: BaseDataAccessor
     {
         public static int MaxTextColumns = 250;
         public static char CommentChar = '#';
@@ -94,34 +94,9 @@ namespace DataEngine
         };
 
         public TextDataAccessor()
+            : base()
         {
-            _childs = new QueryNodeCollection(this);
         }
-
-        public override Resultset Get(QueryContext queryContext, object[] parameters)
-        {
-            Resultset rs1 = ChildNodes[0].Get(queryContext, parameters);
-            if (rs1.Begin != null)
-            {
-                if (ChildNodes[0] is FlatFileAccessor &&
-                    ((FlatFileAccessor)ChildNodes[0]).MultiFile)
-                {
-                    EnumeratorProcessingContext context = new EnumeratorProcessingContext(null);
-                    Resultset rs = new Resultset(RowType.CreateContainerType(typeof(Resultset)), context);
-                    context.Iterator = NextFile(rs, rs1, queryContext);
-                    return rs;
-                }
-                else
-                {
-                    string fileName;
-                    Row row = rs1.Dequeue();                    
-                    Stream stream = (Stream)row.GetObject(0);
-                    return CreateResultset(stream, out fileName, queryContext);
-                }
-            }
-            else
-                return new Resultset(RowType.CreateContainerType(typeof(Resultset)), null);            
-        }        
 
         private NumberFormatInfo GetNumberFormatInfo(TextFileDataFormat df)
         {
@@ -456,7 +431,7 @@ namespace DataEngine
             return dt;
         }
        
-        private Resultset CreateResultset(Stream stream, out string fileName, QueryContext queryContext)
+        protected override Resultset CreateResultset(Stream stream, out string fileName, QueryContext queryContext)
         {
             DataTable dt = null;
             TextFileDataFormat format = queryContext.GetTextFileDataFormat();
@@ -505,21 +480,6 @@ namespace DataEngine
                         format.EncapsulatorChar, format.EscapeChar, GetNumberFormatInfo(format), GetDateTimeFormatInfo(format));
             }
             return new Resultset(new RowType(dt), context);
-        }
-
-        protected IEnumerator<Row> NextFile(Resultset rs, Resultset src, QueryContext queryContext)
-        {            
-            while (src.Begin != null)
-            {
-                string fileName;
-                Row row = src.Dequeue();
-                Stream stream = (Stream)row.GetObject(0);
-                row = rs.NewRow();
-                row.SetObject(0, CreateResultset(stream, out fileName, queryContext));
-                if (fileName != null)
-                    row.SetString(1, fileName);
-                yield return row;
-            }
         }
 
         protected abstract class ProcessingContextBase : DemandProcessingContext

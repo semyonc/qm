@@ -177,6 +177,7 @@
     <Compile Include="SqlException.cs" />
     <Compile Include="SqlWriter.cs" />
     <Compile Include="SQLX.cs" />
+    <Compile Include="BaseDataAccessor.cs" />
     <Compile Include="Symbol.cs" />
     <Compile Include="TextDataAccessor.cs" />
     <Compile Include="TextParser.cs" />

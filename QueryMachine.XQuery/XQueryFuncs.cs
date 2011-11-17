@@ -1,27 +1,10 @@
-﻿//        Copyright (c) 2009, Semyon A. Chertkov (semyonc@gmail.com)
+﻿//        Copyright (c) 2009-2011, Semyon A. Chertkov (semyonc@gmail.com)
 //        All rights reserved.
 //
-//        Redistribution and use in source and binary forms, with or without
-//        modification, are permitted provided that the following conditions are met:
-//            * Redistributions of source code must retain the above copyright
-//              notice, this list of conditions and the following disclaimer.
-//            * Redistributions in binary form must reproduce the above copyright
-//              notice, this list of conditions and the following disclaimer in the
-//              documentation and/or other materials provided with the distribution.
-//            * Neither the name of author nor the
-//              names of its contributors may be used to endorse or promote products
-//              derived from this software without specific prior written permission.
-//
-//        THIS SOFTWARE IS PROVIDED ''AS IS'' AND ANY
-//        EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-//        WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-//        DISCLAIMED. IN NO EVENT SHALL  AUTHOR BE LIABLE FOR ANY
-//        DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//        (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-//        LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-//        ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//        (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-//        SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//        This program is free software: you can redistribute it and/or modify
+//        it under the terms of the GNU General Public License as published by
+//        the Free Software Foundation, either version 3 of the License, or
+//        any later version.
 
 using System;
 using System.Collections.Generic;
@@ -228,8 +211,14 @@ namespace DataEngine.XQuery
                 else
                     sb.Append(item.Value);
             }
-            Console.Out.WriteLine(sb.ToString());
+            Trace.WriteLine(sb.ToString());
             return iter;
+        }
+
+        [XQuerySignature("trace")]
+        public static XQueryNodeIterator WriteTrace([Implict] Executive engine, XQueryNodeIterator iter)
+        {
+            return WriteTrace(engine, iter, "");
         }
 
         [XQuerySignature("error", Return = XmlTypeCode.None)]
@@ -878,6 +867,49 @@ namespace DataEngine.XQuery
             return true;
         }
 
+        private static String UnescapeReplacementString(string str) // 2011-10-28: Issue #11225
+        {
+            StringBuilder sb = new StringBuilder();
+            char[] charArr = str.ToCharArray();
+            for (int k = 0; k < charArr.Length; k++)
+            {
+                if (charArr[k] == '\\')
+                {
+                    if (k == charArr.Length - 1)
+                        throw new XQueryException(Properties.Resources.FORX0004, str);
+                    switch (charArr[k + 1])
+                    {
+                        case 'n':
+                            sb.Append('\n');
+                            break;
+
+                        case 'r':
+                            sb.Append('\r');
+                            break;
+
+                        case 't':
+                            sb.Append('\t');
+                            break;
+
+                        case 'a':
+                            sb.Append('\a');
+                            break;
+
+                        case '\\':
+                            sb.Append('\\');
+                            break;
+
+                        default:
+                            throw new XQueryException(Properties.Resources.FORX0004, str);
+                    }
+                    k++;
+                }
+                else
+                    sb.Append(charArr[k]);                
+            }
+            return sb.ToString();
+        }
+
 
         [XQuerySignature("matches")]
         public static bool Matches(
@@ -963,7 +995,7 @@ namespace DataEngine.XQuery
                 throw new XQueryException(Properties.Resources.InvalidRegularExpressionFlags, flagString);
             if (Regex.IsMatch("", pattern))
                 throw new XQueryException(Properties.Resources.FORX0003, pattern);
-            return Regex.Replace(input, pattern, replacement, flags);
+            return Regex.Replace(input, pattern, UnescapeReplacementString(replacement), flags);
         }
 
         [XQuerySignature("replace")]
@@ -988,7 +1020,7 @@ namespace DataEngine.XQuery
                 throw new XQueryException(Properties.Resources.FORX0004, replacement);
             if (Regex.IsMatch("", pattern))
                 throw new XQueryException(Properties.Resources.FORX0003, pattern);
-            return Regex.Replace(input, pattern, replacement);
+            return Regex.Replace(input, pattern, UnescapeReplacementString(replacement));
         }
 
         private static IEnumerable<XPathItem> StringEnumerator(string input, string exclude, RegexOptions flags)
@@ -2398,9 +2430,49 @@ namespace DataEngine.XQuery
                 doc.Fill();
                 StringWriter sw = new StringWriter();
                 doc.documentRoot.Dump(sw);
+                doc.Close();
                 return sw.ToString();
             }
             return "";
-        }    
+        }
+
+#if DEBUG
+        [XQuerySignature("dump")]
+        public static string DumpDocument([Implict] Executive executive, 
+            [XQueryParameter(XmlTypeCode.Node, Cardinality = XmlTypeCardinality.ZeroOrOne)] object node)
+        {
+            XQueryContext context = (XQueryContext)executive.Owner;
+            if (node == Undefined.Value)
+                return String.Empty;
+            XQueryNavigator nav = node as XQueryNavigator;
+            if (nav == null)
+                return String.Empty;
+            StringWriter sw = new StringWriter();
+            XQueryDocument doc = nav.Document;
+            doc.Fill();
+            doc.pagefile.Dump(sw);
+            return sw.ToString();
+        }
+
+        [XQuerySignature("dump")]
+        public static string DumpDocument([Implict] Executive executive,
+            [XQueryParameter(XmlTypeCode.Node, Cardinality = XmlTypeCardinality.ZeroOrOne)] 
+                object node, string fileName)
+        {
+            XQueryContext context = (XQueryContext)executive.Owner;
+            if (node == Undefined.Value)
+                return String.Empty;
+            XQueryNavigator nav = node as XQueryNavigator;
+            if (nav == null)
+                return String.Empty;
+            FileStream fs = new FileStream(fileName, FileMode.CreateNew, FileAccess.Write);
+            StreamWriter sw = new StreamWriter(fs);
+            XQueryDocument doc = nav.Document;
+            doc.Fill();
+            doc.pagefile.Dump(sw);
+            fs.Close();
+            return fileName;
+        }
+#endif
     }
 }

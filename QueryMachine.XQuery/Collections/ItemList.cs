@@ -1,27 +1,10 @@
-﻿//        Copyright (c) 2010, Semyon A. Chertkov (semyonc@gmail.com)
+﻿//        Copyright (c) 2009-2011, Semyon A. Chertkov (semyonc@gmail.com)
 //        All rights reserved.
 //
-//        Redistribution and use in source and binary forms, with or without
-//        modification, are permitted provided that the following conditions are met:
-//            * Redistributions of source code must retain the above copyright
-//              notice, this list of conditions and the following disclaimer.
-//            * Redistributions in binary form must reproduce the above copyright
-//              notice, this list of conditions and the following disclaimer in the
-//              documentation and/or other materials provided with the distribution.
-//            * Neither the name of author nor the
-//              names of its contributors may be used to endorse or promote products
-//              derived from this software without specific prior written permission.
-//
-//        THIS SOFTWARE IS PROVIDED ''AS IS'' AND ANY
-//        EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-//        WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-//        DISCLAIMED. IN NO EVENT SHALL  AUTHOR BE LIABLE FOR ANY
-//        DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//        (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-//        LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-//        ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//        (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-//        SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//        This program is free software: you can redistribute it and/or modify
+//        it under the terms of the GNU General Public License as published by
+//        the Free Software Foundation, either version 3 of the License, or
+//        any later version.
 
 using System;
 using System.Collections;
@@ -38,7 +21,9 @@ namespace DataEngine.XQuery.Collections
     {
         private List<ItemSegment> segments;
         private ItemSegment current;
-        private int count;
+
+        private volatile int count;
+        internal volatile bool _finished;
 
         public ItemList()
         {
@@ -49,7 +34,7 @@ namespace DataEngine.XQuery.Collections
         public void Add(XPathItem item)
         {
             XQueryNavigator nav = item as XQueryNavigator;
-            if (nav != null && nav.NodeType == XPathNodeType.Element)
+            if (nav != null)
             {
                 if (current == null || current.document != nav.Document)
                 {
@@ -75,6 +60,21 @@ namespace DataEngine.XQuery.Collections
             return new Iterator(this);
         }
 
+        public XQueryNodeIterator CreateNodeIterator()
+        {
+            return new NodeIterator(this);
+        }
+
+        public ItemList Clone()
+        {
+            ItemList res = new ItemList();
+            foreach (XPathItem item in CreateNodeIterator())
+                res.Add(item);
+            return res;
+        }
+
+        public int Tag { get; set; }
+
         public int Count
         {
             get
@@ -82,6 +82,49 @@ namespace DataEngine.XQuery.Collections
                 return count;
             }
         }
+
+        private sealed class NodeIterator : XQueryNodeIterator
+        {
+            private ItemList src;
+            private ItemList.Iterator iter;
+
+            public NodeIterator(ItemList src)
+            {
+                this.src = src;
+            }
+
+            public override int Count
+            {
+                get
+                {
+                    return src.Count;
+                }
+            }
+
+            public override XQueryNodeIterator Clone()
+            {
+                return new NodeIterator(src);
+            }
+
+            public override XQueryNodeIterator CreateBufferedIterator()
+            {
+                return new NodeIterator(src);
+            }
+
+            protected override void Init()
+            {
+                iter = src.CreateIterator();
+            }
+
+            protected override XPathItem NextItem()
+            {
+                int index = CurrentPosition + 1;
+                if (index < src.Count)
+                    return iter[index];
+                return null;
+            }
+        }
+
 
         private abstract class ItemSegment
         {
@@ -222,6 +265,5 @@ namespace DataEngine.XQuery.Collections
                 }
             }
         }
-
     }
 }

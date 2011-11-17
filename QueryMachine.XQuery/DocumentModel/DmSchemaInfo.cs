@@ -7,30 +7,22 @@
 //        any later version.
 
 using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Collections;
-
-using System.Xml;
 using System.Xml.Schema;
-using System.Xml.XPath;
-
 
 namespace DataEngine.XQuery.DocumentModel
 {
-    internal class DmComment : DmNode
+    internal class DmSchemaInfo : XmlSchemaInfo
     {
-        public DmComment(DmNode parent)
+        public DmSchemaInfo(IXmlSchemaInfo xmlSchemaInfo)
         {
-            _parent = parent;
-        }
-
-        public override XPathNodeType NodeType
-        {
-            get
-            {
-                return XPathNodeType.Comment;
-            }
+            IsDefault = xmlSchemaInfo.IsDefault;
+            IsNil = xmlSchemaInfo.IsNil;
+            MemberType = xmlSchemaInfo.MemberType;
+            SchemaAttribute = xmlSchemaInfo.SchemaAttribute;
+            SchemaElement = xmlSchemaInfo.SchemaElement;
+            SchemaType = xmlSchemaInfo.SchemaType;
+            Validity = xmlSchemaInfo.Validity;
         }
     }
+
 }
