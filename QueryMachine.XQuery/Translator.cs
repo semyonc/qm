@@ -11,6 +11,8 @@ using System.Collections.Generic;
 using System.Text;
 using System.IO;
 using System.Net;
+using System.Globalization;
+using System.Text.RegularExpressions;
 
 using System.Xml;
 using System.Xml.Schema;
@@ -18,9 +20,9 @@ using System.Xml.XPath;
 
 using DataEngine.CoreServices;
 using DataEngine.XQuery.Parser;
-using System.Globalization;
 using DataEngine.XQuery.Util;
-using System.Text.RegularExpressions;
+using DataEngine.XQuery.MS;
+using DataEngine.XQuery.Iterator;
 
 
 namespace DataEngine.XQuery
@@ -1483,9 +1485,10 @@ namespace DataEngine.XQuery
         {
             Notation.Record[] recs = notation.Select(sym, new Descriptor[] { Descriptor.Child, 
                 Descriptor.Descendant }, 1);
-            List<XQueryExprBase> steps = new List<XQueryExprBase>();
+            Object res = null;
             if (recs.Length > 0)
             {
+                XQueryPathStep descendantStep = null;
                 switch (recs[0].descriptor)
                 {
                     case Descriptor.Child:
@@ -1494,47 +1497,50 @@ namespace DataEngine.XQuery
                         break;
 
                     case Descriptor.Descendant:
-                        steps.Add(new XQueryStepExpr(XQuerySequenceType.Node,
-                            XQueryPathExprType.DescendantOrSelf, _context));
+                        descendantStep = new XQueryPathStep(XQuerySequenceType.Node, XPath2ExprType.DescendantOrSelf);
                         break;
 
                     default:
                         throw new InvalidOperationException();
                 }
-                ProcessRelativePathExpr(notation, recs[0].Arg0, steps);
+                if (descendantStep != null)
+                {
+                    descendantStep.AddLast(ProcessRelativePathExpr(notation, recs[0].Arg0));
+                    res = descendantStep;
+                }
+                else
+                    res = ProcessRelativePathExpr(notation, recs[0].Arg0);
             }
             else
-                ProcessRelativePathExpr(notation, sym, steps);
-            if (steps.Count == 1 && steps[0] is XQueryExprBase)
-            {
-                XQueryExprBase expr = (XQueryExprBase)steps[0];
+                res = ProcessRelativePathExpr(notation, sym);
+            XQueryExprBase expr = res as XQueryExprBase;
+            if (expr != null)
                 return expr.ToLispFunction();
-            }
-            else
-            {
-                XQueryExprBase[] path = OptimizeXPath(steps);
-                return Lisp.List(ID.DynExecuteExpr,
-                    new XQueryPathExpr(_context, path, _context.IsOrdered), ID.Context, Lisp.ARGV, Lisp.MPOOL);
-            }
+            XQueryPathStep[] path = CreatePathExpr((XQueryPathStep)res);
+            return Lisp.List(ID.DynExecuteExpr,
+                new XQueryPathExpr(_context, path, _context.IsOrdered), ID.Context, Lisp.ARGV, Lisp.MPOOL);
         }
 
-        private void ProcessRelativePathExpr(Notation notation, Symbol sym, List<XQueryExprBase> steps)
+        private Object ProcessRelativePathExpr(Notation notation, Symbol sym)
         {
             Notation.Record[] recs = notation.Select(sym, new Descriptor[] { Descriptor.Child, 
                 Descriptor.Descendant }, 2);
             if (recs.Length > 0)
             {
-                ProcessRelativePathExpr(notation, recs[0].Arg0, steps);
+                object arg = ProcessRelativePathExpr(notation, recs[0].Arg0);
+                XQueryPathStep pathStep = arg as XQueryPathStep;
+                if (pathStep == null)
+                    pathStep = new XQueryPathStep((XQueryExprBase)arg);
                 if (recs[0].descriptor == Descriptor.Descendant)
-                  steps.Add(new XQueryStepExpr(XQuerySequenceType.Node,
-                    XQueryPathExprType.DescendantOrSelf, _context));
-                steps.Add(ProcessStepExpr(notation, recs[0].Arg1));
+                  pathStep.AddLast(new XQueryPathStep(XQuerySequenceType.Node, XPath2ExprType.DescendantOrSelf));
+                pathStep.AddLast(ProcessStepExpr(notation, recs[0].Arg1));
+                return pathStep;
             }
             else
-                steps.Add(ProcessStepExpr(notation, sym));
+                return ProcessStepExpr(notation, sym);
         }
 
-        private XQueryExprBase ProcessStepExpr(Notation notation, Symbol sym)
+        private object ProcessStepExpr(Notation notation, Symbol sym)
         {
             Notation.Record[] recs = notation.Select(sym, new Descriptor[] { Descriptor.AxisStep, 
                 Descriptor.FilterExpr }, 1);
@@ -1556,10 +1562,10 @@ namespace DataEngine.XQuery
                 throw new InvalidOperationException();
         }
 
-        private XQueryExprBase ProcessAxisStep(Notation notation, Notation.Record rec)
+        private object ProcessAxisStep(Notation notation, Notation.Record rec)
         {
             if (rec.Arg0.Tag == Tag.TokenWrapper && ((TokenWrapper)rec.Arg0).Data == Token.DOUBLE_PERIOD)
-                return new XQueryStepExpr(XQueryPathExprType.Parent, _context);
+                return new XQueryPathStep(XPath2ExprType.Parent);
             else
             {
                 Notation.Record[] recs = notation.Select(rec.Arg0, new Descriptor[] { Descriptor.ForwardStep,
@@ -1585,83 +1591,83 @@ namespace DataEngine.XQuery
                     }
                 }
                 else
-                    return ProcessPredicateList(notation, rec.Arg0, new XQueryStepExpr(
-                        ProcessNodeTest(notation, rec.Arg0, false), XQueryPathExprType.Child, _context));
+                    return ProcessPredicateList(notation, rec.Arg0, new XQueryPathStep(
+                        ProcessNodeTest(notation, rec.Arg0, false), XPath2ExprType.Child));
             }
         }
 
-        private XQueryExprBase ProcessForwardStep(Notation notation, Notation.Record rec)
+        private object ProcessForwardStep(Notation notation, Notation.Record rec)
         {
             TokenWrapper w = (TokenWrapper)rec.Arg0;
             switch (w.Data)
             {
                 case Token.AXIS_CHILD:
-                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false), 
-                        XQueryPathExprType.Child, _context);
+                    return new XQueryPathStep(ProcessNodeTest(notation, 
+                        rec.Arg1, false), XPath2ExprType.Child);
 
                 case Token.AXIS_DESCENDANT:
-                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false), 
-                        XQueryPathExprType.Descendant, _context);
+                    return new XQueryPathStep(ProcessNodeTest(notation, 
+                        rec.Arg1, false), XPath2ExprType.Descendant);
 
                 case Token.AXIS_ATTRIBUTE:
-                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, true), 
-                        XQueryPathExprType.Attribute, _context);
+                    return new XQueryPathStep(ProcessNodeTest(notation, 
+                        rec.Arg1, true), XPath2ExprType.Attribute);
 
                 case Token.AXIS_SELF:
-                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false), 
-                        XQueryPathExprType.Self, _context);
+                    return new XQueryPathStep(ProcessNodeTest(notation, 
+                        rec.Arg1, false), XPath2ExprType.Self);
 
                 case Token.AXIS_DESCENDANT_OR_SELF:
-                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false), 
-                        XQueryPathExprType.DescendantOrSelf, _context);
+                    return new XQueryPathStep(ProcessNodeTest(notation, 
+                        rec.Arg1, false), XPath2ExprType.DescendantOrSelf);
 
                 case Token.AXIS_FOLLOWING_SIBLING:
-                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false), 
-                        XQueryPathExprType.FollowingSibling, _context);
+                    return new XQueryPathStep(ProcessNodeTest(notation, 
+                        rec.Arg1, false), XPath2ExprType.FollowingSibling);
 
                 case Token.AXIS_FOLLOWING:
-                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false), 
-                        XQueryPathExprType.Following, _context);
+                    return new XQueryPathStep(ProcessNodeTest(notation, 
+                        rec.Arg1, false), XPath2ExprType.Following);
 
                 case Token.AXIS_NAMESPACE:
-                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, true), 
-                        XQueryPathExprType.Namespace, _context);
+                    return new XQueryPathStep(ProcessNodeTest(notation, 
+                        rec.Arg1, true), XPath2ExprType.Namespace);
 
                 default:
                     throw new InvalidOperationException();
             }            
         }
 
-        private XQueryExprBase ProcessAbbrevForward(Notation notation, Notation.Record rec)
+        private XQueryPathStep ProcessAbbrevForward(Notation notation, Notation.Record rec)
         {
-            return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg0, true), 
-                XQueryPathExprType.Attribute, _context);
+            return new XQueryPathStep(ProcessNodeTest(notation, rec.Arg0, true), 
+                XPath2ExprType.Attribute);
         }
 
-        private XQueryExprBase ProcessReverseStep(Notation notation, Notation.Record rec)
+        private XQueryPathStep ProcessReverseStep(Notation notation, Notation.Record rec)
         {
             TokenWrapper w = (TokenWrapper)rec.Arg0;
             switch (w.Data)
             {
                 case Token.AXIS_PARENT:
-                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false),
-                        XQueryPathExprType.Parent, _context);
+                    return new XQueryPathStep(ProcessNodeTest(notation, 
+                        rec.Arg1, false), XPath2ExprType.Parent);
 
                 case Token.AXIS_ANCESTOR:
-                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false),
-                        XQueryPathExprType.Ancestor, _context);
+                    return new XQueryPathStep(ProcessNodeTest(notation, 
+                        rec.Arg1, false), XPath2ExprType.Ancestor);
 
                 case Token.AXIS_PRECEDING_SIBLING:
-                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false),
-                        XQueryPathExprType.PrecedingSibling, _context);
+                    return new XQueryPathStep(ProcessNodeTest(notation, 
+                        rec.Arg1, false), XPath2ExprType.PrecedingSibling);
 
                 case Token.AXIS_PRECEDING:
-                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false),
-                        XQueryPathExprType.Preceding, _context);
+                    return new XQueryPathStep(ProcessNodeTest(notation, 
+                        rec.Arg1, false), XPath2ExprType.Preceding);
 
                 case Token.AXIS_ANCESTOR_OR_SELF:
-                    return new XQueryStepExpr(ProcessNodeTest(notation, rec.Arg1, false),
-                        XQueryPathExprType.AncestorOrSelf, _context);
+                    return new XQueryPathStep(ProcessNodeTest(notation, 
+                        rec.Arg1, false), XPath2ExprType.AncestorOrSelf);
                 
                 default:
                     throw new InvalidOperationException();
@@ -1707,7 +1713,7 @@ namespace DataEngine.XQuery
             }
         }
 
-        private XQueryExprBase ProcessPredicateList(Notation notation, Symbol sym, XQueryExprBase ancestor)
+        private object ProcessPredicateList(Notation notation, Symbol sym, object ancestor)
         {       
             Notation.Record[] recs = notation.Select(sym, Descriptor.PredicateList, 1);
             if (recs.Length > 0)
@@ -1720,14 +1726,32 @@ namespace DataEngine.XQuery
                     if (recs1.Length > 0)
                         filter.Add(ProcessExpr(notation, recs1[0].args[0]));
                 }
+                XQueryPathStep ancestorStep = ancestor as XQueryPathStep;
+                if (filter.Count == 1)
+                {
+                    XQueryExpr numexpr = filter[0] as XQueryExpr;
+                    if (numexpr != null && numexpr.m_expr.Length == 1
+                        && numexpr.m_expr[0] is Integer)
+                    {                        
+                        Integer pos = (Integer)numexpr.m_expr[0];
+                        if (ancestorStep == null)
+                            ancestorStep = new XQueryPathStep((XQueryExprBase)ancestor);
+                        ancestorStep.AddLast(new XQueryPathStep(pos, XPath2ExprType.PositionFilter));
+                        return ancestorStep;
+                    }
+                }
                 XQueryFilterExpr filterExpr = new XQueryFilterExpr(_context, filter.ToArray());
-                filterExpr.Source = ancestor;
+                if (ancestorStep != null)
+                    filterExpr.Source = new XQueryPathExpr(_context,
+                        new XQueryPathStep[] { ancestorStep }, _context.IsOrdered);
+                else
+                    filterExpr.Source = (XQueryExprBase)ancestor;
                 return filterExpr;
             }
             return ancestor;
         }
         
-        private XQueryExprBase ProcessFilterExpr(Notation notation, Notation.Record rec)
+        private object ProcessFilterExpr(Notation notation, Notation.Record rec)
         {
             object prim = ProcessPrimaryExpr(notation, rec.Arg0);
             if (Lisp.IsAtom(prim))
@@ -2602,12 +2626,13 @@ namespace DataEngine.XQuery
                 XQueryPathExpr pathExpr = exprBase as XQueryPathExpr;
                 if (pathExpr != null)
                 {
-                    XQueryStepExpr lastStep = pathExpr.LastStep as XQueryStepExpr;
+                    XQueryPathStep lastStep = pathExpr.LastStep;
                     if (lastStep != null)
                     {
-                        if (lastStep.TypeTest != null)
-                            return lastStep.TypeTest;
-                        else if (lastStep.NameTest != null)
+                        XQuerySequenceType typeTest = lastStep.nodeTest as XQuerySequenceType;
+                        if (typeTest != null)
+                            return typeTest;
+                        else if (lastStep.nodeTest is XmlQualifiedNameTest) 
                         {
                             if (_context.SchemaProcessing != SchemaProcessingMode.Force && !_context.NeedValidatedParser)
                                 return new XQuerySequenceType(XmlTypeCode.Node);
@@ -3064,27 +3089,69 @@ namespace DataEngine.XQuery
             return expr;
         }
 
-        private XQueryExprBase[] OptimizeXPath(List<XQueryExprBase> path)
+        private XQueryPathStep[] CreatePathExpr(XQueryPathStep firstStep)
         {
-            if (!_context.IsDirectAcessSupported())
-                return path.ToArray();
-            bool descendantInGroup = false;
-            List<XQueryExprBase> res = new List<XQueryExprBase>();
-            List<XQueryExprBase> group = new List<XQueryExprBase>();
-            foreach (XQueryExprBase expr in path)
+            List<XQueryPathStep> path = new List<XQueryPathStep>();
+            for (XQueryPathStep curr = firstStep; curr != null; curr = curr.Next)
+                path.Add(curr);
+            if (_context.IsDirectAcessSupported())
+                return OptimizeXPath(path);
+            if (path.Count == 2 &&
+                path[0].type == XPath2ExprType.DescendantOrSelf &&
+                path[0].nodeTest == XQuerySequenceType.Node &&
+                path[1].type == XPath2ExprType.Child)
+                return new XQueryPathStep[] { new XQueryPathStep(path[1].nodeTest, XPath2ExprType.Descendant) };
+            else
             {
+                bool transform;
+                do
+                {
+                    transform = false;
+                    for (int k = 0; k < path.Count - 2; k++)
+                        if (path[k].type == XPath2ExprType.DescendantOrSelf)
+                        {
+                            int s = k + 1;
+                            List<ChildOverDescendantsNodeIterator.NodeTest> nodeTest = new List<ChildOverDescendantsNodeIterator.NodeTest>();
+                            for (; s < path.Count; s++)
+                            {
+                                if (path[s].type != XPath2ExprType.Child)
+                                    break;
+                                nodeTest.Add(new ChildOverDescendantsNodeIterator.NodeTest(path[s].nodeTest));
+                            }
+                            if (nodeTest.Count > 1)
+                            {
+                                int n = nodeTest.Count + 1;
+                                while (n-- > 0)
+                                    path.RemoveAt(k);
+                                path.Insert(k, new XQueryPathStep(nodeTest.ToArray(), XPath2ExprType.ChildOverDescendants));
+                                transform = true;
+                                break;
+                            }
+                        }
+                } while (transform);
+                return path.ToArray();
+            }
+        }
+
+        private XQueryPathStep[] OptimizeXPath(List<XQueryPathStep> path)
+        {
+            bool descendantInGroup = false;
+            List<XQueryPathStep> res = new List<XQueryPathStep>();
+            List<XQueryPathStep> group = new List<XQueryPathStep>();
+            for (int k = 0; k < path.Count; k++)
+            {
+                XQueryPathStep curr = path[k];
                 bool eat = false;
-                XQueryStepExpr curr = expr as XQueryStepExpr;
-                if (curr != null)
-                    switch (curr.ExprType)
+                if (! (k < path.Count -1 && path[k + 1].type == XPath2ExprType.PositionFilter))
+                    switch (curr.type)
                     {
-                        case XQueryPathExprType.Descendant:
-                        case XQueryPathExprType.DescendantOrSelf:
-                        case XQueryPathExprType.Self:
-                        case XQueryPathExprType.Child:
-                        case XQueryPathExprType.Attribute:
-                            if (curr.ExprType == XQueryPathExprType.Descendant ||
-                                curr.ExprType == XQueryPathExprType.DescendantOrSelf)
+                        case XPath2ExprType.Descendant:
+                        case XPath2ExprType.DescendantOrSelf:
+                        case XPath2ExprType.Self:
+                        case XPath2ExprType.Child:
+                        case XPath2ExprType.Attribute:
+                            if (curr.type == XPath2ExprType.Descendant ||
+                                curr.type == XPath2ExprType.DescendantOrSelf)
                                 descendantInGroup = true;
                             group.Add(curr);
                             eat = true;
@@ -3096,20 +3163,22 @@ namespace DataEngine.XQuery
                     {
                         if (descendantInGroup)
                         {
-                            res.Add(new DirectAccessPathExpr(_context, group.ToArray(), _context.IsOrdered));
+                            res.Add(new XQueryPathStep(new XQueryPathExpr(_context,  group.ToArray(), 
+                                _context.IsOrdered), XPath2ExprType.DirectAccess));
                             descendantInGroup = false;
                         }
                         else
                             res.AddRange(group);
                         group.Clear();
                     }
-                    res.Add(expr);
+                    res.Add(curr);
                 }
             }
             if (group.Count > 0)
             {
                 if (descendantInGroup)
-                    res.Add(new DirectAccessPathExpr(_context, group.ToArray(), _context.IsOrdered));
+                    res.Add(new XQueryPathStep(new XQueryPathExpr(_context, group.ToArray(), 
+                        _context.IsOrdered), XPath2ExprType.DirectAccess));
                 else
                     res.AddRange(group);
             }

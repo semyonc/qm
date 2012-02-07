@@ -17,6 +17,8 @@ using System.Xml.XPath;
 using DataEngine.XQuery.Util;
 using DataEngine.XQuery.DocumentModel;
 
+using DataEngine.XQuery.MS;
+
 namespace DataEngine.XQuery
 {
     public enum XmlTypeCardinality
@@ -1220,6 +1222,31 @@ namespace DataEngine.XQuery
                     SchemaType == dest.SchemaType &&
                     Cardinality == dest.Cardinality;
             return false;
+        }
+
+        public XPathNodeType GetNodeKind()
+        {
+            switch (TypeCode)
+            {
+                case XmlTypeCode.Item:
+                    return XPathNodeType.All;
+                case XmlTypeCode.Document:
+                    return XPathNodeType.Root;
+                case XmlTypeCode.Element:
+                    return XPathNodeType.Element;
+                case XmlTypeCode.Attribute:
+                    return XPathNodeType.Attribute;
+                case XmlTypeCode.Namespace:
+                    return XPathNodeType.Namespace;
+                case XmlTypeCode.Text:
+                    return XPathNodeType.Text;
+                case XmlTypeCode.Comment:
+                    return XPathNodeType.Comment;
+                case XmlTypeCode.ProcessingInstruction:
+                    return XPathNodeType.ProcessingInstruction;
+                default:
+                    throw new InvalidOperationException("GetNodeKind()");
+            }
         }
 
         public override int GetHashCode()

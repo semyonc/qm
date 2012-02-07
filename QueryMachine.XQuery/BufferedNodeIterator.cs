@@ -69,6 +69,14 @@ namespace DataEngine.XQuery
             }
         }
 
+        public override bool IsOrderedSet
+        {
+            get
+            {
+                return src.IsOrderedSet;
+            }
+        }
+
         public void Fill()
         {
             if (!buffer._finished)
@@ -85,10 +93,36 @@ namespace DataEngine.XQuery
             }
         }
 
-        public static BufferedNodeIterator Preload(XQueryNodeIterator baseIter)
+        public void Fill(CancellationToken token)
+        {
+            if (!buffer._finished)
+            {
+                lock (src)
+                {
+                    if (!buffer._finished)
+                    {
+                        while (src.MoveNext())
+                        {
+                            token.ThrowIfCancellationRequested();
+                            buffer.Add(src.Current.Clone());
+                        }
+                        buffer._finished = true;
+                    }
+                }
+            }
+        }
+
+        public static BufferedNodeIterator Load(XQueryNodeIterator baseIter)
         {
             BufferedNodeIterator res = new BufferedNodeIterator(baseIter);
             res.Fill();
+            return res;
+        }
+
+        public static BufferedNodeIterator Load(XQueryNodeIterator baseIter, CancellationToken token)
+        {
+            BufferedNodeIterator res = new BufferedNodeIterator(baseIter);
+            res.Fill(token);
             return res;
         }
 
@@ -123,7 +157,7 @@ namespace DataEngine.XQuery
                         if (src.MoveNext())
                         {
                             buffer.Add(src.Current);
-                            return src.Current.Clone();
+                            return src.Current;
                         }
                         buffer._finished = true;
                     }
@@ -135,6 +169,15 @@ namespace DataEngine.XQuery
                 if (lockTaken)
                     Monitor.Exit(src);
             }
+        }
+
+        public override void ResetSequentialPosition()
+        {
+            if (!buffer._finished)
+                lock (src)
+                {                    
+                    src.ResetSequentialPosition();
+                }
         }
 
         public override object ThreadClone()

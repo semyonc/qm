@@ -499,7 +499,7 @@ namespace DataEngine.XQuery
                     return new SingleIterator(item.Clone());
                 XQueryNodeIterator iter = value as XQueryNodeIterator;
                 if (iter != null)
-                    return BufferedNodeIterator.Preload(iter);
+                    return BufferedNodeIterator.Load(iter, token);
                 return new SingleIterator(new XQueryItem(value));
             }
 

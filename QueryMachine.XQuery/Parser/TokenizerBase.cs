@@ -12,8 +12,9 @@ using System.Text;
 using System.IO;
 using System.Globalization;
 
-using DataEngine.XQuery.Parser.yyParser;
 using DataEngine.CoreServices;
+using DataEngine.XQuery.MS;
+using DataEngine.XQuery.Parser.yyParser;
 
 namespace DataEngine.XQuery.Parser
 {

@@ -15,7 +15,7 @@ using System.Threading;
 using System.IO;
 using System.Reflection;
 
-namespace DataEngine.XQuery
+namespace DataEngine.XQuery.MS
 {
     public struct XmlCharType
     {

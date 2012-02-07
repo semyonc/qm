@@ -20,17 +20,24 @@ namespace DataEngine.XQuery
     public sealed class NodeIterator: XQueryNodeIterator
     {
         private IEnumerable<XPathItem> master;
-        private IEnumerator<XPathItem> iterator;        
+        private IEnumerator<XPathItem> iterator;
+        private bool isOrderedSet;
         
-        public NodeIterator(IEnumerable<XPathItem> enumerable)
+        public NodeIterator(IEnumerable<XPathItem> enumerable, bool orderedSet)
         {
-            master = enumerable;            
-        }        
+            master = enumerable;
+            isOrderedSet = orderedSet;
+        }
+
+        public NodeIterator(IEnumerable<XPathItem> enumerable)
+            : this(enumerable, false)
+        {
+        }
 
         [DebuggerStepThrough]
         public override XQueryNodeIterator Clone()
         {
-            return new NodeIterator(master);
+            return new NodeIterator(master, isOrderedSet);
         }
 
         public override XQueryNodeIterator CreateBufferedIterator()

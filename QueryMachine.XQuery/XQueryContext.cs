@@ -22,7 +22,7 @@ using System.Xml.XPath;
 
 using DataEngine.CoreServices;
 using DataEngine.XQuery.Util;
-
+using DataEngine.XQuery.MS;
 
 namespace DataEngine.XQuery
 {
@@ -393,21 +393,20 @@ namespace DataEngine.XQuery
             else
                 throw new XQueryException(Properties.Resources.XQST0059, targetNamespace);
         }
-        
+
         public XQueryDocument CreateDocument()
         {
-            lock (syncRoot)
-            {
-                XQueryDocument doc = new XQueryDocument(nameTable);
-                worklist.Add(doc);
-                return doc;
-            }
+            XQueryDocument doc = new XQueryDocument(nameTable);
+            AddDocument(doc);
+            return doc;
         }
 
         public void AddDocument(XQueryDocument doc)
         {
-            lock (syncRoot)
+            lock (worklist)
+            {
                 worklist.Add(doc);
+            }
         }
 
         public virtual IXPathNavigable OpenDocument(string fileName)
@@ -427,17 +426,18 @@ namespace DataEngine.XQuery
                 return master.OpenDocument(uri);
             else
             {
-                lock (syncRoot)
+                XQueryDocument ndoc;
+                lock (worklist)
                 {
                     foreach (XQueryDocument doc in worklist)
                     {
                         if (doc.baseUri == uri.AbsoluteUri)
                             return doc;
                     }
-                    XQueryDocument ndoc = CreateDocument();
+                    ndoc = CreateDocument();
                     ndoc.Open(uri, GetSettings(), XmlSpace.Default, Token);
-                    return ndoc;
-                }
+                }                                
+                return ndoc;
             }
         }
 
@@ -447,8 +447,11 @@ namespace DataEngine.XQuery
             {
                 if (EnableHPC)
                     cancelSource.Cancel();
-                foreach (XQueryDocument doc in worklist)
-                    doc.Close();
+                lock (worklist)
+                {
+                    foreach (XQueryDocument doc in worklist)
+                        doc.Close();
+                }
                 foreach (object prop in extraProps.Values)
                 {
                     IDisposable disp = prop as IDisposable;

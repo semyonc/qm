@@ -15,9 +15,11 @@ using System.Diagnostics;
 using System.Xml;
 using System.Xml.XPath;
 using System.Xml.Schema;
+
 using DataEngine.CoreServices;
 using DataEngine.XQuery.Util;
 using DataEngine.XQuery.DocumentModel;
+using DataEngine.XQuery.MS;
 
 namespace DataEngine.XQuery
 {
@@ -133,7 +135,7 @@ namespace DataEngine.XQuery
             if (nav != null)
             {
                 if (nav._pf != _pf || nav._doc != _doc)
-                    throw new InvalidOperationException();
+                    return false;
                 _pos = nav._pos;
                 _head = nav._head;
                 _parent = nav._parent;
@@ -263,7 +265,7 @@ namespace DataEngine.XQuery
 
         public override bool MoveToParent()
         {
-            if (_parent == -1)
+            if (_parent == -1 || (_doc.flags & XQueryDocument.DYN_DOCUMENT) != 0)
                 return false;
             Read(_parent);
             return true;
@@ -306,6 +308,44 @@ namespace DataEngine.XQuery
                     throw new InvalidOperationException();
                 Read(p);
                 return true;
+            }
+            return false;
+        }
+
+        public override bool MoveToFollowing(XPathNodeType type, XPathNavigator end)
+        {
+            if (type == XPathNodeType.Attribute || type == XPathNodeType.Namespace)
+                return false;
+            XQueryNavigator bound = end as XQueryNavigator;
+            if (bound != null &&
+                (bound.NodeType == XPathNodeType.Attribute || bound.NodeType == XPathNodeType.Namespace))
+            {
+                bound.MoveToParent();
+                if (!bound.MoveToFirstChild())
+                {
+                    while (!bound.MoveToNext())
+                    {
+                        if (!bound.MoveToParent())
+                        {
+                            bound = null;
+                            break;
+                        }
+                    }
+                }
+            }
+            int p = _pos + 1;
+            _doc.ExpandPageFile(p);
+            while (p < _pf.Count)
+            {
+                if (bound != null && p == bound.Position)
+                    break;
+                DmNode node = _pf.GetHead(p);
+                if (node.NodeType == type)
+                {
+                    Read(p);
+                    return true;
+                }
+                _doc.ExpandPageFile(++p);
             }
             return false;
         }
@@ -466,7 +506,14 @@ namespace DataEngine.XQuery
             get
             {
                 if (_typedValue == null)
-                    _typedValue = GetNavigatorTypedValue();
+                {
+                    _typedValue = _doc.valueCache[_pos];
+                    if (_typedValue == null)
+                    {
+                        _typedValue = GetNavigatorTypedValue();
+                        _doc.valueCache[_pos] = _typedValue;
+                    }
+                }
                 return _typedValue;
             }
         }

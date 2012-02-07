@@ -17,6 +17,8 @@ namespace DataEngine.XQuery
         
         public const int IteratorPrefetchSize = 5; // 64
         public const long LargeFileLength = 67108864;
+        public const int DefaultValueCacheSize = 337;
+
         //public const long LargeFileLength = 154533888;
 
         public const int LargeFilePageSize = 10000;  // 400

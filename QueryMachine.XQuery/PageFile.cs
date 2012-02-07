@@ -28,6 +28,7 @@ namespace DataEngine.XQuery
     sealed class PageFile: IDisposable
     {
         private volatile bool closed;
+        private int count;
 
         private int pagesize;
         private int min_workset;
@@ -35,7 +36,6 @@ namespace DataEngine.XQuery
         private int workset_delta;
         private int min_increment;
         private int max_decrement;
-        private int count;
         private int lastcount;
         private double workset;
         private long hit_count;
@@ -176,12 +176,12 @@ namespace DataEngine.XQuery
             int pagenum = index / pagesize;
             Page page = pagelist[pagenum];
             int k = index % pagesize;
-            XNode node = page.nodes[k];
-            if (node.hindex == -1)
+            int hindex = page.nodes[k].hindex;
+            if (hindex == -1)
                 head = null;
             else
-                head = heads[node.hindex];
-            parent = node.parent;
+                head = heads[hindex];
+            parent = page.nodes[k].parent;
         }
 
         public int Get(int index)
@@ -456,7 +456,7 @@ namespace DataEngine.XQuery
             lastpage.textData.t[lastcount] = tn;
             lastnode = head;
             lastcount++;
-            count++;
+            Interlocked.Increment(ref count);
         }
 
         public void LastNodeAppendValue(String text)
@@ -601,8 +601,8 @@ namespace DataEngine.XQuery
                         LinkedListNode<WeakReference> next = curr.Next;
                         if (p == null || p.closed)
                             pagefiles.Remove(curr);
-                        else                               
-                            p.OptimizeCache();                        
+                        else
+                            p.OptimizeCache();
                         curr = next;
                     }
                     if (pagefiles.Count == 0)

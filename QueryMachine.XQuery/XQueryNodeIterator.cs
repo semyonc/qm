@@ -158,6 +158,27 @@ namespace DataEngine.XQuery
             }
         }
 
+        public virtual int SequentialPosition
+        {
+            get
+            {
+                return CurrentPosition + 1;
+            }
+        }
+
+        public virtual void ResetSequentialPosition()
+        {
+            return;
+        }
+
+        public virtual bool IsOrderedSet
+        {
+            get
+            {
+                return false;
+            }
+        }
+
         [DebuggerStepThrough]
         public bool MoveNext()
         {
@@ -197,6 +218,8 @@ namespace DataEngine.XQuery
 
         protected virtual XPathItem GetNextItem()
         {
+            //Trace.WriteLine(String.Format("[{0}] {1} {2}", 
+            //    Thread.CurrentThread.ManagedThreadId, GetHashCode(), GetType().Name));
             return NextItem();
         }
 
@@ -313,7 +336,7 @@ namespace DataEngine.XQuery
 
             public SingleIterator(XPathItem item)
             {
-                _item = item;
+                _item = item; 
             }
 
             public override XQueryNodeIterator Clone()

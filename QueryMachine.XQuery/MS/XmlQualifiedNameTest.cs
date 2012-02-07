@@ -16,7 +16,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 
-namespace DataEngine.XQuery
+namespace DataEngine.XQuery.MS
 {
     /// <summary>
     /// XmlQualifiedName extends XmlQualifiedName to support wildcards and adds nametest functionality

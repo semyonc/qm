@@ -1875,6 +1875,7 @@ KindTest
    {
       $$ = notation.Confirm(new Symbol(Tag.Expr), Descriptor.KindTest, $1);
    }
+   ;
    
 KindTestBody
    : DocumentTest
@@ -1885,13 +1886,13 @@ KindTestBody
    | PITest
    | CommentTest
    | TextTest   
-   | AnyKindTest   
-   ;
+   | AnyKindTest    
+   ; 
    
 AnyKindTest	   
    : NODE '(' ')'
    {
-       $$ = new TokenWrapper(Token.NODE);
+       $$ = new TokenWrapper(Token.NODE); 
    }
    ;
    
@@ -1923,7 +1924,7 @@ CommentTest
       $$ = new TokenWrapper(Token.COMMENT);
    }
    ;   
-   ;
+   
    
 PITest
    : PROCESSING_INSTRUCTION '(' ')'

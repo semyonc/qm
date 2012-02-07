@@ -44,7 +44,7 @@ namespace DataEngine.XQuery
             command.ContextItem = node;
             command.CommandText = xquery;
             return command.Execute();
-        }        
+        }
 
         public static XQueryNodeIterator Query(this XPathNavigator node, string xquery)
         {
@@ -78,7 +78,7 @@ namespace DataEngine.XQuery
 
             public override int Count
             {
-                get 
+                get
                 {
                     if (!_done)
                         Item(Int32.MaxValue);
@@ -115,7 +115,7 @@ namespace DataEngine.XQuery
                             }
                         }
                         else
-                            _done = true;                            
+                            _done = true;
                     }
                 }
                 if (index >= 0 && _list.Count > index)
@@ -138,7 +138,7 @@ namespace DataEngine.XQuery
 
                 object IEnumerator.Current
                 {
-                    get 
+                    get
                     {
                         if (_pos == -1)
                             throw new InvalidOperationException();
@@ -169,7 +169,7 @@ namespace DataEngine.XQuery
 
                 XmlNode IEnumerator<XmlNode>.Current
                 {
-                    get 
+                    get
                     {
                         if (_pos == -1)
                             throw new InvalidOperationException();
@@ -228,8 +228,8 @@ namespace DataEngine.XQuery
             return XQuerySelect<T>(node, xquery, null);
         }
 
-        public static IEnumerable<T> XQuerySelect<T>(this XNode node, string xquery, IXmlNamespaceResolver nsResolver) 
-            where T: XObject
+        public static IEnumerable<T> XQuerySelect<T>(this XNode node, string xquery, IXmlNamespaceResolver nsResolver)
+            where T : XObject
         {
             return XQueryCommand.Select<T>(xquery, nsResolver, node);
         }
@@ -285,7 +285,7 @@ namespace DataEngine.XQuery
         {
             return XQuerySelectElement(node, xquery, null);
         }
-      
+
         public static Type GetNavigatorValueType(XPathNavigator nav, Type valueType)
         {
             IXmlSchemaInfo schemaInfo = nav.SchemaInfo;
@@ -343,7 +343,7 @@ namespace DataEngine.XQuery
                 case XmlTypeCode.Entity:
                     if (schemaInfo.SchemaType == XQuerySequenceType.XmlSchema.ENTITIES)
                         return typeof(ENTITIESValue);
-                    goto default;                    
+                    goto default;
                 default:
                     return valueType;
             }
@@ -409,9 +409,9 @@ namespace DataEngine.XQuery
             }
         }
 
-         internal static IEnumerable<XPathItem> UnionIterator1(XQueryNodeIterator iter1, XQueryNodeIterator iter2)
+        internal static IEnumerable<XPathItem> UnionIterator1(XQueryNodeIterator iter1, XQueryNodeIterator iter2)
         {
-            SortedDictionary<XPathItem, XPathItem> set = 
+            SortedDictionary<XPathItem, XPathItem> set =
                 new SortedDictionary<XPathItem, XPathItem>(new XPathComparer());
             foreach (XPathItem item in iter1)
                 if (!set.ContainsKey(item))
@@ -482,7 +482,7 @@ namespace DataEngine.XQuery
         {
             int num = 0;
             XQuerySequenceType itemType = new XQuerySequenceType(destType);
-            itemType.Cardinality = XmlTypeCardinality.One;            
+            itemType.Cardinality = XmlTypeCardinality.One;
             foreach (XPathItem item in iter)
             {
                 if (num == 1)
@@ -522,7 +522,7 @@ namespace DataEngine.XQuery
                     yield return item;
                 }
                 else
-                    yield return new XQueryItem(XQueryConvert.ValueAs(item.TypedValue, destType, 
+                    yield return new XQueryItem(XQueryConvert.ValueAs(item.TypedValue, destType,
                         context.nameTable, context.NamespaceManager));
                 num++;
             }
@@ -589,7 +589,7 @@ namespace DataEngine.XQuery
                 n++;
             }
             if (n == 0)
-              throw new XQueryException(Properties.Resources.XQTY0030);
+                throw new XQueryException(Properties.Resources.XQTY0030);
         }
 
         internal static IEnumerable<XPathItem> CodepointIterator(string text)
@@ -600,41 +600,14 @@ namespace DataEngine.XQuery
 
 
         // Prevent (attribute attr {})/.., (text {})/.., etc expressions
-        internal class XQueryDynNodeNavigator : XQueryNavigator
-        {            
-            internal XQueryDynNodeNavigator(XQueryDocument doc)
-                : base(doc)
-            {
-            }
-
-            public override XPathNavigator Clone()
-            {
-                XQueryDynNodeNavigator clone = new XQueryDynNodeNavigator(Document);
-                clone.MoveTo(this);
-                return clone;                
-            }
-
-            public override bool MoveToParent()
-            {
-                return false;
-            }
-
-            public override bool MoveToNextAttribute()
-            {
-                return false;
-            }
-        }
-
         internal static IEnumerable<XPathItem> DynAttributeIterator(XPathNavigator nav)
         {
             XQueryNavigator curr = (XQueryNavigator)nav.Clone();
             if (curr.MoveToFirstAttribute())
                 do
                 {
-                    XQueryDynNodeNavigator node = new XQueryDynNodeNavigator(curr.Document);
-                    node.MoveTo(curr);
-                    yield return node;
-                } while (curr.MoveToNextAttribute());            
+                    yield return curr;
+                } while (curr.MoveToNextAttribute());
         }
     }
 }

@@ -10,11 +10,14 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
+using System.Globalization;
+
 using System.Xml;
 using System.Xml.Schema;
 using System.Xml.XPath;
-using System.Globalization;
+
 using DataEngine.XQuery.DocumentModel;
+using DataEngine.XQuery.MS;
 
 namespace DataEngine.XQuery
 {    

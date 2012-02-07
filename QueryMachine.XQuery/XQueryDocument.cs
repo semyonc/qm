@@ -25,11 +25,14 @@ namespace DataEngine.XQuery
 {
     public class XQueryDocument: IXPathNavigable
     {
-        internal XmlNameTable nameTable;
-        internal PageFile pagefile;        
+        internal const uint DYN_DOCUMENT = 0x1;
+
         internal XmlReader input;
+        internal XmlNameTable nameTable;
+        internal PageFile pagefile;                
         internal DmRoot documentRoot;
         internal bool lookahead;
+        internal TypedValueCache valueCache;
 
         internal XQueryDocumentBuilder builder = null;
         internal string baseUri = String.Empty;
@@ -40,18 +43,10 @@ namespace DataEngine.XQuery
 
         internal int sequenceNumber;
         internal bool preserveSpace;
-        internal static int s_docNumberSequence = 0;        
+        internal static int s_docNumberSequence = 0;
+        internal uint flags;
 
-        private object syncRoot = new Object();
         private CancellationToken token;
-
-        public Object SyncRoot
-        {
-            get
-            {
-                return syncRoot;
-            }
-        }
 
         public bool IsIndexed
         {
@@ -65,12 +60,14 @@ namespace DataEngine.XQuery
         {
             sequenceNumber = s_docNumberSequence++;
             nameTable = new NameTable();
+            valueCache = new TypedValueCache(XQueryLimits.DefaultValueCacheSize);
         }
 
         public XQueryDocument(XmlNameTable nameTable)
         {
             sequenceNumber = s_docNumberSequence++;
             this.nameTable = nameTable;
+            valueCache = new TypedValueCache(XQueryLimits.DefaultValueCacheSize);
         }
 
         public XQueryDocument(Stream stream)
@@ -138,8 +135,14 @@ namespace DataEngine.XQuery
             if (uri.Scheme == "file")
             {
                 FileInfo fi = new FileInfo(uri.LocalPath);
-                if (fi.Exists && fi.Length > XQueryLimits.LargeFileLength)
-                    large = true;
+                if (fi.Exists)
+                {
+                    if (fi.Length > XQueryLimits.LargeFileLength)
+                        large = true;
+                    int valueCacheSize = (int)Math.Round(fi.Length * 0.0003);
+                    valueCache = new TypedValueCache(Math.Max(valueCacheSize,
+                        XQueryLimits.DefaultValueCacheSize));
+                }
             }
             pagefile = new PageFile(large);
             input = XmlReader.Create(uri.AbsoluteUri, settings);
@@ -328,25 +331,26 @@ namespace DataEngine.XQuery
             {
                 builder.WriteEndDocument();
                 input.Close();
-                input = null;
+                Interlocked.Exchange(ref input, null);
                 builder = null;
              }
         }
 
         internal void ExpandPageFile(int pos)
         {
-            Thread.MemoryBarrier(); 
             if (pos >= pagefile.Count && input != null)
-                lock(syncRoot)
+            {
+                lock (pagefile)
                 {
                     while (pos >= pagefile.Count && input != null)
                         Read();
                 }
+            }
         }
 
         internal void ExpandUtilElementEnd(int pos)
         {
-            lock (syncRoot)
+            lock (pagefile)
             {
                 if (input != null && pagefile[pos] == 0)
                 {
@@ -358,7 +362,7 @@ namespace DataEngine.XQuery
 
         internal void ExpandUtilElementEnd(int pos, int size)
         {
-            lock (syncRoot)
+            lock (pagefile)
             {
                 if (input != null && pagefile[pos] == 0 && size > 0)
                 {
@@ -371,7 +375,7 @@ namespace DataEngine.XQuery
 
         public void Fill()
         {
-            lock (syncRoot)
+            lock (pagefile)
             {
                 while (input != null)
                     Read();

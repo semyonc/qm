@@ -44,6 +44,14 @@ namespace DataEngine.XQuery
             }
         }
 
+        public override bool IsOrderedSet
+        {
+            get
+            {
+                return true;
+            }
+        }
+
         protected override void Init()
         {
             _index = _min;

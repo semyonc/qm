@@ -34,6 +34,7 @@ using System.Xml.Schema;
 using DataEngine.CoreServices;
 using DataEngine.XQuery;
 using DataEngine.XQuery.Util;
+using DataEngine.XQuery.MS;
 
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
