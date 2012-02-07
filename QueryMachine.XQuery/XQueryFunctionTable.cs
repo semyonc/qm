@@ -12,12 +12,14 @@ using System.Text;
 using System.Globalization;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Diagnostics;
 
 using System.Xml;
 using System.Xml.XPath;
 using System.Xml.Schema;
 
 using DataEngine.CoreServices;
+using DataEngine.XQuery.MS;
 
 namespace DataEngine.XQuery
 {

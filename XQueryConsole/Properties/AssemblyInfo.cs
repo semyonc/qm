@@ -12,7 +12,7 @@ using System.Windows;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("XQueryConsole")]
-[assembly: AssemblyCopyright("Copyright © Semyon A. Chertkov 2009-2011")]
+[assembly: AssemblyCopyright("Copyright © Semyon A. Chertkov 2009-2012")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

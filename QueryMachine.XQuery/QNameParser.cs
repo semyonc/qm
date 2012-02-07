@@ -9,6 +9,8 @@
 using System;
 using System.Xml;
 
+using DataEngine.XQuery.MS;
+
 namespace DataEngine.XQuery
 {
     internal class QNameParser

@@ -14,6 +14,7 @@ using System.Xml;
 using System.Xml.XPath;
 
 using DataEngine.CoreServices;
+using DataEngine.XQuery.MS;
 using DataEngine.XQuery.Util;
 
 namespace DataEngine.XQuery

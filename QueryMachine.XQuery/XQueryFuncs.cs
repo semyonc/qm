@@ -15,14 +15,15 @@ using System.Xml;
 using System.Xml.XPath;
 using System.Xml.Schema;
 
-using DataEngine.CoreServices;
 using System.Text.RegularExpressions;
 using System.IO;
+using System.Diagnostics;
 
+using DataEngine.CoreServices;
 using DataEngine.XQuery.Util;
 using DataEngine.XQuery.DocumentModel;
-using System.Diagnostics;
 using DataEngine.CoreServices.Proxy;
+using DataEngine.XQuery.MS;
 
 namespace DataEngine.XQuery
 {

@@ -14,6 +14,7 @@ using System.Xml.XPath;
 
 using DataEngine.XQuery;
 using DataEngine.XQuery.Util;
+using System.Threading;
 
 namespace DataEngine.XQuery.Collections
 {

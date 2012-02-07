@@ -25,7 +25,7 @@ using DataEngine;
 using DataEngine.CoreServices;
 using DataEngine.XQuery;
 using DataEngine.XQuery.Util;
-
+using DataEngine.XQuery.MS;
 
 namespace XQueryConsole
 {

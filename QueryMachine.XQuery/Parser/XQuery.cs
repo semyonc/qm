@@ -2341,128 +2341,128 @@ case 357:
    }
   break;
 case 367:
-#line 1893 "XQuery.y"
+#line 1894 "XQuery.y"
   {
-       yyVal = new TokenWrapper(Token.NODE);
+       yyVal = new TokenWrapper(Token.NODE); 
    }
   break;
 case 368:
-#line 1900 "XQuery.y"
+#line 1901 "XQuery.y"
   {
        yyVal = new TokenWrapper(Token.DOCUMENT_NODE);
    }
   break;
 case 369:
-#line 1904 "XQuery.y"
+#line 1905 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.DocumentNode, yyVals[-1+yyTop]);
    }
   break;
 case 370:
-#line 1908 "XQuery.y"
+#line 1909 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.DocumentNode, yyVals[-1+yyTop]);
    }
   break;
 case 371:
-#line 1915 "XQuery.y"
+#line 1916 "XQuery.y"
   {
        yyVal = new TokenWrapper(Token.TEXT);
    }
   break;
 case 372:
-#line 1922 "XQuery.y"
+#line 1923 "XQuery.y"
   {
       yyVal = new TokenWrapper(Token.COMMENT);
    }
   break;
 case 373:
-#line 1930 "XQuery.y"
+#line 1931 "XQuery.y"
   {
        yyVal = new TokenWrapper(Token.PROCESSING_INSTRUCTION);
    }
   break;
 case 374:
-#line 1934 "XQuery.y"
+#line 1935 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.ProcessingInstruction, yyVals[-1+yyTop]);
    }
   break;
 case 375:
-#line 1938 "XQuery.y"
+#line 1939 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.ProcessingInstruction, yyVals[-1+yyTop]);
    }
   break;
 case 376:
-#line 1945 "XQuery.y"
+#line 1946 "XQuery.y"
   {
        yyVal = new TokenWrapper(Token.ELEMENT);
    }
   break;
 case 377:
-#line 1949 "XQuery.y"
+#line 1950 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Element, yyVals[-1+yyTop]);
    }
   break;
 case 378:
-#line 1953 "XQuery.y"
+#line 1954 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Element, yyVals[-3+yyTop], yyVals[-1+yyTop]);
    }
   break;
 case 379:
-#line 1957 "XQuery.y"
+#line 1958 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Element, 
 		yyVals[-4+yyTop], yyVals[-2+yyTop], new TokenWrapper('?'));
    }
   break;
 case 381:
-#line 1966 "XQuery.y"
+#line 1967 "XQuery.y"
   {
       yyVal = new TokenWrapper('*');
    }
   break;
 case 382:
-#line 1973 "XQuery.y"
+#line 1974 "XQuery.y"
   {
        yyVal = new TokenWrapper(Token.ATTRIBUTE);
    }
   break;
 case 383:
-#line 1977 "XQuery.y"
+#line 1978 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Attribute, yyVals[-1+yyTop]);
    }
   break;
 case 384:
-#line 1981 "XQuery.y"
+#line 1982 "XQuery.y"
   {
        yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.Attribute, yyVals[-3+yyTop], yyVals[-1+yyTop]);
    }
   break;
 case 386:
-#line 1989 "XQuery.y"
+#line 1990 "XQuery.y"
   {
       yyVal = new TokenWrapper('*');
    }
   break;
 case 387:
-#line 1996 "XQuery.y"
+#line 1997 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.SchemaElement, yyVals[-1+yyTop]);
    }
   break;
 case 388:
-#line 2003 "XQuery.y"
+#line 2004 "XQuery.y"
   {
       yyVal = notation.Confirm(new Symbol(Tag.Expr), Descriptor.SchemaAttribute, yyVals[-1+yyTop]);
    }
   break;
 case 392:
-#line 2022 "XQuery.y"
+#line 2023 "XQuery.y"
   {
       yyVal = null;
    }
@@ -3977,7 +3977,7 @@ case 392:
   377,  378,   -1,   -1,  381,
   };
 
-#line 2045 "XQuery.y"
+#line 2046 "XQuery.y"
 }
 #line default
 namespace yydebug {

@@ -16,6 +16,7 @@ using DataEngine.XQuery.DTD.yyParser;
 using DataEngine.CoreServices;
 using System.Net;
 
+using DataEngine.XQuery.MS;
 
 namespace DataEngine.XQuery.DTD
 {
@@ -176,8 +177,9 @@ namespace DataEngine.XQuery.DTD
         private String GetPE(string publicId, string systemId, string baseUri)
         {
             if (Uri.IsWellFormedUriString(systemId, UriKind.Absolute) ||
-                (baseUri != null && Uri.IsWellFormedUriString(baseUri, UriKind.Absolute)))
+                (baseUri != null && Uri.IsWellFormedUriString(baseUri, UriKind.Absolute) && !new Uri(baseUri).IsFile))
             {
+                Uri uri = new Uri(baseUri);
                 WebClient client = new WebClient();
                 client.Proxy.Credentials = CredentialCache.DefaultCredentials;
                 string absolutePath;

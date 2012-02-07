@@ -72,6 +72,8 @@ namespace XQueryConsole
             builder.ParseNodes(rootCell, res);
 #if DEBUG
             DataEngine.CoreServices.PerfMonitor.Global.TraceStats();
+            Trace.WriteLine(String.Format("TypeValueCache: Hit = {0}, Miss = {1}, Ratio = {2}",
+                TypedValueCache.hitCount, TypedValueCache.missCount, (double)TypedValueCache.hitCount / (TypedValueCache.hitCount + TypedValueCache.missCount)));
 #endif
             return rootCell;            
         }

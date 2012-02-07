@@ -16,6 +16,7 @@ using System.Xml;
 using System.Xml.Schema;
 using System.Xml.XPath;
 
+using DataEngine.XQuery.MS;
 
 namespace DataEngine.XQuery.DocumentModel
 {
@@ -261,31 +262,29 @@ namespace DataEngine.XQuery.DocumentModel
             }
         }
 
-        private void GetNodesVisitor(XQueryExprBase[] path, DmNode curr, int index, int length, List<DmNode> res)
+        private void GetNodesVisitor(XQueryPathStep[] path, DmNode curr, int index, int length, List<DmNode> res)
         {
-            XQueryStepExpr expr = path[index] as XQueryStepExpr;
-            if (expr == null)
-                throw new ArgumentException();
             DmNode[] nodes;
-            switch (expr.ExprType)
+            XQueryPathStep step = path[index];
+            switch (step.type)
             {
-                case XQueryPathExprType.Self:
+                case XPath2ExprType.Self:
                     nodes = curr.GetSelf();
                     break;
 
-                case XQueryPathExprType.Child:
+                case XPath2ExprType.Child:
                     nodes = curr.GetChilds();
                     break;
 
-                case XQueryPathExprType.Attribute:
+                case XPath2ExprType.Attribute:
                     nodes = curr.GetAttributes();
                     break;
 
-                case XQueryPathExprType.Descendant:
+                case XPath2ExprType.Descendant:
                     nodes = curr.GetDescendants();
                     break;
 
-                case XQueryPathExprType.DescendantOrSelf:
+                case XPath2ExprType.DescendantOrSelf:
                     nodes = curr.GetDescendantOrSelf();
                     break;
 
@@ -293,9 +292,9 @@ namespace DataEngine.XQuery.DocumentModel
                     throw new ArgumentException();
             }
             foreach (DmNode node in nodes)
-                if (node.TestNode(expr.NameTest, expr.TypeTest))
+                if (node.TestNode(step.nodeTest as XmlQualifiedNameTest, step.nodeTest as XQuerySequenceType))
                 {
-                    if (index < length -1)
+                    if (index < length - 1)
                         GetNodesVisitor(path, node, index + 1, length, res);
                     else
                         res.Add(node);
@@ -320,11 +319,11 @@ namespace DataEngine.XQuery.DocumentModel
             return null;
         }
 
-        public NodeSet CreateNodeSet(object key, XQueryExprBase[] path)
+        public NodeSet CreateNodeSet(object key, XQueryPathExpr pathExpr)
         {
             List<DmNode> nodes = new List<DmNode>();
-            GetNodesVisitor(path, this, 0, path.Length, nodes);
-            NodeSet res = new NodeSet(nodes);            
+            GetNodesVisitor(pathExpr.Path, this, 0, pathExpr.Path.Length, nodes);
+            NodeSet res = new NodeSet(nodes);
             if (_cached_set == null)
                 _cached_set = new Dictionary<object, NodeSet>();
             _cached_set.Add(key, res);

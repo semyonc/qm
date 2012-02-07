@@ -17,9 +17,11 @@ using System.Xml;
 using System.Xml.Schema;
 using System.Xml.XPath;
 
+using System.Threading.Tasks;
+
 using DataEngine.CoreServices;
 using DataEngine.XQuery.Util;
-using System.Threading.Tasks;
+using DataEngine.XQuery.MS;
 
 namespace DataEngine.XQuery
 {
@@ -337,6 +339,7 @@ namespace DataEngine.XQuery
         {
             XQueryContext context = (XQueryContext)executive.Owner;
             XQueryDocument doc = context.CreateDocument();
+            doc.flags = XQueryDocument.DYN_DOCUMENT;
             XQueryDocumentBuilder builder = new XQueryDocumentBuilder(doc);
             if (name.Prefix == "xmlns" || (name.Prefix == "" && name.LocalName == "xmlns"))
                 throw new XQueryException(Properties.Resources.XQDY0044);
@@ -354,6 +357,7 @@ namespace DataEngine.XQuery
         {
             XQueryContext context = (XQueryContext)executive.Owner;
             XQueryDocument doc = context.CreateDocument();
+            doc.flags = XQueryDocument.DYN_DOCUMENT;
             XQueryDocumentBuilder builder = new XQueryDocumentBuilder(doc);
             QNameValue qname = GetQualifiedName(name, nsmgr, "");
             if (qname.Prefix == "xmlns" || (qname.Prefix == "" && qname.LocalName == "xmlns"))
@@ -374,11 +378,10 @@ namespace DataEngine.XQuery
                 return Undefined.Value;
             XQueryContext context = (XQueryContext)executive.Owner;
             XQueryDocument doc = context.CreateDocument();
+            doc.flags = XQueryDocument.DYN_DOCUMENT;
             XQueryDocumentBuilder builder = new XQueryDocumentBuilder(doc);
             builder.WriteString((string)value);
-            XPathFactory.XQueryDynNodeNavigator nav = new XPathFactory.XQueryDynNodeNavigator(doc);
-            nav.MoveTo(doc.CreateNavigator());
-            return nav;
+            return doc.CreateNavigator();
         }
 
         public static object DynCreateText([Implict] Executive executive, object value)
@@ -387,25 +390,23 @@ namespace DataEngine.XQuery
                 return Undefined.Value;
             XQueryContext context = (XQueryContext)executive.Owner;
             XQueryDocument doc = context.CreateDocument();
+            doc.flags = XQueryDocument.DYN_DOCUMENT;
             XQueryDocumentBuilder builder = new XQueryDocumentBuilder(doc);
             builder.WriteString((string)value);
-            XPathFactory.XQueryDynNodeNavigator nav = new XPathFactory.XQueryDynNodeNavigator(doc);
-            nav.MoveTo(doc.CreateNavigator());
-            return nav;
+            return doc.CreateNavigator();
         }
 
         public static object DynCreateComment([Implict] Executive executive, object value)
         {
             XQueryContext context = (XQueryContext)executive.Owner;
             XQueryDocument doc = context.CreateDocument();
+            doc.flags = XQueryDocument.DYN_DOCUMENT;
             XQueryDocumentBuilder builder = new XQueryDocumentBuilder(doc);
             string text = value == Undefined.Value ? "" : NormalizeStringValue((string)value, false, true);
             if (text.EndsWith("-") || text.Contains("--"))
                 throw new XQueryException(Properties.Resources.XQDY0072);
             builder.WriteComment(text);
-            XPathFactory.XQueryDynNodeNavigator nav = new XPathFactory.XQueryDynNodeNavigator(doc);
-            nav.MoveTo(doc.CreateNavigator());
-            return nav;
+            return doc.CreateNavigator();
         }
 
         public static object DynCreatePi([Implict] Executive executive, object name, object value)
@@ -420,6 +421,7 @@ namespace DataEngine.XQuery
                 throw new XQueryException(Properties.Resources.XQDY0026);
             XQueryContext context = (XQueryContext)executive.Owner;
             XQueryDocument doc = context.CreateDocument();
+            doc.flags = XQueryDocument.DYN_DOCUMENT;
             XQueryDocumentBuilder builder = new XQueryDocumentBuilder(doc);
             try
             {
@@ -429,9 +431,7 @@ namespace DataEngine.XQuery
             {
                 throw new XQueryException(Properties.Resources.FORG0001, name, "xs:NCName");
             }
-            XPathFactory.XQueryDynNodeNavigator nav = new XPathFactory.XQueryDynNodeNavigator(doc);
-            nav.MoveTo(doc.CreateNavigator());
-            return nav;
+            return doc.CreateNavigator();
         }
 
         public static object CreateBuilder([Implict] Executive executive)
@@ -1350,7 +1350,7 @@ namespace DataEngine.XQuery
             XQueryNodeIterator iter2 = XQueryNodeIterator.Create(b);
             XQueryContext context = (XQueryContext)executive.Owner;
             if (isOrdered)
-                return new NodeIterator(XPathFactory.UnionIterator1(iter1, iter2));
+                return new NodeIterator(XPathFactory.UnionIterator1(iter1, iter2), true);
             else
                 return new NodeIterator(XPathFactory.UnionIterator2(iter1, iter2));
         }
@@ -1361,7 +1361,7 @@ namespace DataEngine.XQuery
             XQueryNodeIterator iter2 = XQueryNodeIterator.Create(b);
             XQueryContext context = (XQueryContext)executive.Owner;
             if (isOrdered)
-                return new NodeIterator(XPathFactory.IntersectExceptIterator1(true, iter1, iter2));
+                return new NodeIterator(XPathFactory.IntersectExceptIterator1(true, iter1, iter2), true);
             else
                 return new NodeIterator(XPathFactory.IntersectExceptIterator2(true, iter1, iter2));
         }
@@ -1372,7 +1372,7 @@ namespace DataEngine.XQuery
             XQueryNodeIterator iter2 = XQueryNodeIterator.Create(b);
             XQueryContext context = (XQueryContext)executive.Owner;
             if (isOrdered)
-                return new NodeIterator(XPathFactory.IntersectExceptIterator1(false, iter1, iter2));
+                return new NodeIterator(XPathFactory.IntersectExceptIterator1(false, iter1, iter2), true);
             else
                 return new NodeIterator(XPathFactory.IntersectExceptIterator2(false, iter1, iter2));
         }

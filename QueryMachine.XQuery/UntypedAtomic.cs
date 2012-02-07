@@ -182,7 +182,7 @@ namespace DataEngine.XQuery
                     num = Single.NegativeInfinity;
                 else
                     num = Convert.ToSingle(Value, provider);
-                if (num == 0.0 & Value.StartsWith("-"))
+                if (num == 0.0 && Value[0] == '-')
                     num = -num; // -0, -0.0,... etc
                 return num;
             }
@@ -207,7 +207,7 @@ namespace DataEngine.XQuery
                         num = Double.NegativeInfinity;
                     else
                         num = Convert.ToDouble(Value, provider);
-                    if (num == 0.0 & Value.StartsWith("-"))
+                    if (num == 0.0 && Value[0] == '-')
                         num = -num; // -0, -0.0,... etc
                     _doubleValue = num;
                 }

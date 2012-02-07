@@ -13,7 +13,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace DataEngine.XQuery
+namespace DataEngine.XQuery.MS
 {
     /// <summary>
     /// This class defines a set of common XML namespaces for sharing across multiple source files.
