@@ -16,7 +16,7 @@ using System.Xml.Schema;
 
 namespace DataEngine.XQuery
 {
-    class VarTable
+    public class VarTable
     {
         private struct Record
         {

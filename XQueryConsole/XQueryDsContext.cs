@@ -84,9 +84,8 @@ namespace XQueryConsole
                         msg = String.Format(Properties.Resources.UnknownDsPrefix, prefix);
                     throw new XQueryException(msg, null);
                 }
-                DataProviderHelper helper = new DataProviderHelper(dsi.ProviderInvariantName,
-                    dsi.ConnectionString);
-                DbConnection connection = DataProviderHelper.CreateDbConnection(dsi.ProviderInvariantName);
+                DataProviderHelper helper = new DataProviderHelper(dsi);
+                DbConnection connection = DataProviderHelper.CreateDbConnection(dsi.ProviderInvariantName, dsi.X86Connection);
                 try
                 {
                     connection.ConnectionString = dsi.ConnectionString;

@@ -196,7 +196,8 @@ namespace DataEngine
             if (_targets == null) // Select fields from all selected tables
             {
                 foreach (ColumnBinding b in bindings)
-                    columns.Add(new Column(ATOM.Create(null, new string[] { b.TableName, b.Name }, false)));
+                    if (!b.fieldType.IsRowID)
+                        columns.Add(new Column(ATOM.Create(null, new string[] { b.TableName, b.Name }, false)));
             }
             else
                 foreach (Column col in _targets)
@@ -204,15 +205,18 @@ namespace DataEngine
                     if (Lisp.IsFunctor(col.Expr, Table)) // Select fields from specified table
                     {
                         bool found = false;
-                        String name = (String)Lisp.Second(col.Expr);
+                        String name = Util.UnquoteName((String)Lisp.Second(col.Expr));
                         var tableBindings =
                                 from b in bindings
                                 where b.TableName == name
                                 select b;
                         foreach (ColumnBinding b in tableBindings)
                         {
-                            columns.Add(new Column(ATOM.Create(null, new string[] { b.TableName, b.Name }, false)));
-                            found = true;
+                            if (!b.fieldType.IsRowID)
+                            {
+                                columns.Add(new Column(ATOM.Create(null, new string[] { b.TableName, b.Name }, false)));
+                                found = true;
+                            }
                         }
                         if (!found)
                             throw new ESQLException(Properties.Resources.InvalidIdentifier, name);

@@ -20,8 +20,13 @@ using System.Data;
 using System.Data.Common;
 using System.Xml;
 using System.Xml.Serialization;
+using MongoDB.Driver;
 
 using DataEngine;
+using DataEngine.Export;
+
+using WPF = System.Windows;
+
 
 namespace XQueryConsole
 {
@@ -121,7 +126,7 @@ namespace XQueryConsole
                 }
                 if (Metadata != null)
                 {
-                    DbConnection dbConnection = DataProviderHelper.CreateDbConnection(Connection.InvariantName);
+                    DbConnection dbConnection = DataProviderHelper.CreateDbConnection(Connection.InvariantName, Connection.X86Connection);
                     dbConnection.ConnectionString = Connection.ConnectionString;
                     dbConnection.Open();
                     try
@@ -211,6 +216,40 @@ namespace XQueryConsole
             }
         }
 
+        class MongoDbNode : Node
+        {
+            public MongoDbNode(Connection conn)
+                : base(conn)
+            {
+                Text = conn.ToString();
+                ImageIndex =
+                    SelectedImageIndex = 1;
+                Nodes.Add(new TreeNode());
+            }
+
+            public override void LoadChilds()
+            {
+                MongoConnectionStringBuilder csb = new MongoConnectionStringBuilder();
+                csb.ConnectionString = Connection.ConnectionString;
+                MongoServer mongo = MongoServer.Create(csb);
+                mongo.Connect();
+                if (!mongo.DatabaseExists(csb.DatabaseName))
+                    throw new ESQLException(null, "Database '{0}' is not exists", csb.DatabaseName);
+                MongoDatabaseSettings settings = mongo.CreateDatabaseSettings(csb.DatabaseName);
+                if (csb.Username != null)
+                    settings.Credentials = new MongoCredentials(csb.Username, csb.Password);
+                MongoDatabase database = mongo.GetDatabase(settings);
+                foreach (String collectionName in database.GetCollectionNames())
+                {
+                    TableNode node = new TableNode(Connection, "", collectionName);
+                    node.ImageIndex = 
+                        node.SelectedImageIndex = 3;
+                    Nodes.Add(node);
+                }
+                mongo.Disconnect();
+            }
+        }
+
         public TreeView TreeControl
         {
             get
@@ -228,7 +267,7 @@ namespace XQueryConsole
         {
             documentController = controller;
             configurationPath = Path.Combine(Extensions.GetAppDataPath(), 
-                "ConnectionSettings.xml");
+                "ConnectionSettings_20.xml");
             
             Container = new ConnectionContainer();
            
@@ -303,7 +342,7 @@ namespace XQueryConsole
         {
             TreeNode nodeAt = dataTree.GetNodeAt(e.Location);
             if (nodeAt == dataTree.Nodes[0])
-                AddConnection();
+                ManageConnections();
             else if (e.Button == MouseButtons.Right)
                 dataTree.SelectedNode = nodeAt;
         }
@@ -342,10 +381,10 @@ namespace XQueryConsole
                     else
                     {
                         if (current.HasContent)
-                            dataTree.DoDragDrop(GetTableName(e.Item), 
+                            dataTree.DoDragDrop(GetTableName(e.Item, true), 
                                 DragDropEffects.Move | DragDropEffects.Copy | DragDropEffects.Scroll);
                         else
-                            dataTree.DoDragDrop(String.Format("select * from {0}", GetTableName(e.Item)),
+                            dataTree.DoDragDrop(String.Format("--! <limit value='100'/>\nselect * from {0}", GetTableName(e.Item, true)),
                                 DragDropEffects.Move | DragDropEffects.Copy | DragDropEffects.Scroll);
                     }
                 }
@@ -362,7 +401,7 @@ namespace XQueryConsole
                 Container = (ConnectionContainer)serializer.Deserialize(fs);
                 Container.Check();
                 fs.Close();
-            }
+            }             
         }
 
         private void SaveConnections()
@@ -378,14 +417,26 @@ namespace XQueryConsole
         {
             dataTree.BeginUpdate();
             dataTree.Nodes.Clear();
-            Node node = new Node("Add connection", 0);
+            Node node = new Node("Manage connections", 0);
             node.NodeFont = new Font(dataTree.Font, FontStyle.Underline);
             node.ForeColor = Color.DarkBlue;
             dataTree.Nodes.Add(node);
             if (Container.connections != null)
                 foreach (Connection conn in Container.connections)
                 {
-                    node = new DatabaseNode(conn);
+                    switch (conn.Accessor)
+                    {
+                        case AccessorType.DataProvider:
+                            node = new DatabaseNode(conn);
+                            break;
+
+                        case AccessorType.MongoDb:
+                            node = new MongoDbNode(conn);
+                            break;
+                        
+                        default:
+                            continue;
+                    }
                     if (conn.Default)
                         node.ImageIndex =
                             node.SelectedImageIndex = 2;
@@ -414,53 +465,64 @@ namespace XQueryConsole
             Modified = true;
         }
 
-        public void AddConnection()
+        public void ManageConnections()
         {
-            ConnectionDialog dlg = new ConnectionDialog();
-            dlg.Owner = System.Windows.Application.Current.MainWindow;
-            if (dlg.ShowDialog() == true)
-            {
-                Connection conn = dlg.Connection;
-                Node node = new DatabaseNode(conn);
-                if (conn.Default)
-                    SetDefaultConnection(conn);
-                Container.Add(conn);
+            if (ConnectionManager.ShowDialog(this))
+            {                
                 SaveConnections();
-                dataTree.Nodes.Add(node);
                 Modified = true;
+                Fill();
             }
+            MainWindow window = (MainWindow)System.Windows.Application.Current.MainWindow;
+            if (window.SelectedPage != null)
+                System.Windows.Input.Keyboard.Focus(window.SelectedPage.textEditor);
         }
 
-        public void EditConnection()
+        public bool CanRemoveNode()
         {
             Node node = (Node)dataTree.SelectedNode;
-            ConnectionDialog dlg = new ConnectionDialog();
-            dlg.Owner = System.Windows.Application.Current.MainWindow;
-            dlg.Connection = node.Connection;
-            if (dlg.ShowDialog() == true)
+            return node != null && (node.Parent == null || node is TableNode);
+        }
+
+        public void RemoveNode()
+        {
+            Node node = (Node)dataTree.SelectedNode;
+            if (node.Parent == null)
             {
-                dlg.Connection.AssignTo(node.Connection);                
-                node.Text = node.Connection.ToString();
-                node.Nodes.Clear();
-                node.Nodes.Add(new TreeNode());
-                node.HasExpand = false;
-                if (dlg.Connection.Default)
-                    SetDefaultConnection(node.Connection);
-                else
-                    node.ImageIndex =
-                        node.SelectedImageIndex = 1;
+                Container.Remove(node.Connection);
+                dataTree.Nodes.Remove(node);
                 SaveConnections();
                 Modified = true;
             }
+            else 
+            {
+                TableNode tableNode = node as TableNode;
+                if (tableNode != null)
+                {
+                    BatchMove batchMove = new BatchMove();
+                    batchMove.Accessor = tableNode.Connection.Accessor;
+                    batchMove.ProviderInvariantName = tableNode.Connection.InvariantName;
+                    batchMove.X86Connection = tableNode.Connection.X86Connection;
+                    batchMove.ConnectionString = tableNode.Connection.ConnectionString;
+                    batchMove.TableName = GetTableName(tableNode, false);
+                    if (batchMove.IsTableExists())
+                    {
+                        if (WPF.MessageBox.Show(String.Format("The table {0} is already exists on database server.\r\n" +
+                              "Do you want to drop existing table ?", batchMove.TableName), "Confirmation",
+                                WPF.MessageBoxButton.OKCancel, WPF.MessageBoxImage.Information) == WPF.MessageBoxResult.OK &&
+                              WPF.MessageBox.Show("All table data will be lost !\r\nContinue ?", "Warning",
+                                WPF.MessageBoxButton.YesNo, WPF.MessageBoxImage.Warning) == WPF.MessageBoxResult.Yes)
+                            batchMove.DropTable();
+                    }
+                    dataTree.Nodes.Remove(node);                                
+                }
+            }
         }
 
-        public void RemoveConnection()
+        public bool CanRefreshConnection()
         {
             Node node = (Node)dataTree.SelectedNode;
-            Container.Remove(node.Connection);
-            dataTree.Nodes.Remove(node);
-            SaveConnections();
-            Modified = true;
+            return node != null && node.Parent == null;
         }
 
         public void RefreshConnection()
@@ -472,6 +534,33 @@ namespace XQueryConsole
             node.HasExpand = false;
         }
 
+        public bool CanRunMongoDb()
+        {
+            Node node = (Node)dataTree.SelectedNode;
+            return node != null && node.Parent == null && 
+                node.Connection.Accessor == AccessorType.MongoDb;
+        }
+
+        public bool CanGetTableSchema()
+        {
+            Node node = (Node)dataTree.SelectedNode;
+            return node != null && node.Parent != null &&
+                node.Connection.Accessor == AccessorType.MongoDb;
+        }
+
+        public void CacheTableSchema()
+        {
+            Node node = (Node)dataTree.SelectedNode;
+            if (node != null)
+            {
+                DatabaseDictionary dict = Dictionary;
+                string collectionName = node.Text;
+                DataSourceInfo dsi = dict.GetDataSource(node.Connection.Prefix);
+                if (dsi != null)
+                    ActionDialog.Perform(() => dict.CacheMongoDbTableType(dsi, collectionName));
+            }
+        }
+
         public DatabaseDictionary Dictionary
         {
             get
@@ -479,22 +568,23 @@ namespace XQueryConsole
                 if (_dictionary == null || Modified)
                 {
                     _dictionary = new DatabaseDictionary();
+                    _dictionary.SchemaCacheDir = Path.Combine(Extensions.GetAppDataPath(), "SchemaCache");
                     Modified = false;
                     if (Container.connections != null)
                         foreach (Connection setting in Container.connections)
-                            _dictionary.RegisterDataProvider(setting.Prefix, setting.Default,
-                                setting.InvariantName, setting.ConnectionString);
+                            _dictionary.RegisterDataProvider(setting.UUID, setting.Prefix, setting.Default, setting.Accessor,
+                                setting.InvariantName, setting.X86Connection, setting.ConnectionString);
                 }
                 return _dictionary;
             }
         }
 
-        private string GetTableName(object treeNode)
+        private string GetTableName(object treeNode, bool prefix)
         {
             TableNode node = (TableNode)treeNode;
             StringBuilder sb = new StringBuilder();
             DataProviderHelper helper = new DataProviderHelper();
-            if (!node.Connection.Default)
+            if (!node.Connection.Default && prefix)
             {
                 sb.Append(node.Connection.Prefix);
                 sb.Append(":");

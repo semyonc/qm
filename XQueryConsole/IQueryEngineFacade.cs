@@ -25,7 +25,7 @@ namespace XQueryConsole
         void Terminate();
         void CloseQuery();
         bool IsQueryException(Exception ex);
-        bool CanExportDS(GridCellGroup rootCell);
+        bool IsFlatTable(GridCellGroup rootCell);
         string GetSourceXML(GridCellGroup rootCell);
         int ExportTo(string fileName, ExportTarget target);
 

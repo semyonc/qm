@@ -11,7 +11,7 @@ using System.Security;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("CoreServices")]
-[assembly: AssemblyCopyright("Copyright © Semyon A. Chertkov 2008-2011")]
+[assembly: AssemblyCopyright("Copyright © Semyon A. Chertkov 2008-2013")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -32,7 +32,7 @@ using System.Security;
 //
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
-[assembly: AssemblyVersion("3.4.*")]
+[assembly: AssemblyVersion("3.5.*")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
 
 // Security 

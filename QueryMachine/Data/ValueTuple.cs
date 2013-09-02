@@ -25,21 +25,36 @@ namespace DataEngine.CoreServices.Data
 {
     public class ValueTuple
     {
+        private Dictionary<String, Object> _values;
+
         public ValueTuple(String name)
         {
             Name = name;
-            Values = new Dictionary<String, Object>();
+            _values = new Dictionary<String, Object>();
         }
 
         public ValueTuple(String name, IDictionary values)
         {
             Name = name;
-            Values = values;
+            _values = new Dictionary<String, Object>();
+            foreach (DictionaryEntry entry in values)
+                _values.Add(entry.Key.ToString(), entry.Value);
+        }
+
+        public bool TryGet(string key, out object value)
+        {
+            return _values.TryGetValue(key, out value);
         }
 
         public String Name { get; private set; }
 
-        public IDictionary Values { get; private set; }
+        public IDictionary Values
+        {
+            get
+            {
+                return _values;
+            }
+        }
 
         public bool Empty
         {

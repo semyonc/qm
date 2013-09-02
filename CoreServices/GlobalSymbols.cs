@@ -61,6 +61,7 @@ namespace DataEngine.CoreServices
             DefineControlOperator(new ControlTrapForm());
             DefineControlOperator(new ControlCastForm());
             DefineControlOperator(new ControlLambdaQuoteForm());
+            DefineControlOperator(new ControlIteratorForm());
 
             Type[] buildinTypes = { 
                 typeof(System.SByte), typeof(System.Byte), 

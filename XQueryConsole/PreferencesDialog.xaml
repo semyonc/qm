@@ -32,10 +32,7 @@
                     <CheckBox Margin="5,8,0,0" IsChecked="{Binding RelativeSource={RelativeSource AncestorType=w:PreferencesDialog}, 
                         Path=EnableServerQuery}">Enable server query</CheckBox>
                     <CheckBox Margin="5,8,0,0" IsChecked="{Binding RelativeSource={RelativeSource AncestorType=w:PreferencesDialog}, 
-                        Path=HostADOProviders}" IsEnabled="{Binding RelativeSource={RelativeSource AncestorType=w:PreferencesDialog}, 
-                        Path=IsHostADOProvidersEnabled}">Use 32-bit ADO providers in 64-bit mode</CheckBox>
-                    <CheckBox Margin="5,8,0,0" IsChecked="{Binding RelativeSource={RelativeSource AncestorType=w:PreferencesDialog}, 
-                        Path=LimitSQLQueryResults}">Limit Query results by 1000 rows</CheckBox>
+                        Path=LimitSQLQueryResults}">Limit Query results by 100 rows</CheckBox>
                 </StackPanel>
             </TabItem>
             <TabItem Header="Folders">

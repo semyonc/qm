@@ -223,7 +223,7 @@ namespace DataEngine.XL
                         if (value != null)
                             values[mid] = value;
                         else
-                            values.Remove(mid);
+                            values.RemoveAt(mid); // 28.02.2013 Need check for errors
                         return;
                     }
                 }
@@ -239,7 +239,7 @@ namespace DataEngine.XL
 
             public void ForEach(WorksheetDataVisitor visitor)
             {
-                visitor(0, Int32.MaxValue, visitor);
+                ForEach(0, Int32.MaxValue, visitor);
             }
 
             public void ForEach(int startCol, int endCol, WorksheetDataVisitor visitor)

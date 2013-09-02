@@ -218,5 +218,34 @@ namespace DataEngine.CoreServices
             }
         }
 
+        public String GetIniString(string section, String entry, String defaultValue)
+        {
+            if (HasEntry(section, entry))
+                return (string)GetValue(section, entry);
+            else
+                return defaultValue;
+        }
+
+        public int GetIniNumber(string section, String entry, int defaultValue)
+        {
+            int value;
+            if (HasEntry(section, entry) && Int32.TryParse((string)GetValue(section, entry), out value))
+                return value;
+            else
+                return defaultValue;
+        }
+
+        public bool GetIniBoolean(string section, String entry, bool defaultValue)
+        {
+            if (HasEntry(section, entry))
+            {
+                string value = (string)GetValue(section, entry);
+                if (value == "1" || value == "true" || value == "True")
+                    return true;
+                else if (value == "0" || value == "false" || value == "False")
+                    return false;
+            }
+            return defaultValue;
+        }
     }
 }

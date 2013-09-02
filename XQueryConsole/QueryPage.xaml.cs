@@ -63,6 +63,8 @@ namespace XQueryConsole
             new RoutedUICommand("Save Result", "SaveResult", typeof(QueryPage));
         public static readonly ICommand MoveResultCommand =
             new RoutedUICommand("Move Result", "SaveResult", typeof(QueryPage));
+        public static readonly ICommand ExportToMongo =
+            new RoutedUICommand("Export to Mongo", "ExportMongo", typeof(QueryPage));
 
         public delegate void QueryExecuteCallback(DbDataReader result);
 
@@ -88,7 +90,6 @@ namespace XQueryConsole
             
             filePath = String.Empty;
             fileName = String.Empty;
-            HasContent = false;
             ShowResultPane = false;
             hasModified = false;
             
@@ -129,7 +130,6 @@ namespace XQueryConsole
 
         public void Load()
         {
-            HasContent = true;
             textEditor.Load(FileName);
             Update(false);
         }
@@ -142,7 +142,10 @@ namespace XQueryConsole
 
         public bool HasContent
         {
-            get; private set;
+            get
+            {
+                return textEditor.Text.Trim() != "";
+            }
         }
 
         public bool Modified
@@ -291,7 +294,6 @@ namespace XQueryConsole
 
         private void textEditor_TextChanged(object sender, EventArgs e)
         {
-            HasContent = true;
             Update(true);
         }
 
@@ -461,11 +463,15 @@ namespace XQueryConsole
         {
             SaveFileDialog dlg = new SaveFileDialog();
             dlg.DefaultExt = ".xml";
-            if (engine.CanExportDS(xmlGrid.Cell))
-                dlg.Filter = "XML Data File (*.xml)|*.xml|Tab delimited text (*.txt)|*.txt|"+
-                    "Comma Separated Value (*.csv)|*.csv|Fixed Length Text (*.txt)|*.txt|ADO .NET Dataset (*.xml)|*.xml|MS Office Excel 2007-2010 Workbook (*.xlsx)|*.xlsx";
-            else
-                dlg.Filter = "XML Data File (*.xml)|*.xml";
+            bool isFlatTable = engine.IsFlatTable(xmlGrid.Cell);
+            dlg.Filter = "XML Data File (*.xml)|*.xml";
+            if (QueryFacade is SQLXFacade)
+            {
+                if (isFlatTable)
+                    dlg.Filter += "|Tab delimited text (*.txt)|*.txt|Comma Separated Value (*.csv)|*.csv|Fixed Length Text (*.txt)|*.txt"+
+                        "|ADO .NET Dataset (*.xml)|*.xml|MS Office Excel 2007-2010 Workbook (*.xlsx)|*.xlsx";
+                dlg.Filter += "|JSON Data File (*.json)|*.json|Compressed JSON Data File (*.zip)|*.zip";
+            }
             if (dlg.ShowDialog() == true)
             {
                 engine.OpenQuery(textEditor.Text, filePath);                    
@@ -486,11 +492,17 @@ namespace XQueryConsole
                                 break;
 
                             case 2:
-                                nRows = engine.ExportTo(dlg.FileName, ExportTarget.TabDelimited);
+                                if (isFlatTable)
+                                    nRows = engine.ExportTo(dlg.FileName, ExportTarget.TabDelimited);
+                                else
+                                    nRows = engine.ExportTo(dlg.FileName, ExportTarget.Json);
                                 break;
 
-                            case 3:
-                                nRows = engine.ExportTo(dlg.FileName, ExportTarget.Csv);
+                            case 3:    
+                                if (isFlatTable)
+                                    nRows = engine.ExportTo(dlg.FileName, ExportTarget.Csv);
+                                else
+                                    nRows = engine.ExportTo(dlg.FileName, ExportTarget.ZJson);
                                 break;
 
                             case 4:
@@ -503,6 +515,14 @@ namespace XQueryConsole
 
                             case 6:
                                 nRows = engine.ExportTo(dlg.FileName, ExportTarget.Xls);
+                                break;
+
+                            case 7:
+                                nRows = engine.ExportTo(dlg.FileName, ExportTarget.Json);
+                                break;
+
+                            case 8:
+                                nRows = engine.ExportTo(dlg.FileName, ExportTarget.ZJson);
                                 break;
                         }
                         Dispatcher.BeginInvoke(new UpdateTextEditDelegate(UpdateTextEdit), nRows);
@@ -528,8 +548,9 @@ namespace XQueryConsole
 
         private void CommandBinding_BatchMoveCanExecute(object sender, CanExecuteRoutedEventArgs e)
         {
-            e.CanExecute = xmlGrid != null && xmlGrid.Cell != null && engine.CanExportDS(xmlGrid.Cell);
-        }
+            e.CanExecute = xmlGrid != null && xmlGrid.Cell != null && 
+                (xmlGrid.Cell is ResultsetGridBuilder.RootCell);
+        }        
 
         private void CommandBinding_BatchMoveExecuted(object sender, ExecutedRoutedEventArgs e)
         {
@@ -545,7 +566,7 @@ namespace XQueryConsole
 
         private void BeginBatchMove(DbDataReader reader)
         {
-            CreateTableDialog dlg = new CreateTableDialog();
+            CreateTableDialog dlg = new CreateTableDialog(QueryFacade.IsFlatTable(xmlGrid.Cell));
             dlg.TableName = System.IO.Path.GetFileNameWithoutExtension(ShortFileName).ToUpperInvariant();
             dlg.BatchMove.Source = ((DataEngine.ADO.DataReader)reader).Source;
             if (dlg.ShowDialog() == true)
@@ -559,7 +580,20 @@ namespace XQueryConsole
                 {
                     try
                     {
-                        AdoProviderWriter writer = new AdoProviderWriter(dlg.BatchMove);
+                        AbstractWriter writer = null;
+                        switch (dlg.BatchMove.Accessor)
+                        {
+                            case DataEngine.AccessorType.DataProvider:
+                                writer = new AdoProviderWriter(dlg.BatchMove);
+                                break;
+
+                            case DataEngine.AccessorType.MongoDb:
+                                writer = new MongoWriter(dlg.BatchMove);
+                                break;
+
+                            default:
+                                throw new InvalidOperationException();
+                        }                        
                         writer.Write(dlg.BatchMove.Source);
                         Dispatcher.BeginInvoke(new UpdateTextEditDelegate(UpdateTextEdit), writer.RowCount);
                     }

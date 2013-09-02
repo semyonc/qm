@@ -1,22 +1,11 @@
-﻿/*    
-    SQLXEngine - Implementation of ANSI-SQL specification and 
-       SQL-engine for executing the SELECT SQL command across the different data sources.
-    Copyright (C) 2008-2009  Semyon A. Chertkov (semyonc@gmail.com)
+﻿//        Copyright (c) 2008-2012, Semyon A. Chertkov (semyonc@gmail.com)
+//        All rights reserved.
+//
+//        This program is free software: you can redistribute it and/or modify
+//        it under the terms of the GNU General Public License as published by
+//        the Free Software Foundation, either version 3 of the License, or
+//        any later version.
 
-    This library is free software; you can redistribute it and/or
-    modify it under the terms of the GNU Lesser General Public
-    License as published by the Free Software Foundation; either
-    version 2.1 of the License, or (at your option) any later version.
-
-    This library is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-    Lesser General Public License for more details.
-
-    You should have received a copy of the GNU Lesser General Public
-    License along with this library; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -60,6 +49,7 @@ namespace DataEngine
         public bool SequentialProcessing { get; set; }
         public char EncapsulatorChar { get; set; }
         public char EscapeChar { get; set; }
+        public bool VariableFields { get; set; }
     }
 
     public class TextDataAccessor: BaseDataAccessor
@@ -148,25 +138,26 @@ namespace DataEngine
             ParseIniTextDataFormat(ini, section, ref df);
             ParseIniCharacterSet(ini, section, ref df);            
             
-            df.DateTimeFormat = GetIniString(ini, section, "DateTimeFormat", df.DateTimeFormat);
-            df.DecimalSymbol = GetIniString(ini, section, "DecimalSymbol", df.DecimalSymbol);
-            df.CurrencySymbol = GetIniString(ini, section, "CurrencySymbol", df.CurrencySymbol);
-            df.CurrencyThousandSymbol = GetIniString(ini, section, "CurrencyThousandSymbol", df.CurrencyThousandSymbol);
-            df.CurrencyDecimalSymbol = GetIniString(ini, section, "CurrencyDecimalSymbol", df.CurrencyDecimalSymbol);
+            df.DateTimeFormat = ini.GetIniString(section, "DateTimeFormat", df.DateTimeFormat);
+            df.DecimalSymbol = ini.GetIniString(section, "DecimalSymbol", df.DecimalSymbol);
+            df.CurrencySymbol = ini.GetIniString(section, "CurrencySymbol", df.CurrencySymbol);
+            df.CurrencyThousandSymbol = ini.GetIniString(section, "CurrencyThousandSymbol", df.CurrencyThousandSymbol);
+            df.CurrencyDecimalSymbol = ini.GetIniString(section, "CurrencyDecimalSymbol", df.CurrencyDecimalSymbol);
 
-            df.NumberDigits = GetIniNumber(ini, section, "NumberDigits", df.NumberDigits);
-            df.CurrencyDigits = GetIniNumber(ini, section, "CurrencyDigits", df.CurrencyDigits);
+            df.NumberDigits = ini.GetIniNumber(section, "NumberDigits", df.NumberDigits);
+            df.CurrencyDigits = ini.GetIniNumber(section, "CurrencyDigits", df.CurrencyDigits);
 
-            df.ColumnNameHeader = GetIniBoolean(ini, section, "ColNameHeader", df.ColumnNameHeader);
-            df.NumberLeadingZeros = GetIniBoolean(ini, section, "NumberLeadingZeros", df.NumberLeadingZeros);
-            df.SequentialProcessing = GetIniBoolean(ini, section, "SequentialProcessing", df.SequentialProcessing);
+            df.ColumnNameHeader = ini.GetIniBoolean(section, "ColNameHeader", df.ColumnNameHeader);
+            df.NumberLeadingZeros = ini.GetIniBoolean(section, "NumberLeadingZeros", df.NumberLeadingZeros);
+            df.SequentialProcessing = ini.GetIniBoolean(section, "SequentialProcessing", df.SequentialProcessing);
 
             ParseCurrencyNegFormat(ini, section, ref df);
             ParseCurrencyPosFormat(ini, section, ref df);
 
-            df.NullValue = GetIniString(ini, section, "NullValue", null);
+            df.NullValue = ini.GetIniString(section, "NullValue", null);
+            df.VariableFields = ini.GetIniBoolean(section, "VariableFields", false);
 
-            string encapsulatorChar = GetIniString(ini, section, "Encapsulator", Convert.ToString(df.EncapsulatorChar));
+            string encapsulatorChar = ini.GetIniString(section, "Encapsulator", Convert.ToString(df.EncapsulatorChar));
             if (encapsulatorChar == "#0")
                 df.EncapsulatorChar = '\0';
             else
@@ -176,7 +167,7 @@ namespace DataEngine
                 df.EncapsulatorChar = encapsulatorChar[0];
             }
 
-            string escapeChar = GetIniString(ini, section, "Escape", Convert.ToString(df.EscapeChar));
+            string escapeChar = ini.GetIniString(section, "Escape", Convert.ToString(df.EscapeChar));
             if (escapeChar == "#0")
                 df.EscapeChar = '\0';
             else
@@ -273,36 +264,6 @@ namespace DataEngine
             }
         }
 
-        private String GetIniString(IniFile ini, string section, String entry, String defaultValue)
-        {
-            if (ini.HasEntry(section, entry))
-                return (string)ini.GetValue(section, entry);
-            else
-                return defaultValue;
-        }
-
-        private int GetIniNumber(IniFile ini, string section, String entry, int defaultValue)
-        {
-            int value;
-            if (ini.HasEntry(section, entry) && Int32.TryParse((string)ini.GetValue(section, entry), out value))
-                return value;
-            else
-                return defaultValue;
-        }
-
-        private bool GetIniBoolean(IniFile ini, string section, String entry, bool defaultValue)
-        {
-            if (ini.HasEntry(section, entry))
-            {
-                string value = (string)ini.GetValue(section, entry);
-                if (value == "1" || value == "true" || value == "True")
-                    return true;
-                else if (value == "0" || value == "false" || value == "False")
-                    return false;
-            }
-            return defaultValue;
-        }
-
         private void ParseCurrencyPosFormat(IniFile ini, string section, ref TextFileDataFormat df)
         {
             if (ini.HasEntry(section, "CurrencyPosFormat"))
@@ -375,6 +336,7 @@ namespace DataEngine
             df.CurrencySymbol = CultureInfo.CurrentCulture.NumberFormat.CurrencySymbol;
             df.EncapsulatorChar = '"';
             df.EscapeChar = '\0';
+            df.VariableFields = false;
             return df;
         }
 
@@ -392,7 +354,7 @@ namespace DataEngine
             ini.SetValue(section, "CurrencyPosFormat", CurrencyPositivePatterns[df.CurrencyPosFormat]);
         }
 
-        private DataTable CreateRowType(StreamReader reader, char delimiter, bool columnNameHeader)
+        private DataTable CreateRowType(StreamReader reader, char delimiter, bool columnNameHeader, DataTable prototype)
         {
             string[] values = new string[MaxTextColumns];
             StringBuilder sb = new StringBuilder();
@@ -415,31 +377,40 @@ namespace DataEngine
             for (int k = 0; k < maxcols; k++)
             {
                 DataRow dr = dt.NewRow();
-                dr["ColumnOrdinal"] = k;
-                if (columnNameHeader && header != null && k < header.Length)
-                {
-                    String name = helper.NativeFormatIdentifier(header[k]);
-                    if (String.IsNullOrEmpty(name))
-                        name = "Col";
-                    dr["ColumnName"] = Util.CreateUniqueName(names, name);
-                }
+                if (prototype != null && k < prototype.Rows.Count)
+                    dr.ItemArray = prototype.Rows[k].ItemArray;
                 else
-                    dr["ColumnName"] = String.Format("Col{0}", k + 1);
-                dr["DataType"] = typeof(System.String);
+                {
+                    dr["ColumnOrdinal"] = k;
+                    if (columnNameHeader && header != null && k < header.Length)
+                    {
+                        String name = helper.NativeFormatIdentifier(header[k]);
+                        if (String.IsNullOrEmpty(name))
+                            name = "Col";
+                        dr["ColumnName"] = Util.CreateUniqueName(names, name);
+                    }
+                    else
+                        dr["ColumnName"] = String.Format("Col{0}", k + 1);
+                    dr["DataType"] = typeof(System.String);
+                }
                 dt.Rows.Add(dr);
             }
             return dt;
         }
        
-        protected override Resultset CreateResultset(Stream stream, out string fileName, QueryContext queryContext)
+        protected override Resultset CreateResultset(Stream stream, string fileName, QueryContext queryContext)
         {
             DataTable dt = null;
+            DataTable prototype = null;
             TextFileDataFormat format = queryContext.GetTextFileDataFormat();
-            fileName = null;
-            if (stream is FileStream)
+            if (fileName != "")
             {
-                fileName = ((FileStream)stream).Name;
                 dt = CreateRowType(fileName, ref format);
+                if (format.VariableFields)
+                {
+                    prototype = dt;
+                    dt = null;
+                }
             }
             StreamReader reader = new StreamReader(stream, format.Encoding);
             if (dt == null || dt.Rows.Count == 0)
@@ -447,11 +418,11 @@ namespace DataEngine
                 switch (format.TextFormat)
                 {
                     case TextDataFormat.Delimited:
-                        dt = CreateRowType(reader, format.Delimiter[0], format.ColumnNameHeader);
+                        dt = CreateRowType(reader, format.Delimiter[0], format.ColumnNameHeader, prototype);
                         break;
 
                     case TextDataFormat.TabDelimited:
-                        dt = CreateRowType(reader, '\t', format.ColumnNameHeader);
+                        dt = CreateRowType(reader, '\t', format.ColumnNameHeader, prototype);
                         break;
 
                     default:
@@ -479,6 +450,7 @@ namespace DataEngine
                     context = new ParallelProcessingContext(reader, format.Delimiter[0], format.NullValue, format.ColumnNameHeader,
                         format.EncapsulatorChar, format.EscapeChar, GetNumberFormatInfo(format), GetDateTimeFormatInfo(format));
             }
+            context.RecordLimit = queryContext.LimitInputQuery;
             return new Resultset(new RowType(dt), context);
         }
 
@@ -691,6 +663,15 @@ namespace DataEngine
                 m_lineindex += rs.Count;
                 return m_reader != null;
             }
+
+        }
+
+        public static object OpenFile(QueryNode node, QueryContext context, string fileName)
+        {
+            FlatFileAccessor fileAccessor = new FlatFileAccessor(fileName);
+            TextDataAccessor accessor = new TextDataAccessor();
+            accessor.ChildNodes.Add(fileAccessor);
+            return accessor.Get(context, null);
         }
     }
 }

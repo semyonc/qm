@@ -64,7 +64,7 @@ namespace DataEngine
                 CheckDisposed();
                 if (_reader == null)
                 {
-                    DbConnection connection = DataProviderHelper.CreateDbConnection(_owner._providerInvariantName);
+                    DbConnection connection = DataProviderHelper.CreateDbConnection(_owner._providerInvariantName, _owner._x86Connection);
                     connection.ConnectionString = _owner._connectionString;
                     connection.Open();
                     DbCommand command = connection.CreateCommand();
@@ -90,6 +90,7 @@ namespace DataEngine
         }
 
         protected String _providerInvariantName;
+        protected bool _x86Connection;
         protected String _connectionString;
 
         public int TopRows { get; set; }
@@ -109,6 +110,7 @@ namespace DataEngine
         {
             RowType rt = CreateRowType();
             ProcessingContext context = new ProcessingContext(this, parameters);
+            context.RecordLimit = queryContext.LimitInputQuery;
             return new Resultset(rt, context);            
         }        
     }

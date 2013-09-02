@@ -123,6 +123,8 @@ namespace WmHelp.XmlGrid
             {
                 get
                 {
+                    if (Title != null)
+                        return Title;
                     return Parent.Table[Col, 0].Text;
                 }
                 set
@@ -130,6 +132,8 @@ namespace WmHelp.XmlGrid
                     return;
                 }
             }
+
+            public string Title { get; set; }
 
             public Resultset Value { get; private set; }
 
@@ -198,6 +202,39 @@ namespace WmHelp.XmlGrid
                 get
                 {
                     return String.Format("({0})", Tuple.Name);
+                }
+                set
+                {
+                    return;
+                }
+            }
+        }
+
+        public class RowCell : GridCellGroup
+        {
+            public Row ValueRow { get; private set; }
+
+            public RowCell(Row row)
+            {
+                ValueRow = row;
+            }
+
+            public override void DrawCellText(XmlGridView gridView, Graphics graphics, Font font, Brush brush,
+                StringFormat format, XmlGridView.DrawInfo drawInfo, Rectangle rect)
+            {
+                StringFormat sf = new StringFormat(format);
+                Font f = new Font(font, FontStyle.Italic);
+                Brush textBrush = new SolidBrush(SystemColors.GrayText);
+                sf.LineAlignment = StringAlignment.Center;
+                rect.Height = drawInfo.cyChar;
+                graphics.DrawString(Text, f, brush, rect, sf);
+            }
+
+            public override string Text
+            {
+                get
+                {
+                    return "(Row)";
                 }
                 set
                 {
@@ -360,10 +397,34 @@ namespace WmHelp.XmlGrid
                         foreach (DictionaryEntry entry in tuple.Values)
                         {
                             group.Table[0, s] = new DataValueCell(entry.Key);
-                            group.Table[1, s++] = GetCell(entry.Value);
+                            GridCell cell = GetCell(entry.Value);
+                            if (cell is ResultsetCell)
+                            {
+                                ResultsetCell rsCell = (ResultsetCell)cell;
+                                rsCell.Title = (string)entry.Key;
+                            }
+                            group.Table[1, s++] = cell;
                         }
                         return group;
                     }
+                }
+                else if (value is Row)
+                {
+                    Row row = (Row)value;
+                    GridCellGroup group = new RowCell(row);
+                    group.Table.SetBounds(2, row.Type.Fields.Length);
+                    for (int s = 0; s < group.Table.Height; s++)
+                    {
+                        group.Table[0, s] = new DataValueCell(row.Type.Fields[s].Name);
+                        GridCell cell = GetCell(row.GetValue(s));
+                        if (cell is ResultsetCell)
+                        {
+                            ResultsetCell rsCell = (ResultsetCell)cell;
+                            rsCell.Title = row.Type.Fields[s].Name;
+                        }
+                        group.Table[1, s] = cell;
+                    }
+                    return group;
                 }
                 else
                     return new DataValueCell(value);
@@ -390,10 +451,17 @@ namespace WmHelp.XmlGrid
             }
             else
             {
+                int count;
                 if (TableLimit == 0)
+                {
                     rs.Fill();
+                    count = rs.Count;
+                }
                 else
-                    rs.Fill(TableLimit - 1);
+                {
+                    rs.Fill(TableLimit);
+                    count = Math.Min(TableLimit, rs.Count);
+                }
                 ShowColumnHeader = true;
                 CanExportDS = true;
                 foreach (RowType.TypeInfo ti in rs.RowType.Fields)
@@ -403,7 +471,7 @@ namespace WmHelp.XmlGrid
                         CanExportDS = false;
                         break;
                     }
-                rootCell.Table.SetBounds(rs.RowType.Fields.Length, rs.Count + 1);
+                rootCell.Table.SetBounds(rs.RowType.Fields.Length, count + 1);
                 for (int k = 0; k < rootCell.Table.Width; k++)
                 {
                     GridHeadLabel label = new GridHeadLabel();

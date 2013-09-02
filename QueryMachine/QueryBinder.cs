@@ -150,7 +150,7 @@ namespace DataEngine
         {
             if (sym.Tag != Tag.Qname)
             {
-                Notation.Record[] recs = notation.Select(sym, Descriptor.Dynatable, 1);
+                Notation.Record[] recs = notation.Select(sym, new Descriptor[] { Descriptor.Dynatable, Descriptor.Tuple }, 1);
                 if (recs.Length > 0)
                     ScanExpr(notation, recs[0].Arg0, context);
                 else

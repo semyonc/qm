@@ -78,6 +78,8 @@ namespace DataEngine.XQuery
         private bool _copyNamespacesDecl;
         private bool _constructionDecl;
 
+        protected XQueryContext Context { get { return _context; } }
+
         public Translator(XQueryContext context)
         {
             _context = context;
@@ -85,6 +87,12 @@ namespace DataEngine.XQuery
             _fdecl = new Dictionary<object, FunctionDecl>();
             _moduleNs = new List<string>();
             _schemaNs = new List<string>();
+        }
+
+        public Translator(XQueryContext context, VarTable varTable)
+            : this(context)
+        {
+            _varTable = varTable;
         }
 
         public void PreProcess(Notation notation)
@@ -138,7 +146,9 @@ namespace DataEngine.XQuery
                     ProcessImportModule(notation, recs_c[0].args[0]);
                     ProcessFunctionDecl(notation, recs_c[0].args[0]);
                     PostProcess(notation, recs_c[0].args[0]);
-                    return ProcessExpr(notation, recs_c[0].args[1]);
+                    XQueryExprBase res = ProcessExpr(notation, recs_c[0].args[1]);
+                    //res.SequenceType = EvalExprType(res);
+                    return res;
                 }
                 else
                 {
@@ -1521,7 +1531,7 @@ namespace DataEngine.XQuery
                 new XQueryPathExpr(_context, path, _context.IsOrdered), ID.Context, Lisp.ARGV, Lisp.MPOOL);
         }
 
-        private Object ProcessRelativePathExpr(Notation notation, Symbol sym)
+        protected Object ProcessRelativePathExpr(Notation notation, Symbol sym)
         {
             Notation.Record[] recs = notation.Select(sym, new Descriptor[] { Descriptor.Child, 
                 Descriptor.Descendant }, 2);
@@ -1674,7 +1684,7 @@ namespace DataEngine.XQuery
             }            
         }
        
-        private object ProcessNodeTest(Notation notation, Symbol sym, bool attr)
+        protected object ProcessNodeTest(Notation notation, Symbol sym, bool attr)
         {
             if (sym.Tag == Tag.TokenWrapper)
                 return XmlQualifiedNameTest.New(null, null);
@@ -1713,7 +1723,7 @@ namespace DataEngine.XQuery
             }
         }
 
-        private object ProcessPredicateList(Notation notation, Symbol sym, object ancestor)
+        protected object ProcessPredicateList(Notation notation, Symbol sym, object ancestor)
         {       
             Notation.Record[] recs = notation.Select(sym, Descriptor.PredicateList, 1);
             if (recs.Length > 0)
@@ -2556,7 +2566,7 @@ namespace DataEngine.XQuery
             return ATOM.Create(ns, new string[] { "$", varName.LocalName }, false);
         }
 
-        internal static object GetVarName(string localName, string ns)
+        public static object GetVarName(string localName, string ns)
         {
             return ATOM.Create(ns, new string[] { "$", localName }, false);
         }

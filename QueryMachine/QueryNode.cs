@@ -29,6 +29,8 @@ using DataEngine.CoreServices.Data;
 
 namespace DataEngine
 {
+    public delegate bool DemandProcessingDelegate(Resultset rs);
+
     /// <summary>
     /// Base class for query plan node
     /// </summary>
@@ -44,8 +46,11 @@ namespace DataEngine
             protected bool _disposed = false;
             private DemandProcessingContext[] _childs = null;
 
+            public int RecordLimit { get; set; }
+
             public DemandProcessingContext(Resultset[] src)
             {
+                RecordLimit = -1;
                 if (src != null)
                 {
                     _childs = new DemandProcessingContext[src.Length];
@@ -169,7 +174,7 @@ namespace DataEngine
             }            
         }
 
-        protected class EnumeratorProcessingContext : DemandProcessingContext
+        public class EnumeratorProcessingContext : DemandProcessingContext
         {
             public IEnumerator<Row> Iterator { get; set; }
 
@@ -187,6 +192,22 @@ namespace DataEngine
                 }
                 else
                     return false;
+            }
+        }
+
+        protected class DelegateProcessingContext : DemandProcessingContext
+        {
+            private DemandProcessingDelegate _delegate;
+
+            public DelegateProcessingContext(Resultset[] src, DemandProcessingDelegate del)
+                : base(src)
+            {
+                _delegate = del;
+            }
+
+            public override bool ProcessNextPiece(Resultset rs)
+            {
+                return _delegate(rs);
             }
         }
 
@@ -229,6 +250,17 @@ namespace DataEngine
         }
 
         public object NodeID { get; set; }
+
+
+        public static Resultset CreateResultset(RowType rt, DemandProcessingDelegate callback)
+        {
+            return new Resultset(rt, new DelegateProcessingContext(null, callback));
+        }
+
+        public static Resultset CreateResultset(RowType rt, Resultset[] src, DemandProcessingDelegate callback)
+        {
+            return new Resultset(rt, new DelegateProcessingContext(src, callback));
+        }
 
 #if DEBUG
         protected void OutlineNode(System.IO.TextWriter w, int padding)

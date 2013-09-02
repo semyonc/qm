@@ -31,5 +31,6 @@ namespace DataEngine.XQuery.MS
         public const string NsXQueryLocalFunc = "http://www.w3.org/2005/xquery-local-functions";
         public const string NsCollationCodepoint = "http://www.w3.org/2005/xpath-functions/collation/codepoint";
         public const string NsWmhExt = "http://www.wmhelp.com/ext";
+        public const string NsXslt = "http://www.w3.org/1999/XSL/Transform";
     };
 }

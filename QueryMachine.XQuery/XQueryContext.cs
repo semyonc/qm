@@ -224,9 +224,8 @@ namespace DataEngine.XQuery
         internal Dictionary<object, object> extraProps;
         internal DateTime now;
         internal CancellationTokenSource cancelSource;
-
-        private object syncRoot = new Object();
         
+        private object syncRoot = new Object();             
 
         public XQueryContext(XmlNameTable nameTable)
         {

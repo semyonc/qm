@@ -22,6 +22,7 @@ namespace DataEngine.XQuery
         public XQueryExprBase(XQueryContext queryContext)
         {
             _queryContext = queryContext;
+            SequenceType = XQuerySequenceType.Item;
         }
 
         public abstract void Bind(Executive.Parameter[] parameters, MemoryPool pool);
@@ -69,5 +70,7 @@ namespace DataEngine.XQuery
         {
             return Lisp.List(ID.DynExecuteExpr, this, ID.Context, Lisp.ARGV, Lisp.MPOOL);
         }
+
+        public XQuerySequenceType SequenceType { get; set; }
     }
 }

@@ -1,4 +1,13 @@
-﻿using System;
+﻿//        Copyright (c) 2008-2012, Semyon A. Chertkov (semyonc@gmail.com)
+//        All rights reserved.
+//
+//        This program is free software: you can redistribute it and/or modify
+//        it under the terms of the GNU General Public License as published by
+//        the Free Software Foundation, either version 3 of the License, or
+//        any later version.
+
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using System.Data;
@@ -86,6 +95,9 @@ namespace DataEngine
         public static readonly object Parse = ATOM.Create("$parse");
         public static readonly object Rval = ATOM.Create("$rval");
         public static readonly object ConvertTimestamp = ATOM.Create("$dts");
+        public static readonly object RollupTags = ATOM.Create("$rolluptags");
+        public static readonly object TVal = ATOM.Create("$tval");
+        public static readonly object SplitFields = ATOM.Create("$split");
     }
 
     public class Service
@@ -144,7 +156,10 @@ namespace DataEngine
             GlobalSymbols.DefineStaticOperator(ID.NodeText, typeof(Service), "NodeText");
             GlobalSymbols.DefineStaticOperator(ID.Parse, typeof(Service), "Parse");
             GlobalSymbols.DefineStaticOperator(ID.Rval, typeof(Service), "Rval");
+            GlobalSymbols.DefineStaticOperator(ID.RollupTags, typeof(Service), "RollupTags");
             GlobalSymbols.DefineStaticOperator(ID.ConvertTimestamp, typeof(Service), "ConvertTimestamp");
+            GlobalSymbols.DefineStaticOperator(ID.TVal, typeof(Service), "TVal");
+            GlobalSymbols.DefineStaticOperator(ID.SplitFields, typeof(Service), "SplitFields");
             
             GlobalSymbols.DefineStaticOperator("#isnull", typeof(Service), "IsNull");
             GlobalSymbols.DefineStaticOperator("#cmp", typeof(Service), "ExpandRowConstructor");
@@ -164,7 +179,7 @@ namespace DataEngine
             GlobalSymbols.Defmacro(ID.Between, "(a b c)", "(list 'and (list 'le b a) (list 'le a c))");
             GlobalSymbols.Defmacro(ID.NullIf, "(a b)", "(list 'cond (list (list 'eq a b) 'DBNull) (list 't a))");
             GlobalSymbols.Defmacro(ID.Case, "(a b c)", "(list 'let (list (list 'x a)) (append (cons 'cond) (#ec 'x b c)))");
-            GlobalSymbols.Defmacro(ID.IsNull, "(a)", "(list '#isnull (list 'weak a))");
+            GlobalSymbols.Defmacro(ID.IsNull, "(a)", "(list '#isnull (list 'lambda-qoute a))");
             GlobalSymbols.Defmacro(ID.IsTrue, "(a)", "(list 'not (list 'null (list 'lambda-qoute a)))");
             GlobalSymbols.Defmacro(ID.IsFalse, "(a)", "(list 'null (list 'lambda-qoute a))");
             GlobalSymbols.Defmacro(ID.IsUnknown, "(a)", "(list 'eq (list 'lambda-qoute a) 'unknown)");
@@ -574,7 +589,7 @@ namespace DataEngine
             DataSourceInfo dsi = owner.QueryContext.DatabaseDictionary.GetDataSource(dataSource);
             if (dsi != null)
             {
-                DbConnection conn = DataProviderHelper.CreateDbConnection(dsi.ProviderInvariantName);
+                DbConnection conn = DataProviderHelper.CreateDbConnection(dsi.ProviderInvariantName, dsi.X86Connection);
                 conn.ConnectionString = dsi.ConnectionString;
                 conn.Open();
                 try
@@ -724,31 +739,37 @@ namespace DataEngine
             return rs;
         }
 
-        public static Object At(Object arg, int index)
+        public static Object At([Implict]Executive engine, Object arg, object key)
         {
-            if (index <= 0)
-                throw new ESQLException(Properties.Resources.ArrayIndexIsOutOfBound);
-            if (arg == null)
-                return null;
-            else if (arg is XmlNodeList)
+            if (key is System.Int32)
             {
-                XmlNodeList nodes = (XmlNodeList)arg;
-                if (index > 0 && index <= nodes.Count)
-                    return nodes.Item(index - 1);
+                int index = (int)key;
+                if (index <= 0)
+                    throw new ESQLException(Properties.Resources.ArrayIndexIsOutOfBound);
+                if (arg == null)
+                    return null;
+                else if (arg is XmlNodeList)
+                {
+                    XmlNodeList nodes = (XmlNodeList)arg;
+                    if (index > 0 && index <= nodes.Count)
+                        return nodes.Item(index - 1);
+                    else
+                        return null;
+                }
+                else if (arg is Array)
+                {
+                    Array arr = (Array)arg;
+                    if (index <= arr.Length)
+                        return arr.GetValue(index - 1);
+                    return null;
+                }
+                else if (index == 1)
+                    return arg;
                 else
                     return null;
             }
-            else if (arg is Array)
-            {
-                Array arr = (Array)arg;
-                if (index <= arr.Length)
-                    return arr.GetValue(index - 1);
-                return null;
-            }
-            else if (index == 1)
-                return arg;
             else
-                return null;
+                return Extract(engine, arg, key.ToString());
         }
 
         private static void ProcessNode(XmlDataAccessor.NodeList nodeList, XmlNode node, string name)
@@ -781,7 +802,10 @@ namespace DataEngine
             if (arg is ValueTuple)
             {
                 ValueTuple tuple = (ValueTuple)arg;
-                return tuple.Values[name];
+                object res;
+                if (tuple.TryGet(name, out res))
+                    return res;
+                return DBNull.Value;
             }
             else
             {
@@ -808,13 +832,13 @@ namespace DataEngine
         public static XmlNodeList Wref(object arg, string name)
         {
             throw new NotImplementedException();
-        }
+        }        
 
         public static Resultset Dyncast([Implict] Executive engine, object arg)
         {
             QueryNode.LispProcessingContext owner = (QueryNode.LispProcessingContext)engine.Owner;
             XmlDataAccessor accessor = new XmlDataAccessor();
-            if (arg == null)
+            if (arg == null || arg == DBNull.Value)
                 return null;
             else if (arg is Resultset)
                 return (Resultset)arg;
@@ -860,8 +884,33 @@ namespace DataEngine
                 }
                 return rs;
             }
-            else if (arg == DBNull.Value)
-                return null;
+            else if (arg is ValueTuple)
+            {
+                ValueTuple tuple = (ValueTuple)arg;
+                IDictionaryEnumerator e = tuple.Values.GetEnumerator();
+                DataTable dt = RowType.CreateSchemaTable();
+                int ordinal = 0;
+                while (e.MoveNext())
+                {
+                    DataRow r = dt.NewRow();
+                    r["ColumnName"] = e.Key;
+                    r["ColumnOrdinal"] = ordinal++;
+                    if (e.Value == null || e.Value == DBNull.Value)
+                        r["DataType"] = typeof(DBNull);
+                    else
+                        r["DataType"] = TypeConverter.GetTypeByTypeCode(
+                            Type.GetTypeCode(e.Value.GetType()));
+                    dt.Rows.Add(r);
+                }
+                Resultset rs = new Resultset(new RowType(dt), null);
+                Row row = rs.NewRow();
+                int k = 0;
+                e.Reset();
+                while (e.MoveNext())
+                    row.SetValue(k++, e.Value);
+                rs.Enqueue(row);                
+                return rs;
+            }
             else
             {
                 DataTable dt = RowType.CreateSchemaTable();
@@ -877,6 +926,50 @@ namespace DataEngine
                 rs.Enqueue(row);
                 return rs;
             }
+        }
+
+        private static IEnumerator<Row> TupleRows(DynatableAccessor node, Resultset src, Resultset rs)
+        {
+            if (src.Persistent || (node != null && node.CopyContext))
+                for (Row row = src.Begin; row != null; row = src.NextRow(row))
+                {
+                    Row r = rs.NewRow();
+                    ValueTuple tuple = new ValueTuple(src.RowType.Fields[0].Name);
+                    for (int k = 0; k < row.Type.Fields.Length; k++)
+                        tuple.Values.Add(row.Type.Fields[k].Name, row.GetValue(k));
+                    r.SetValue(0, tuple);
+                    yield return r;
+                }
+            else
+                while (src.Begin != null)
+                {
+                    Row row = src.Dequeue();
+                    Row r = rs.NewRow();
+                    ValueTuple tuple = new ValueTuple(src.RowType.Fields[0].Name);
+                    for (int k = 0; k < row.Type.Fields.Length; k++)
+                        tuple.Values.Add(row.Type.Fields[k].Name, row.GetValue(k));
+                    r.SetValue(0, tuple);
+                    yield return r;
+                }
+        }
+
+        public static object TVal([Implict] Executive engine, string name, object arg)
+        {
+            QueryNode.LispProcessingContext owner = (QueryNode.LispProcessingContext)engine.Owner;            
+            Resultset src = (Resultset)arg;
+            if (src == null)
+                return null;
+            DataTable dt = RowType.CreateSchemaTable();
+            DataRow r = dt.NewRow();
+            r["ColumnName"] = "node";
+            r["ColumnOrdinal"] = 0;
+            r["IsContainer"] = true;
+            r["DataType"] = typeof(ValueTuple);
+            dt.Rows.Add(r);
+            QueryNode.EnumeratorProcessingContext context = new QueryNode.EnumeratorProcessingContext(null);
+            Resultset rs = new Resultset(new RowType(dt), context);
+            context.Iterator = TupleRows(owner.Node as DynatableAccessor, src, rs);
+            return rs;
         }
 
         public static object Extract([Implict] Executive engine, object arg, string xpath)
@@ -935,6 +1028,77 @@ namespace DataEngine
             }
             else
                 throw new InvalidOperationException();
+        }
+
+        public static object RollupTags([Implict] Executive engine, object arg, int bound)
+        {
+            QueryNode.LispProcessingContext owner = (QueryNode.LispProcessingContext)engine.Owner;
+            if (arg == null)
+                return null;
+            Resultset input = arg as Resultset;
+            if (input == null)
+                throw new ESQLException("$rolluptags: expected table as an argument");
+            if (input.RowType.IsContainerType)
+                return QueryNode.CreateResultset(RowType.CreateContainerType(typeof(Resultset)), (rs) =>
+                {
+                    if (input.Begin != null)
+                    {
+                        Row src = input.Dequeue();
+                        Row dest = rs.NewRow();
+                        dest.SetValue(0, RollupTags(engine, src[0], bound));
+                        dest.SetValue(1, src[1]);
+                        rs.Enqueue(dest);
+                        return true;
+                    }
+                    return false;
+                });
+            else
+            {
+                List<String> fieldNames = new List<string>();
+                DataTable input_dt = input.RowType.GetSchemaTable();
+                DataTable dt = RowType.CreateSchemaTable();
+                foreach (DataRow dr in input_dt.Rows)
+                {
+                    if (dt.Rows.Count == bound)
+                        break;
+                    DataRow nr = dt.NewRow();
+                    nr.ItemArray = dr.ItemArray;
+                    dt.Rows.Add(nr);
+                    fieldNames.Add((string)nr["ColumnName"]);
+                }
+                DataRow r = dt.NewRow();
+                r["ColumnName"] = Util.CreateUniqueName(fieldNames, "Tag");
+                r["ColumnOrdinal"] = dt.Rows.Count;
+                r["DataType"] = typeof(System.Object);
+                dt.Rows.Add(r);
+                return QueryNode.CreateResultset(new RowType(dt), (rs) =>
+                {
+                    if (input.Begin != null)
+                    {
+                        Row src = input.Dequeue();
+                        Row dest = rs.NewRow();
+                        for (int k = 0; k < bound; k++)
+                            dest.SetValue(k, src[k]);
+                        RowType rt = input.RowType;
+                        Dictionary<String, int> values = new Dictionary<string, int>();
+                        for (int k = bound; k < rt.Fields.Length; k++)
+                        {
+                            if (src.IsDbNull(k))
+                                continue;
+                            string text = src[k].ToString();
+                            string[] parts = text.Split(':');
+                            int rate;
+                            if (parts.Length == 2 && Int32.TryParse(parts[1], out rate))
+                                values.Add(parts[0], rate);
+                        }
+                        if (values.Count > 0)
+                            dest.SetValue(bound, new ValueTuple("Tag", values));
+                        rs.Enqueue(dest);
+                        return true;
+                    }
+                    return false;
+                });
+            }
         }
 
         public static String NodeText(object arg)
@@ -1027,5 +1191,24 @@ namespace DataEngine
             return baseDate.AddMilliseconds(ts);
         }
 
+        public static object SplitFields([Implict] Executive engine, string separator, string s)
+        {
+            DataTable dt = RowType.CreateSchemaTable();
+            DataRow r = dt.NewRow();
+            r["ColumnName"] = "value";
+            r["ColumnOrdinal"] = 1;
+            r["DataType"] = typeof(System.String);
+            dt.Rows.Add(r);
+            Resultset rs = new Resultset(new RowType(dt), null);
+            String[] items = s.Split(separator.ToCharArray(), 
+                StringSplitOptions.RemoveEmptyEntries);
+            for (int k = 0; k < items.Length; k++)
+            {
+                Row row = rs.NewRow();
+                row.SetString(0, items[k]);
+                rs.Enqueue(row);
+            }
+            return rs;
+        }
     }
 }

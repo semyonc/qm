@@ -1,0 +1,135 @@
+﻿<Window x:Class="XQueryConsole.ConnectionManager"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:w="clr-namespace:XQueryConsole"
+        xmlns:my="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"  
+        Title="Manage Database Connections" 
+        Height="520" Width="700"
+        ShowInTaskbar="False" 
+        WindowStartupLocation="CenterScreen"
+        HorizontalContentAlignment="Center" 
+        VerticalContentAlignment="Center" SnapsToDevicePixels="False">
+    <Window.Resources>
+        <Style x:Key="ItemStyle" TargetType="ListBoxItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"></Setter>
+            <Setter Property="Width" 
+                    Value="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=ListBox}, Path=ActualWidth}"></Setter>
+            <!--<Setter Property="Grid.IsSharedSizeScope" Value="True"></Setter>-->
+            <Style.Resources>
+                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" 
+                         Color="{DynamicResource {x:Static SystemColors.ControlColorKey}}" />
+                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="Black" />
+                <!-- Background of selected item when focussed -->
+                <!--<SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}"
+                     Color="#A5CFF7"/>
+                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}"
+                     Color="Black"/>-->
+            </Style.Resources>
+        </Style>
+    </Window.Resources>
+    <Window.CommandBindings>
+        <CommandBinding Command="{x:Static w:ConnectionManager.NewConnCommand}" 
+                        Executed="NewConnCommand_Executed"></CommandBinding>
+    </Window.CommandBindings>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="*"></RowDefinition>
+            <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="0.3*"></RowDefinition>
+            <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="Auto"></RowDefinition>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"></ColumnDefinition>
+            <ColumnDefinition Width="Auto"></ColumnDefinition>
+            <ColumnDefinition Width="1.5*"></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        <Menu Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="3">
+            <MenuItem Header="New ADO.NET Connection" Name="newItemMenu">
+                <MenuItem.ItemContainerStyle>
+                    <Style TargetType="MenuItem">
+                        <Setter Property="Command" Value="{x:Static w:ConnectionManager.NewConnCommand}"></Setter>
+                        <Setter Property="CommandParameter" Value="{Binding}"></Setter>
+                    </Style>
+                </MenuItem.ItemContainerStyle>
+                <MenuItem.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Path=[1]}"></TextBlock>
+                    </DataTemplate>
+                </MenuItem.ItemTemplate>
+            </MenuItem>
+            <MenuItem Header="New MongoDB Connection" Click="NewMongoConnection_Click"></MenuItem>
+            <MenuItem Header="Dialog..." Click="MenuItem_Click"></MenuItem>
+        </Menu>
+        <ListBox Grid.Column="0" Grid.Row="1" Grid.RowSpan="3" Name="connectionList"  ScrollViewer.HorizontalScrollBarVisibility="Hidden"
+                 ItemContainerStyle="{DynamicResource ItemStyle}" SelectionChanged="connectionList_SelectionChanged" Margin="0,0,0,3">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <DataTemplate.Resources>
+                        <w:BooleanToEnumConverter x:Key="BooleanToEnumConverter"></w:BooleanToEnumConverter>                        
+                    </DataTemplate.Resources>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition></RowDefinition>
+                            <RowDefinition></RowDefinition>
+                            <RowDefinition></RowDefinition>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Margin="2,5,0,3" TextTrimming="WordEllipsis" 
+                                   HorizontalAlignment="Left">
+                            <Image Height="16" Width="16"  
+                                   Source="{Binding StatusImg}"></Image>
+                            <Run Text="{Binding Path=DisplayName, Mode=OneWay}" BaselineAlignment="Top"></Run>
+                            <LineBreak></LineBreak>
+                            <Run Text="  "></Run>
+                            <Run FontWeight="Bold" FontFamily="Verdana" FontSize="9"
+                                 Text="{Binding Path=InvariantName, Mode=OneWay}"></Run>
+                        </TextBlock>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" 
+                                    VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,5,2">
+                            <StackPanel.Visibility>
+                                <Binding Path="IsSelected" Converter="{StaticResource BooleanToEnumConverter}" Mode="OneWay">
+                                    <Binding.RelativeSource>
+                                        <RelativeSource Mode="FindAncestor" AncestorType="{x:Type ListBoxItem}"></RelativeSource>
+                                    </Binding.RelativeSource>
+                                    <Binding.ConverterParameter>
+                                        <x:Array Type="Visibility">
+                                            <Visibility>Collapsed</Visibility>
+                                            <Visibility>Visible</Visibility>
+                                        </x:Array>
+                                    </Binding.ConverterParameter>
+                                </Binding>
+                            </StackPanel.Visibility>
+                            <Button Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}" Height="16" Width="16" Click="TestButton_Click" ToolTip="Test Connection">
+                                <Image Source="/XQueryConsole;component/Images/check.png" ></Image>
+                            </Button>
+                            <Button Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}" Height="16" Width="16" Click="RemoveButton_Click" ToolTip="Delete selected">
+                                <Image Source="/XQueryConsole;component/Images/remove.png" ></Image>
+                            </Button>
+                        </StackPanel>
+                        <Rectangle Margin="0,3,0,0" Grid.Row="2" StrokeThickness="0,0,0,0.5" Stroke="LightGray"  />
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <GridSplitter Grid.Row="1" Grid.Column="1" Grid.RowSpan="3" 
+                      Width="5" HorizontalAlignment="Center">
+        </GridSplitter>
+        <my:WindowsFormsHost Grid.Row="1" Grid.Column="2" Margin="5,0,5,0"
+            Name="propertyEditorHost">            
+        </my:WindowsFormsHost>
+        <GridSplitter Grid.Row="2" Grid.Column="2" Height="3" 
+            VerticalAlignment="Center" HorizontalAlignment="Stretch"></GridSplitter>
+        <TextBox Grid.Row="3" Grid.Column="2" Name="connectionStringTextBox" AcceptsReturn="True" 
+            TextWrapping="Wrap" VerticalScrollBarVisibility="Visible" Margin="5,0,5,3" Text="{Binding ConnectionString, Mode=OneWay}" 
+                     TextChanged="connectionStringTextBox_TextChanged"></TextBox>
+        <!--<Rectangle Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Fill="{x:Static SystemColors.ActiveCaptionBrush}" Height="5"  />-->
+        <DockPanel Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Background="#293852">
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" 
+                    HorizontalAlignment="Right" Margin="0,7,5,7">
+                <Button Name="okButton"  Width="80" IsDefault="True" Click="okButton_Click">OK</Button>
+                <Button Width="80" IsCancel="True" Margin="5,0,0,0">Cancel</Button>
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</Window>

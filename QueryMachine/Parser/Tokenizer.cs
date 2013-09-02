@@ -183,7 +183,14 @@ namespace DataEngine.Parser
                     return Convert.ToInt32(c);
 
                 case '-':
-                    return Convert.ToInt32(c);
+                    if (tok.MatchText("->"))
+                    {
+                        val = "->";
+                        do_read = true;
+                        return Token.ref_operator;
+                    }
+                    else
+                        return Convert.ToInt32(c);
 
                 case ',':
                     return Convert.ToInt32(c);

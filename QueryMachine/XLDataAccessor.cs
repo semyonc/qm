@@ -94,7 +94,7 @@ namespace DataEngine
             }
             else
                 using (Loader loader = new Loader(tableRef.FileName))
-                    return CreateResultset(loader, tableRef.WorksheetName);
+                    return CreateResultset(loader, tableRef.WorksheetName, queryContext);
         }
 
         private IEnumerator<Row> NextFile(Resultset rs, QueryContext queryContext)
@@ -115,7 +115,7 @@ namespace DataEngine
                     using (Loader loader = new Loader(fi.FullName))
                     {
                         loader.MultiFile = true;
-                        Resultset xrs = CreateResultset(loader, tableRef.WorksheetName);
+                        Resultset xrs = CreateResultset(loader, tableRef.WorksheetName, queryContext);
                         if (xrs == null)
                             continue;
                         row.SetObject(0, xrs);
@@ -130,7 +130,7 @@ namespace DataEngine
                 throw new ESQLException(Properties.Resources.NoOneFileWasFound, tableRef.FileName);
         }
 
-        private Resultset CreateResultset(Loader loader, string worksheetName)
+        private Resultset CreateResultset(Loader loader, string worksheetName, QueryContext queryContext)
         {
             WorksheetData worksheet = loader.Load(worksheetName);
             DataTable dt = RowType.CreateSchemaTable();
@@ -212,7 +212,7 @@ namespace DataEngine
                 dt.Rows.Add(dr);
             }
             return new Resultset(new RowType(dt),
-                new XLDataContext(worksheet, useHeader ? minRow + 1 : minRow, minCol, maxRow, maxCol));
+                new XLDataContext(worksheet, useHeader ? minRow + 1 : minRow, minCol, maxRow, maxCol) { RecordLimit = queryContext.LimitInputQuery });
         }
     }
 }

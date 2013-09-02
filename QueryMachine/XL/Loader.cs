@@ -82,7 +82,8 @@ namespace DataEngine.XL
                         HasFormula = true;
                     if (cell.CellValue != null)
                     {
-                        if (cell.StyleIndex != null && dateTimeStyleIndex.Contains(cell.StyleIndex))
+                        if (!(cell.DataType != null && cell.DataType == CellValues.SharedString) && 
+                              cell.StyleIndex != null && dateTimeStyleIndex.Contains(cell.StyleIndex))
                             sparseRow[cellRef.C1] = GetCellDateValue(cell);
                         else
                         {
@@ -182,7 +183,7 @@ namespace DataEngine.XL
             if (cell.CellValue != null)
             {
                 double num; 
-                if (Double.TryParse(cell.CellValue.Text, NumberStyles.Number, 
+                if (Double.TryParse(cell.CellValue.Text, NumberStyles.Float, 
                     CultureInfo.InvariantCulture, out num))
                     return num;
                 else

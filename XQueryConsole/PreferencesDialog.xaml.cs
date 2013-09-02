@@ -57,7 +57,6 @@ namespace XQueryConsole
             SearchPath = controller.SearchPath;
             DefaultPanel = controller.DefaultPanel;
             EnableServerQuery = controller.EnableServerQuery;
-            HostADOProviders = DataProviderHelper.HostADOProviders;
             LimitSQLQueryResults = controller.LimitSQLQueryResults;
             searchPathTextBox.Focus();
         }
@@ -78,16 +77,7 @@ namespace XQueryConsole
         public string SearchPath { get; set; }
         public StartupPanel DefaultPanel { get; set; }
         public bool EnableServerQuery { get; set; }
-        public bool HostADOProviders { get; set; }
         public bool LimitSQLQueryResults { get; set; }
-        
-        public bool IsHostADOProvidersEnabled
-        {
-            get
-            {
-                return RemoteDbProviderFactories.Isx64();
-            }
-        }
         
         public bool ReloadDatasources { get; set; }        
 
@@ -120,8 +110,6 @@ namespace XQueryConsole
             controller.SearchPath = SearchPath;
             controller.DefaultPanel = DefaultPanel;
             controller.EnableServerQuery = EnableServerQuery;
-            ReloadDatasources = DataProviderHelper.HostADOProviders != HostADOProviders;
-            DataProviderHelper.HostADOProviders = HostADOProviders;
             controller.LimitSQLQueryResults = LimitSQLQueryResults;
             controller.SaveSettings();
             DialogResult = true;

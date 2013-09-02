@@ -53,6 +53,8 @@ namespace DataEngine.CoreServices.Data
             get { return _rtype; }
         }
 
+        public bool Persistent { get; set; }
+
         public RowType.TypeInfo GetFieldType(RowType.Locator locator)
         {
             RowType.TypeInfo res = _rtype.Fields[locator.master];
@@ -199,7 +201,7 @@ namespace DataEngine.CoreServices.Data
                 try
                 {
                     _context.CheckCancelled();
-                    if (!_context.ProcessNextPiece(this))
+                    if (!ProcessNextPiece())
                     {
                         _context.Dispose();
                         _context = null;
@@ -214,6 +216,17 @@ namespace DataEngine.CoreServices.Data
                     throw;
                 }
             }
+        }
+
+        private bool ProcessNextPiece()
+        {
+            if (_context.RecordLimit != -1)
+            {
+                if (_context.RecordLimit == 0)
+                    return false;
+                _context.RecordLimit--;
+            }
+            return _context.ProcessNextPiece(this);
         }
 
         private void InvalidateCache()

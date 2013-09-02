@@ -547,7 +547,11 @@ namespace DataEngine
             else if (o is Decimal)
                 return XmlConvert.ToString((Decimal)o);
             else if (o is DateTime)
-                return SoapDateTime.ToString((DateTime)o);
+            {
+                DateTime d = (DateTime)o;                
+                return new DateTimeOffset(d).ToString("yyyy-MM-dd'T'HH:mm:ss.fffffffzzz", 
+                    CultureInfo.InvariantCulture);
+            }
             else if (o is TimeSpan)
                 return XmlConvert.ToString((TimeSpan)o);
             else if (o is DateTimeOffset)

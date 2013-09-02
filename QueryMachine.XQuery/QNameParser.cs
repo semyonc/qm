@@ -13,7 +13,7 @@ using DataEngine.XQuery.MS;
 
 namespace DataEngine.XQuery
 {
-    internal class QNameParser
+    public class QNameParser
     {
         public static XmlQualifiedName Parse(string name, IXmlNamespaceResolver resolver, XmlNameTable nameTable)
         {
@@ -22,6 +22,15 @@ namespace DataEngine.XQuery
 
         public static XmlQualifiedName Parse(string name, IXmlNamespaceResolver resolver, string defaultNamespace, XmlNameTable nameTable)
         {
+            XmlQualifiedName res;
+            if (!TryParse(name, resolver, defaultNamespace, nameTable, out res))
+                throw new XQueryException(Properties.Resources.XPST0081, GetPrefix(name));
+            return res;
+        }
+
+        public static bool TryParse(string name, IXmlNamespaceResolver resolver, string defaultNamespace, XmlNameTable nameTable, out XmlQualifiedName res)
+        {
+            res = null;
             string prefix;
             string localName;
             Split(name, out prefix, out localName);
@@ -36,15 +45,16 @@ namespace DataEngine.XQuery
             {
                 string ns = resolver.LookupNamespace(prefix);
                 if (ns == null)
-                    throw new XQueryException(Properties.Resources.XPST0081, prefix);
-                return new XmlQualifiedName(localName, ns);
+                    return false;
+                res = new XmlQualifiedName(localName, ns);
             }
             else
             {
                 if (defaultNamespace == null)
                     defaultNamespace = String.Empty;
-                return new XmlQualifiedName(localName, defaultNamespace);
+                res = new XmlQualifiedName(localName, defaultNamespace);
             }
+            return true;
         }
 
         public static int ParseNCName(string s, int offset)
@@ -101,6 +111,14 @@ namespace DataEngine.XQuery
                 else
                     localName = value;
             }
+        }
+
+        public static String GetPrefix(string name)
+        {
+            string prefix;
+            string localName;
+            Split(name, out prefix, out localName);
+            return prefix;
         }
     }
 }

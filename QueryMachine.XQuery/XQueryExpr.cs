@@ -31,7 +31,7 @@ namespace DataEngine.XQuery
         Unordered
     }
 
-    sealed class XQueryExpr : XQueryExprBase
+    public sealed class XQueryExpr : XQueryExprBase
     {
         internal object[] m_expr;
         internal FunctionLink[] m_compiledBody;

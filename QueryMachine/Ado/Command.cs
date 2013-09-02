@@ -160,6 +160,8 @@ namespace DataEngine.ADO
             }
         }
 
+        public bool DisableLimitInput { get; set; }
+
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
             if (behavior != CommandBehavior.Default)
@@ -172,6 +174,7 @@ namespace DataEngine.ADO
             object result = parser.yyparseSafe(new Tokenizer(_commandText));
             QueryContext context = new QueryContext(dict);
             context.DatabaseDictionary.SearchPath = _searchPath;
+            context.DisableLimitInput = DisableLimitInput;
             Optimizer optimizer = new Optimizer(context);
             optimizer.Process(notation);
             QueryBinder binder = new QueryBinder();

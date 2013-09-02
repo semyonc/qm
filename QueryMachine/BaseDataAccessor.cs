@@ -38,10 +38,12 @@ namespace DataEngine
                 }
                 else
                 {
-                    string fileName;
+                    string fileName = "";
                     Row row = rs1.Dequeue();
                     Stream stream = (Stream)row.GetObject(0);
-                    return CreateResultset(stream, out fileName, queryContext);
+                    if (!row.IsDbNull(1))
+                        fileName = row.GetString(1);
+                    return CreateResultset(stream, fileName, queryContext);
                 }
             }
             else
@@ -52,17 +54,19 @@ namespace DataEngine
         {
             while (src.Begin != null)
             {
-                string fileName;
+                string fileName = "";
                 Row row = src.Dequeue();
                 Stream stream = (Stream)row.GetObject(0);
+                if (!row.IsDbNull(1))
+                    fileName = row.GetString(1);
                 row = rs.NewRow();
-                row.SetObject(0, CreateResultset(stream, out fileName, queryContext));
+                row.SetObject(0, CreateResultset(stream, fileName, queryContext));
                 if (fileName != null)
                     row.SetString(1, fileName);
                 yield return row;
             }
         }
 
-        protected abstract Resultset CreateResultset(Stream stream, out string fileName, QueryContext queryContext);
+        protected abstract Resultset CreateResultset(Stream stream, string fileName, QueryContext queryContext);
     }
 }

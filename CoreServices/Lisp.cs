@@ -381,6 +381,14 @@ namespace DataEngine.CoreServices
             return result;
         }
 
+        public static object List(List<object> items)
+        {
+            object result = null;
+            for (int i = items.Count - 1; i >= 0; i--)
+                result = Cons(items[i], result);
+            return result;
+        }
+
         public delegate bool LispNodeDelegate(object a);
 
         public static bool IsTrueForAll(object lval, LispNodeDelegate del)

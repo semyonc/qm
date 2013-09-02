@@ -153,10 +153,23 @@ namespace DataEngine
                 WalkTableQualifiedName((Qname)sym);
             else
             {
-                Notation.Record[] recs1 = notation.Select(sym, Descriptor.Dynatable, 1);
-                WalkDescriptor(Descriptor.Dynatable);
+                Notation.Record[] recs1 = notation.Select(sym, 
+                    new Descriptor[] { Descriptor.Dynatable, Descriptor.Tuple }, 1);                
                 if (recs1.Length > 0)
-                    WalkDynatable(notation, recs1[0].Arg0);
+                {
+                    switch (recs1[0].descriptor)
+                    {
+                        case Descriptor.Dynatable:
+                            WalkDescriptor(Descriptor.Dynatable);
+                            WalkDynatable(notation, recs1[0].Arg0);
+                            break;
+
+                        case Descriptor.Tuple:
+                            WalkDescriptor(Descriptor.Tuple);
+                            WalkTuple(notation, recs1[0].Arg0);
+                            break;
+                    }
+                }
                 else
                     WalkSubQuery(sym);
             }
@@ -171,6 +184,11 @@ namespace DataEngine
         }
 
         public virtual void WalkDynatable(Notation notation, Symbol sym)
+        {
+            WalkValueExp(sym);
+        }
+
+        public virtual void WalkTuple(Notation notation, Symbol sym)
         {
             WalkValueExp(sym);
         }

@@ -81,10 +81,10 @@ namespace XQueryConsole
 
         public GridCellGroup Execute()
         {
-            reader = (DataReader)command.ExecuteReader();
             ResultsetGridBuilder builder = new ResultsetGridBuilder();
             if (limitResults)
-                builder.TableLimit = 1000;
+                builder.TableLimit = 100;
+            reader = (DataReader)command.ExecuteReader();                           
             GridCellGroup res = builder.Parse(reader.Source);
             canExportDS = builder.CanExportDS;
             IsTruncated = builder.IsTruncated;
@@ -118,7 +118,7 @@ namespace XQueryConsole
             return ex is ESQLException;
         }
 
-        public bool CanExportDS(GridCellGroup rootCell)
+        public bool IsFlatTable(GridCellGroup rootCell)
         {
             return rootCell is ResultsetGridBuilder.RootCell && canExportDS;
         }
@@ -167,9 +167,18 @@ namespace XQueryConsole
                 case ExportTarget.Xls:
                     writer = new XlFileWriter(fileName);
                     break;
+
+                case ExportTarget.Json:
+                    writer = new JsonWriter(fileName, false, true);
+                    break;
+
+                case ExportTarget.ZJson:
+                    writer = new JsonWriter(fileName, true, true);
+                    break;
             }
             if (writer == null)
                 throw new ArgumentException("target");
+            command.DisableLimitInput = true;
             DataReader reader = (DataReader)command.ExecuteReader();
             try
             {

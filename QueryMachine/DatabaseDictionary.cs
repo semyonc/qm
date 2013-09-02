@@ -21,17 +21,23 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.IO;
+using System.Reflection;
 using System.Diagnostics;
 using System.Data;
 using System.Data.Common;
 
+using MongoDB.Driver;
+using MongoDB.Bson;
+using MongoDB.Driver.Builders;
+
+using DataEngine.CoreServices;
 using DataEngine.CoreServices.Data;
-using System.IO;
-using System.Reflection;
+using System.Runtime.Serialization.Formatters.Binary;
 
 namespace DataEngine
 {
-    public enum AcessorType
+    public enum AccessorType
     {
         DataProvider,
         DataTable,  
@@ -40,39 +46,53 @@ namespace DataEngine
         FlatFile,
         XlFile,
         XlFileTable,
+        MongoDb,
+        Json,
+        ZipJson,
         CustomAccessor
     }
 
+    [Serializable]
     public class DataSourceInfo
     {
+        public readonly Guid UUID;
         public readonly String Prefix;
         public readonly bool Default;
-        public readonly AcessorType TableAccessor;
+        public readonly AccessorType TableAccessor;
+        public readonly bool X86Connection;
         public readonly String ProviderInvariantName;
         public readonly String ConnectionString;
         public readonly Object DataContext;
+        [NonSerialized] 
         public readonly FormatIdentifierDelegate FormatIdentifier;
+        [NonSerialized]
         public readonly DataAccessorFactory DataAccessorFactory;
 
-        public DataSourceInfo(string prefix, bool isDefault, AcessorType tableAccessor, String providerInvariantName, 
+        internal object Tag { get; set; }
+
+        public DataSourceInfo(string prefix, bool isDefault, AccessorType tableAccessor, String providerInvariantName, bool x86Connection,
             String connectionString, Object dataContext)
         {
+            UUID = Guid.Empty;
             Prefix = prefix;
             Default = isDefault;
             TableAccessor = tableAccessor;
             ProviderInvariantName = providerInvariantName;
+            X86Connection = x86Connection;
             ConnectionString = connectionString;
             FormatIdentifier = null;
             DataContext = dataContext;
         }
 
-        public DataSourceInfo(string prefix, bool isDefault, AcessorType tableAccessor, String providerInvariantName,
+        public DataSourceInfo(Guid uuid, string prefix, bool isDefault, AccessorType tableAccessor, String providerInvariantName, bool x86Connection,
             String connectionString, FormatIdentifierDelegate formatIdentifier)
         {
+            UUID = uuid;
             Prefix = prefix;
             Default = isDefault;
             TableAccessor = tableAccessor;
             ProviderInvariantName = providerInvariantName;
+            X86Connection = x86Connection;
             ConnectionString = connectionString;
             FormatIdentifier = formatIdentifier;
         }
@@ -80,19 +100,20 @@ namespace DataEngine
         public DataSourceInfo(DataAccessorFactory dataAccessorFactory)
         {
             DataAccessorFactory = dataAccessorFactory;
-            TableAccessor = AcessorType.CustomAccessor;
+            TableAccessor = AccessorType.CustomAccessor;
         }
 
         public DbConnection CreateConnection()
         {
             if (ProviderInvariantName == null)
                 throw new InvalidOperationException();
-            DbConnection connection = DataProviderHelper.CreateDbConnection(ProviderInvariantName);
+            DbConnection connection = DataProviderHelper.CreateDbConnection(ProviderInvariantName, X86Connection);
             connection.ConnectionString = ConnectionString;
             return connection;
         }
     }
 
+    [Serializable]
     public class TableType
     {
         public readonly String QualifiedName;
@@ -115,12 +136,18 @@ namespace DataEngine
             Smart = smart;
         }
 
-        public TableType(String qualifiedName, String tableName, DataSourceInfo dataSource, RowType tableRowType)
+        public TableType(String qualifiedName, String tableName, DataSourceInfo dataSource, RowType tableRowType, bool smart)
         {
             QualifiedName = qualifiedName;
             TableName = tableName;
             DataSource = dataSource;
             TableRowType = tableRowType;
+            Smart = smart;
+        }
+
+        public TableType(String qualifiedName, String tableName, DataSourceInfo dataSource, RowType tableRowType)
+            : this(qualifiedName, tableName, dataSource, tableRowType, false)
+        {
         }
 
         public String[] GetIdentifierParts()
@@ -153,8 +180,9 @@ namespace DataEngine
         public readonly String Prefix;
         public readonly String[] QualifiedName;
         
-        public AcessorType TableAccessor { get; set; }
+        public AccessorType TableAccessor { get; set; }
         public String ProviderInvariantName { get; set; }
+        public bool X86Connection { get; set; }
         public String ConnectionString { get; set; }
         public Object Context { get; set; }
         public bool Handled { get; set; }
@@ -171,6 +199,8 @@ namespace DataEngine
 
     public class DatabaseDictionary
     {
+        public static readonly int MongoDbFastMRLimit = 150;
+
         protected class TableTypeItem
         {
             public TableType CachedType;
@@ -212,6 +242,8 @@ namespace DataEngine
             }
         }
 
+        public string SchemaCacheDir { get; set; }
+
         public String GetFilePath(string fileName, string prefix)
         {
             if (fileName.IndexOfAny(new char[] { '*', '?' }) != -1)
@@ -236,15 +268,15 @@ namespace DataEngine
             SearchPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             _catalogCache = new Dictionary<string, TableTypeItem>();
             _rdsi = new List<DataSourceInfo>();
-            _xmldsi = new DataSourceInfo(null, false, AcessorType.XMLFile, null, null, null);            
+            _xmldsi = new DataSourceInfo(null, false, AccessorType.XMLFile, null, false, null, null);            
         }
 
-        public TableType GetTableType(String prefix, String[] identifierPart)
+        public TableType GetTableType(String prefix, String[] identifierPart, string[] selectFields)
         {
-            return GetTableType(prefix, identifierPart, true);
+            return GetTableType(prefix, identifierPart, true, selectFields);
         }
 
-        public TableType GetTableType(String prefix, String[] identifierPart, bool lookupCache)
+        public TableType GetTableType(String prefix, String[] identifierPart, bool lookupCache, string[] selectFields)
         {
             TableTypeItem tti;
             string qualifiedName = MakeQualifiedName(identifierPart);
@@ -262,37 +294,55 @@ namespace DataEngine
                 TableType tableType;
                 switch (dsi.TableAccessor)
                 {
-                    case AcessorType.DataProvider:
+                    case AccessorType.DataProvider:
                         tableType = GetDataProviderTableType(dsi, GetProviderTableName(dsi, identifierPart));
                         break;
 
-                    case AcessorType.XMLFile:
+                    case AccessorType.XMLFile:
                         {
                             string fullPath = GetFilePath(qualifiedName, "xml");
                             tableType = new TableType(qualifiedName, fullPath, dsi, null);
                         }
                         break;
 
-                    case AcessorType.DataTable:
+                    case AccessorType.DataTable:
                         {
                             string fullPath = GetFilePath(qualifiedName, "xml");
                             tableType = new TableType(qualifiedName, fullPath, dsi, null);
                         }
                         break;
 
-                    case AcessorType.FlatFile:
+                    case AccessorType.FlatFile:
                         {
                             string fullPath = GetFilePath(qualifiedName, "txt");
                             tableType = new TableType(qualifiedName, fullPath, dsi, null);
                         }
                         break;
 
-                    case AcessorType.XlFile:
-                    case AcessorType.XlFileTable:
+                    case AccessorType.XlFile:
+                    case AccessorType.XlFileTable:
                         tableType = new TableType(qualifiedName, qualifiedName, dsi, null);
                         break;
 
-                    case AcessorType.CustomAccessor:
+                    case AccessorType.MongoDb:
+                        tableType = GetMongoDbTableType(dsi, qualifiedName, selectFields);
+                        break;
+
+                    case AccessorType.Json:
+                        {
+                            string fullPath = GetFilePath(qualifiedName, "json");
+                            tableType = new TableType(qualifiedName, fullPath, dsi, null);
+                        }
+                        break;
+
+                    case AccessorType.ZipJson:
+                        {
+                            string fullPath = GetFilePath(qualifiedName, "zip");
+                            tableType = new TableType(qualifiedName, fullPath, dsi, null);
+                        }
+                        break;
+
+                    case AccessorType.CustomAccessor:
                         tableType = dsi.DataAccessorFactory.CreateTableType(this, qualifiedName, dsi);
                         break;
 
@@ -303,7 +353,7 @@ namespace DataEngine
                 if (tableType == null)
                     throw new ESQLException(Properties.Resources.TableDoesNotExists, qualifiedName);
 
-                if (dsi.TableAccessor == AcessorType.DataProvider && lookupCache)
+                if (dsi.TableAccessor == AccessorType.DataProvider && lookupCache)
                     _catalogCache.Add(key, new TableTypeItem(tableType));
                 return tableType;
             }
@@ -312,7 +362,7 @@ namespace DataEngine
         protected virtual String GetProviderTableName(DataSourceInfo dsi, String[] identifierPart)
         {
             StringBuilder sb = new StringBuilder();
-            DataProviderHelper helper = new DataProviderHelper(dsi.ProviderInvariantName, dsi.ConnectionString);
+            DataProviderHelper helper = new DataProviderHelper(dsi);
             string[] formattedIdentifiers = new String[identifierPart.Length];
             for (int k = 0; k < identifierPart.Length; k++)
                 formattedIdentifiers[k] = helper.FormatIdentifier(identifierPart[k]);
@@ -329,7 +379,7 @@ namespace DataEngine
 
         private TableType GetDataProviderTableType(DataSourceInfo dsi, String identifier)
         {           
-            DataProviderHelper helper = new DataProviderHelper(dsi.ProviderInvariantName, dsi.ConnectionString);                       
+            DataProviderHelper helper = new DataProviderHelper(dsi);                       
             using (DbConnection connection = dsi.CreateConnection())
             {                
                 DbCommand command = connection.CreateCommand();                
@@ -382,8 +432,8 @@ namespace DataEngine
                     
                     RowType rtype = new RowType(dt);
                     if (hasKeyInfo && rtype.Fields[0].BaseTableName != null)
-                        return new TableType(identifier, rtype.Fields[0].BaseCatalogName,
-                            rtype.Fields[0].BaseSchemaName, rtype.Fields[0].BaseTableName, dsi, rtype, helper.Smart);
+                        return new TableType(identifier, !helper.IgnoreCatalog ? rtype.Fields[0].BaseCatalogName : null,
+                            !helper.IgnoreSchema ? rtype.Fields[0].BaseSchemaName : null, rtype.Fields[0].BaseTableName, dsi, rtype, helper.Smart);
                     else
                     {
                         string schema = null;
@@ -393,10 +443,10 @@ namespace DataEngine
                         string[] identifierPart = helper.SplitIdentifier(identifier);                        
                         int length = identifierPart.Length;
 
-                        if (length == 3)
+                        if (length == 3 && !helper.IgnoreCatalog)
                             catalog = identifierPart[identifierPart.Length - length--];
 
-                        if (length == 2)
+                        if (length == 2 && !helper.IgnoreSchema)
                             schema = identifierPart[identifierPart.Length - length--];
 
                         if (length == 1)
@@ -411,6 +461,242 @@ namespace DataEngine
                     return null;
                 }
             }
+        }
+
+        private String GetMongoCacheTableName(DataSourceInfo dsi, String collectionName)
+        {
+            if (SchemaCacheDir == null)
+                return null;
+            return Path.Combine(SchemaCacheDir,
+                dsi.UUID.ToString(), Uri.EscapeDataString(collectionName));            
+        }
+
+        private TableType GetCachedTableType(string cacheTableName)
+        {
+            BinaryFormatter formatter = new BinaryFormatter();
+            Stream stream = File.OpenRead(cacheTableName);
+            try
+            {
+                return (TableType)formatter.Deserialize(stream);
+            }
+            finally
+            {
+                stream.Close();
+            }
+        }
+
+        private void PutCacheTableType(string cacheTableName, TableType tableType)
+        {
+            string directoryName = Path.GetDirectoryName(cacheTableName);
+            if (!Directory.Exists(directoryName))
+                Directory.CreateDirectory(directoryName);
+            BinaryFormatter formatter = new BinaryFormatter();
+            Stream stream = File.OpenWrite(cacheTableName);
+            try
+            {
+                formatter.Serialize(stream, tableType);
+            }
+            finally
+            {
+                stream.Close();
+            }
+        }
+
+        private TableType GetMongoDbTableType(DataSourceInfo dsi, String collectionName, String[] selectFields)
+        {
+            string cacheTableName = GetMongoCacheTableName(dsi, collectionName);
+            if (cacheTableName != null && File.Exists(cacheTableName))
+                return GetCachedTableType(cacheTableName);
+            return ScanMongoDbCollection(dsi, collectionName, selectFields, MongoDbFastMRLimit);
+        }
+
+        public void CacheMongoDbTableType(DataSourceInfo dsi, String collectionName)
+        {
+            if (dsi.TableAccessor != AccessorType.MongoDb)
+                throw new ArgumentException("dsi");
+            string cacheTableName = GetMongoCacheTableName(dsi, collectionName);
+            if (cacheTableName != null)
+            {
+                TableType tableType = ScanMongoDbCollection(dsi, collectionName, null, -1);
+                PutCacheTableType(cacheTableName, tableType);
+            }
+        }
+
+        private TableType ScanMongoDbCollection(DataSourceInfo dsi, String collectionName, String[] selectFields, int rowlimit)
+        {
+            try
+            {
+                MongoConnectionStringBuilder csb = new MongoConnectionStringBuilder();
+                csb.ConnectionString = dsi.ConnectionString;
+                MongoServer mongo = MongoServer.Create(csb);
+                mongo.Connect();
+                if (!mongo.DatabaseExists(csb.DatabaseName))
+                    throw new ESQLException("Database '{0}' is not exists", csb.DatabaseName);
+                MongoDatabaseSettings settings = mongo.CreateDatabaseSettings(csb.DatabaseName);
+                if (csb.Username != null)
+                    settings.Credentials = new MongoCredentials(csb.Username, csb.Password);
+                MongoDatabase database = mongo.GetDatabase(settings);
+                if (!database.CollectionExists(collectionName))
+                    return null;
+                List<string> fieldNames = new List<string>();
+                DataTable dt = RowType.CreateSchemaTable();
+                MongoCollectionSettings<BsonDocument> collectionSettings =
+                    database.CreateCollectionSettings<BsonDocument>(collectionName);
+                MongoCollection<BsonDocument> collection = database.GetCollection(collectionSettings);
+                MapReduceResult res = ExecuteMapReduce(collection, rowlimit);
+                if (res.Ok)
+                {
+                    Dictionary<String, List<BsonDocument>> map = new Dictionary<String, List<BsonDocument>>();
+                    foreach (BsonDocument inlineRes in res.GetInlineResultsAs<BsonDocument>())
+                    {
+                        BsonDocument key = inlineRes[0].AsBsonDocument;
+                        String name = key[0].AsString;
+                        List<BsonDocument> fields;
+                        if (!map.TryGetValue(name, out fields))
+                        {
+                            fields = new List<BsonDocument>();
+                            map.Add(name, fields);
+                        }
+                        fields.Add(inlineRes);
+                    }
+                    List<List<BsonDocument>> order = new List<List<BsonDocument>>(map.Values);
+                    order.Sort((a, b) =>
+                    {
+                        int min1 = -1;
+                        for (int k = 0; k < a.Count; k++)
+                            if (min1 == -1 || Convert.ToInt32(a[k][1]) < min1)
+                                min1 = Convert.ToInt32(a[k][1]);
+                        int min2 = -1;
+                        for (int k = 0; k < b.Count; k++)
+                            if (min2 == -1 || Convert.ToInt32(b[k][1]) < min2)
+                                min2 = Convert.ToInt32(b[k][1]);
+                        if (min1 < min2)
+                            return -1;
+                        else if (min1 == min2)
+                            return 0;
+                        return 1;
+                    });
+                    for (int i = 0; i < order.Count; i++)
+                    {
+                        List<BsonDocument> field = order[i];
+                        string name = field[0][0].AsBsonDocument[0].AsString;
+                        string[] types = new string[field.Count];
+                        for (int s = 0; s < field.Count; s++)
+                            types[s] = field[s][0].AsBsonDocument[1].AsString;
+                        CreateFieldType(collectionName, dt, i + 1, name, types, fieldNames);
+                    }
+                    return new TableType(collectionName, collectionName, dsi, new RowType(dt), true);
+                }
+                mongo.Disconnect();
+            }
+            catch (Exception ex)
+            {
+                Trace.TraceWarning("GetMongoDbTableType: {0}", ex.Message);
+                if (ex is ESQLException)
+                    throw ex;
+            }
+            return null;
+        }
+        
+        private MapReduceResult ExecuteMapReduce(MongoCollection<BsonDocument> collection, int rowlimit = -1)
+        {
+            MapReduceOptionsBuilder builder = new MapReduceOptionsBuilder();
+            builder.SetOutput(MapReduceOutput.Inline);
+            if (rowlimit != -1)
+                builder.SetLimit(rowlimit);
+            return collection.MapReduce(
+                new BsonJavaScript(@"
+                        function Map() {
+                            var k = 1;
+                            for (var prop in this) {
+                                var value = this[prop];
+                                var t;
+                                if (value == null)
+                                    t = 'null';
+                                else if (value instanceof Date)
+                                    t = 'date';
+                                else if (value instanceof Timestamp)
+                                    t = 'timestamp';
+                                else if (value instanceof ObjectId)
+                                    t = 'objectid';
+                                else if (value instanceof BinData)
+                                    t = 'binary';
+                                else if (value instanceof NumberInt)
+                                    t = 'long';
+                                else if (value instanceof NumberLong)
+                                    t = 'long';
+                                else
+          	                        t = typeof value;
+                                emit({ 'prop': prop, 't': t }, k++);
+                            }                        
+                        }"),
+                new BsonJavaScript(@"
+                        function Reduce(key, values) {
+                            return values[0];
+                        }"), builder);            
+        }
+        
+        private void CreateFieldType(string tableName, DataTable dt, int ordinal, string columnName, 
+            String[] types, List<String> fieldNames)
+        {
+            Type dataType = null;
+            bool allowDbNull = false;
+            bool isKey = false;
+            foreach (String t in types)
+            {
+                Type currType = null;
+                if (t == "date")
+                    currType = typeof(System.DateTime);
+                else if (t == "timestamp")
+                    currType = typeof(System.TimeSpan);
+                else if (t == "string")
+                    currType = typeof(System.String);
+                else if (t == "objectid")
+                {
+                    currType = typeof(System.String);
+                    if (ordinal == 1)
+                        isKey = true;
+                }
+                else if (t == "binary")
+                    currType = typeof(byte[]);
+                else if (t == "int")
+                    currType = typeof(System.Int32);
+                else if (t == "long")
+                    currType = typeof(System.Int64);
+                else if (t == "number")
+                    currType = typeof(System.Double);
+                else if (t == "boolean")
+                    currType = typeof(System.Boolean);
+                else if (t == "object")
+                    currType = typeof(System.Object);
+                else if (t == "null")
+                    allowDbNull = true;
+                if (currType != null)
+                {
+                    if (dataType == null)
+                        dataType = currType;
+                    else
+                        if (dataType != currType)
+                        {
+                            dataType = typeof(System.Object);
+                            break;
+                        }
+                }
+            }
+            if (dataType == null)
+                dataType = typeof(System.Object);
+            DataRow r = dt.NewRow();
+            r["ColumnName"] = Util.CreateUniqueName(fieldNames, columnName);
+            r["ProviderColumnName"] = columnName;
+            r["BaseTableName"] = tableName;
+            r["BaseColumnName"] = columnName;
+            r["ColumnOrdinal"] = ordinal -1;
+            r["DataType"] = dataType;
+            r["AllowDBNull"] = allowDbNull;
+            r["IsKey"] = isKey;
+            r["IsCaseSensitive"] = true;
+            r["IsRowID"] = isKey;
+            dt.Rows.Add(r);
         }
 
         private TableType GetDataSetTableType(DataSourceInfo dsi, String tableName)
@@ -467,7 +753,7 @@ namespace DataEngine
                 ResolveArgs arg = new ResolveArgs(prefix, identifierPart);
                 OnResolveDataSource(this, arg);
                 if (arg.Handled)
-                    return new DataSourceInfo(null, false, arg.TableAccessor, arg.ProviderInvariantName, 
+                    return new DataSourceInfo(null, false, arg.TableAccessor, arg.ProviderInvariantName, arg.X86Connection,
                         arg.ConnectionString, arg.Context);
             }
 
@@ -483,13 +769,17 @@ namespace DataEngine
                 if (prefix.Equals("XML"))
                     return _xmldsi;
                 else if (prefix.Equals("ADO"))
-                    return new DataSourceInfo(null, false, AcessorType.DataTable, null, null, null);
+                    return new DataSourceInfo(null, false, AccessorType.DataTable, null, false, null, null);
                 else if (prefix.Equals("TXT"))
-                    return new DataSourceInfo(null, false, AcessorType.FlatFile, null, null, null);
+                    return new DataSourceInfo(null, false, AccessorType.FlatFile, null, false, null, null);
                 else if (prefix.Equals("XL"))
-                    return new DataSourceInfo(null, false, AcessorType.XlFile, null, null, null);
+                    return new DataSourceInfo(null, false, AccessorType.XlFile, null, false, null, null);
                 else if (prefix.Equals("XLT"))
-                    return new DataSourceInfo(null, false, AcessorType.XlFileTable, null, null, null);
+                    return new DataSourceInfo(null, false, AccessorType.XlFileTable, null, false, null, null);
+                else if (prefix.Equals("JSON"))
+                    return new DataSourceInfo(null, false, AccessorType.Json, null, false, null, null);
+                else if (prefix.Equals("JSONZ"))
+                    return new DataSourceInfo(null, false, AccessorType.ZipJson, null, false, null, null);
                 else if (AccessorCatalog.Instance.TryGet(prefix, out dataAccessorFactory))
                     return new DataSourceInfo(dataAccessorFactory);
                 else
@@ -497,10 +787,10 @@ namespace DataEngine
                     string fileName = GetFilePath(identifierPart[0], prefix.ToLowerInvariant());
                     string baseDir = Path.GetDirectoryName(fileName);
                     if (prefix.Equals("DBF"))
-                        return new DataSourceInfo(null, false, AcessorType.DataProvider, "System.Data.OleDb",
+                        return new DataSourceInfo(null, false, AccessorType.DataProvider, "System.Data.OleDb", true,
                            String.Format("Provider=Microsoft.Jet.OLEDB.4.0;Data Source={0};Extended Properties=dBASE IV;User ID=Admin;Password=;", baseDir), null);
                     else if (prefix.Equals("CSV"))
-                        return new DataSourceInfo(null, false, AcessorType.DataProvider, "System.Data.OleDb",
+                        return new DataSourceInfo(null, false, AccessorType.DataProvider, "System.Data.OleDb", true,
                            String.Format("Provider=Microsoft.Jet.OLEDB.4.0;Data Source={0};Extended Properties=\"text;HDR=Yes\";", baseDir), null);
                     else if (prefix.Equals("XLS"))
                     {
@@ -515,16 +805,16 @@ namespace DataEngine
                                 return res;
                             };
                         if (identifierPart[0].EndsWith(".xlsx"))
-                            return new DataSourceInfo(null, false, AcessorType.DataProvider, "System.Data.OleDb",
+                            return new DataSourceInfo(null, false, AccessorType.DataProvider, "System.Data.OleDb", true,
                                String.Format("Provider=Microsoft.ACE.OLEDB.12.0;Data Source={0};Extended Properties=\"Excel 12.0 Xml;HDR=YES\";", fileName), del);
                         else if (identifierPart[0].EndsWith(".xlsb"))
-                            return new DataSourceInfo(null, false, AcessorType.DataProvider, "System.Data.OleDb",
+                            return new DataSourceInfo(null, false, AccessorType.DataProvider, "System.Data.OleDb", true,
                                String.Format("Provider=Microsoft.ACE.OLEDB.12.0;Data Source={0};Extended Properties=\"Excel 12.0;HDR=YES\";", fileName), del);
                         else if (identifierPart[0].EndsWith(".xlsm"))
-                            return new DataSourceInfo(null, false, AcessorType.DataProvider, "System.Data.OleDb",
+                            return new DataSourceInfo(null, false, AccessorType.DataProvider, "System.Data.OleDb", true,
                                String.Format("Provider=Microsoft.ACE.OLEDB.12.0;Data Source={0};Extended Properties=\"Excel 12.0 Macro;HDR=YES\";", fileName), del);
                         else
-                            return new DataSourceInfo(null, false, AcessorType.DataProvider, "System.Data.OleDb",
+                            return new DataSourceInfo(null, false, AccessorType.DataProvider, "System.Data.OleDb", true,
                                String.Format("Provider=Microsoft.Jet.OLEDB.4.0;Data Source={0};Extended Properties=\"Excel 8.0;HDR=Yes\";", fileName), del);
                     }
                 }
@@ -533,34 +823,13 @@ namespace DataEngine
             return null;
         }
 
-        public void RegisterDataProvider(string prefix, bool isDefault, String providerInvariantName, String connectionString)
+        public void RegisterDataProvider(Guid uuid, string prefix, bool isDefault, AccessorType accessorType, 
+            String providerInvariantName, bool x86Connection, String connectionString)
         {
-            _rdsi.Add(new DataSourceInfo(prefix, isDefault, AcessorType.DataProvider, 
-                providerInvariantName, connectionString, null));
+            _rdsi.Add(new DataSourceInfo(uuid, prefix, isDefault, accessorType,
+                providerInvariantName, x86Connection, connectionString, null));
         }
-
-        //public void RegisterDataTable(DataTable dataTable)
-        //{
-        //    RegisterDataTable(dataTable.TableName, dataTable);
-        //}
-
-        //public void RegisterDataSet(DataSet dataSet)
-        //{
-        //    RegisterDataSet(dataSet.DataSetName, dataSet);
-        //}
-
-        //public void RegisterDataTable(string tableName, DataTable dataTable)
-        //{
-        //    _rdsi.Add(new DataSourceInfo(String.Format("^{0}$", EscapeRegExprString(tableName)),
-        //        AcessorType.DataTable, null, null, null, dataTable));
-        //}
-
-        //public void RegisterDataSet(string datasetName, DataSet dataSet)
-        //{
-        //    _rdsi.Add(new DataSourceInfo(String.Format("^{0}\\.[^.]+$", EscapeRegExprString(datasetName)),
-        //        AcessorType.DataSet, null, null, null, dataSet));
-        //}        
-
+        
         private string MakeQualifiedName(string[] identifierPart)
         {
             StringBuilder sb = new StringBuilder();
