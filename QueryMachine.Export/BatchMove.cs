@@ -13,6 +13,9 @@ using System.Text;
 using System.Data;
 using System.Data.Common;
 
+using MongoDB.Bson;
+using MongoDB.Driver;
+
 using DataEngine;
 using DataEngine.CoreServices.Data;
 using DataEngine.CoreServices;
@@ -30,55 +33,98 @@ namespace DataEngine.Export
 
         public bool IsTableExists()
         {
-            DataProviderHelper helper = new DataProviderHelper(ProviderInvariantName, ConnectionString);
-            using(DbConnection conn = CreateConnection())
+            switch (Accessor)
             {
-                conn.Open();
-                DbCommand command = conn.CreateCommand();
-                command.CommandText = String.Format("SELECT 1 FROM {0} WHERE 0=1", 
-                    helper.FormatIdentifier(Util.SplitName(TableName)));
-                try
-                {
-                    DbDataReader r = command.ExecuteReader();
-                    r.Close();
-                    return true;
-                }
-                catch (Exception)
-                {
+                case AccessorType.DataProvider:
+                    {
+                        DataProviderHelper helper = new DataProviderHelper(ProviderInvariantName, ConnectionString, X86Connection);
+                        using (DbConnection conn = CreateConnection())
+                        {
+                            conn.Open();
+                            DbCommand command = conn.CreateCommand();
+                            command.CommandText = String.Format("SELECT 1 FROM {0} WHERE 0=1",
+                                helper.FormatIdentifier(Util.SplitName(TableName)));
+                            try
+                            {
+                                DbDataReader r = command.ExecuteReader();
+                                r.Close();
+                                return true;
+                            }
+                            catch (Exception)
+                            {
+                                return false;
+                            }
+                        }
+                    }
+
+                case AccessorType.MongoDb:
+                    {
+                        MongoConnectionStringBuilder csb = new MongoConnectionStringBuilder();
+                        csb.ConnectionString = ConnectionString;
+                        MongoServer mongo = MongoServer.Create(csb);
+                        mongo.Connect();
+                        try
+                        {
+                            MongoDatabaseSettings settings = mongo.CreateDatabaseSettings(csb.DatabaseName);
+                            if (csb.Username != null)
+                                settings.Credentials = new MongoCredentials(csb.Username, csb.Password);
+                            if (mongo.DatabaseExists(csb.DatabaseName))
+                            {
+                                MongoDatabase database = mongo.GetDatabase(settings);
+                                return database.CollectionExists(TableName);
+                            }
+                            return false;
+                        }
+                        finally
+                        {
+                            mongo.Disconnect();
+                        }
+                    }
+
+                default:
                     return false;
-                }
-            }
+            }            
         }
 
         public void DropTable()
         {
-            DataProviderHelper helper = new DataProviderHelper(ProviderInvariantName, ConnectionString);
-            using (DbConnection conn = CreateConnection())
+            switch (Accessor)
             {
-                conn.Open();
-                DbCommand command = conn.CreateCommand();
-                command.CommandText = String.Format("DROP TABLE {0}", 
-                    helper.FormatIdentifier(Util.SplitName(TableName)));
-                command.ExecuteNonQuery();
-            }
-        }
+                case AccessorType.DataProvider:
+                    {
+                        DataProviderHelper helper = new DataProviderHelper(ProviderInvariantName, ConnectionString, X86Connection);
+                        using (DbConnection conn = CreateConnection())
+                        {
+                            conn.Open();
+                            DbCommand command = conn.CreateCommand();
+                            command.CommandText = String.Format("DROP TABLE {0}",
+                                helper.FormatIdentifier(Util.SplitName(TableName)));
+                            command.ExecuteNonQuery();
+                        }
+                    }
+                    break;
 
-        public void CleanTable()
-        {
-            DataProviderHelper helper = new DataProviderHelper(ProviderInvariantName, ConnectionString);
-            using (DbConnection conn = CreateConnection())
-            {
-                conn.Open();
-                DbCommand command = conn.CreateCommand();
-                command.CommandText = String.Format("DELETE FROM {0}",
-                    helper.FormatIdentifier(Util.SplitName(TableName)));
-                command.ExecuteNonQuery();
+                case AccessorType.MongoDb:
+                    {
+                        MongoConnectionStringBuilder csb = new MongoConnectionStringBuilder();
+                        csb.ConnectionString = ConnectionString;
+                        MongoServer mongo = MongoServer.Create(csb);
+                        mongo.Connect();
+                        MongoDatabaseSettings settings = mongo.CreateDatabaseSettings(csb.DatabaseName);
+                        if (csb.Username != null)
+                            settings.Credentials = new MongoCredentials(csb.Username, csb.Password);
+                        MongoDatabase database = mongo.GetDatabase(settings);
+                        MongoCollection<BsonDocument> collection = database.GetCollection(TableName);
+                        collection.Drop();
+                        mongo.Disconnect();
+                    }
+                    break;
             }
-        }
-
+        }    
+        
         public String GetCreateTableDDL()
         {
-            DataProviderHelper helper = new DataProviderHelper(ProviderInvariantName, ConnectionString);
+            DataProviderHelper helper = new DataProviderHelper(ProviderInvariantName, ConnectionString, X86Connection);
             FieldNames.Clear();
             HasUnknownDatatype = false;
             RowType rowType = Source.RowType;
@@ -280,7 +326,7 @@ namespace DataEngine.Export
 
         public string CreateCommandText()
         {
-            DataProviderHelper helper = new DataProviderHelper(ProviderInvariantName, ConnectionString);
+            DataProviderHelper helper = new DataProviderHelper(ProviderInvariantName, ConnectionString, X86Connection);
             StringBuilder sb = new StringBuilder();
             sb.Append("SELECT ");
             for (int k = 0; k < FieldNames.Count; k++)
@@ -297,7 +343,7 @@ namespace DataEngine.Export
 
         public DbDataAdapter CreateDataAdapter()
         {
-            DataProviderHelper helper = new DataProviderHelper(ProviderInvariantName, ConnectionString);
+            DataProviderHelper helper = new DataProviderHelper(ProviderInvariantName, ConnectionString, X86Connection);
             DbProviderFactory f = DbProviderFactories.GetFactory(ProviderInvariantName);
             DbConnection conn = f.CreateConnection();
             conn.ConnectionString = ConnectionString;
@@ -315,7 +361,7 @@ namespace DataEngine.Export
 
         public ProxyDataAdapter CreateProxyDataAdapter()
         {
-            DataProviderHelper helper = new DataProviderHelper(ProviderInvariantName, ConnectionString);
+            DataProviderHelper helper = new DataProviderHelper(ProviderInvariantName, ConnectionString, X86Connection);
             RemoteDbProviderFactory f = RemoteDbProviderFactories.GetFactory(ProviderInvariantName);
             DbConnection conn = f.CreateConnection();
             conn.ConnectionString = ConnectionString;
@@ -370,7 +416,7 @@ namespace DataEngine.Export
 
         private DbConnection CreateConnection()
         {
-            DbConnection conn = DataProviderHelper.CreateDbConnection(ProviderInvariantName);
+            DbConnection conn = DataProviderHelper.CreateDbConnection(ProviderInvariantName, X86Connection);
             conn.ConnectionString = ConnectionString;
             return conn;
         }
@@ -385,7 +431,7 @@ namespace DataEngine.Export
         public void ParseDDL(string commandText)
         {
             DataProviderHelper helper = 
-                new DataProviderHelper(ProviderInvariantName, ConnectionString);
+                new DataProviderHelper(ProviderInvariantName, ConnectionString, X86Connection);
             char[] chars = commandText.ToCharArray();
             bool bInside = false;
             StringBuilder sb = new StringBuilder();
@@ -437,10 +483,13 @@ namespace DataEngine.Export
         }
 
         public bool HasUnknownDatatype { get; private set; }
+        public AccessorType Accessor { get; set; }
         public String ProviderInvariantName { get; set; }        
         public String ConnectionString { get; set; }
+        public bool X86Connection { get; set; }
         public String TableName { get; set; }
         public Resultset Source { get; set; }
         public List<String> FieldNames { get; private set; }
+        public String DML { get; set; }
     }
 }

@@ -111,12 +111,12 @@ namespace DataEngine.CoreServices
             FlagAmbiguos();
         }
        
-        public ColumnBinding Get(string tableName, string name)
+        public ColumnBinding Get(string tableName, string name, bool caseSensitive = true)
         {
             if (String.IsNullOrEmpty(tableName))
                 foreach (ColumnBinding b in _columnBinding)
                 {
-                    if (Util.EqualsName(name, b.Name, b.caseSensitive))
+                    if (Util.EqualsName(name, b.Name, b.caseSensitive && caseSensitive))
                         if (b.ambiguous)
                             throw new ESQLException(Properties.Resources.ColumnAmbiguoslyDefined, b.Name);
                         else
@@ -125,18 +125,18 @@ namespace DataEngine.CoreServices
             else
                 foreach (ColumnBinding b in _columnBinding)
                     if (Util.EqualsName(tableName, b.TableName, false) &&
-                        Util.EqualsName(name, b.Name, b.caseSensitive))
+                        Util.EqualsName(name, b.Name, b.caseSensitive && caseSensitive))
                         return b;
             return null;
         }
 
-        public ColumnBinding Get(string qualifiedName)
+        public ColumnBinding Get(string qualifiedName, bool caseSensitive = true)
         {
             String[] parts = Util.SplitName(qualifiedName);
             if (parts.Length == 1)
-                return Get(null, parts[0]);
+                return Get(null, parts[0], caseSensitive);
             else
-                return Get(parts[0], parts[1]);
+                return Get(parts[0], parts[1], caseSensitive);
         }
 
         public bool GetLocator(string qualifiedName, ref RowType.Locator loc)
@@ -209,6 +209,52 @@ namespace DataEngine.CoreServices
             get
             {
                 return _columnBinding;
+            }
+        }
+
+        public static void GetParameterBindings(object lval, List<int> bindings)
+        {
+            if (!Lisp.IsNode(lval))
+            {
+                object head = Lisp.Car(lval);
+                if (Lisp.IsCons(head))
+                    foreach (object o in Lisp.getIterator(lval))
+                        GetParameterBindings(o, bindings);
+                else
+                {
+                    object[] args = Lisp.ToArray(Lisp.Cdr(lval));
+                    if (head.Equals(ID.ParamRef))
+                        bindings.Add((int)args[0] - 1);
+                    else if (head.Equals(ID.Like1))
+                    {
+                        GetParameterBindings(args[0], bindings);
+                        GetParameterBindings(args[1], bindings);
+                        if (args.Length > 2)
+                            GetParameterBindings(args[2], bindings);
+                    }
+                    else if (head.Equals(ID.Member) || head.Equals(Funcs.Div) ||
+                        head.Equals(Funcs.And) || head.Equals(Funcs.Or) || head.Equals(ID.LT) ||
+                        head.Equals(ID.GT) || head.Equals(ID.EQ) || head.Equals(ID.NE) ||
+                        head.Equals(ID.LE) || head.Equals(ID.GE) || head.Equals(ID.Concat) ||
+                        head.Equals(Funcs.Add) || head.Equals(Funcs.Sub) || head.Equals(Funcs.Mul))
+                    {
+                        GetParameterBindings(args[0], bindings);
+                        GetParameterBindings(args[1], bindings);
+                    }
+                    else if (head.Equals(ID.Between))
+                    {
+                        GetParameterBindings(args[0], bindings);
+                        GetParameterBindings(args[1], bindings);
+                        GetParameterBindings(args[3], bindings);
+                    }
+                    else if (head.Equals(Funcs.List))
+                        foreach (object arg in args)
+                            GetParameterBindings(args[0], bindings);
+                    else if (head.Equals(Funcs.Not) || head.Equals(ID.IsNull))
+                        GetParameterBindings(args[0], bindings);
+                    else
+                        throw new UnproperlyFormatedExpr(Lisp.Format(lval));
+                }
             }
         }
     }

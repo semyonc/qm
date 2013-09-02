@@ -47,11 +47,13 @@ namespace DataEngine
         ValueList,
         Funcall,
         Dynatable,
+        Tuple,
         Binding,
         Literal,
         Integer,
         Decimal,
         Double,
+        DateTime,
         Qname,
         Parameter,
         Placeholder,
@@ -266,6 +268,28 @@ namespace DataEngine
         public override object Clone()
         {
             return new DoubleValue(Data);
+        }
+    }
+
+    public class DateTimeValue : Value
+    {
+        public DateTimeValue(object data)
+            : base(data)
+        {
+            tag = Tag.DateTime;
+        }
+
+        new public DateTime Data
+        {
+            get
+            {
+                return (DateTime)data;
+            }
+        }
+
+        public override object Clone()
+        {
+            return new DateTimeValue(Data);
         }
     }
 

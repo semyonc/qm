@@ -132,6 +132,36 @@ namespace XQueryConsole
 
             return null;
         }
+
+        /// <summary>
+        /// http://stackoverflow.com/questions/339620/how-do-i-remove-minimize-and-maximize-from-a-resizable-window-in-wpf
+        /// http://stackoverflow.com/questions/743906/how-to-hide-close-button-in-wpf-window
+        /// </summary>
+
+        [DllImport("user32.dll")]
+        internal extern static int SetWindowLong(IntPtr hwnd, int index, int value);
+
+        [DllImport("user32.dll")]
+        internal extern static int GetWindowLong(IntPtr hwnd, int index);
+
+        const int GWL_STYLE = -16;
+
+        internal static void HideMinimizButton(Window window)
+        {
+            IntPtr hwnd = new System.Windows.Interop.WindowInteropHelper(window).Handle;
+            long value = GetWindowLong(hwnd, GWL_STYLE);
+
+            SetWindowLong(hwnd, GWL_STYLE, (int)(value & -131073));
+
+        }
+
+        internal static void HideCloseButton(Window window)
+        {
+            IntPtr hwnd = new System.Windows.Interop.WindowInteropHelper(window).Handle;
+            long value = GetWindowLong(hwnd, GWL_STYLE);
+
+            SetWindowLong(hwnd, GWL_STYLE, (int)(value & ~0x80000));
+        }
     }
 
     /// <summary>
@@ -152,4 +182,25 @@ namespace XQueryConsole
                 return parameter;
         }
     }
+
+    /// <summary>
+    /// http://www.equals-forty-two.com/2010/11/12/wpf-bool-to-enum-converter/
+    /// </summary>
+    public class BooleanToEnumConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            Array values = parameter as Array;
+            if (values == null)
+                return DependencyProperty.UnsetValue;
+            return Enum.Parse(targetType, values.GetValue(System.Convert.ToBoolean(value) ? 1 : 0).ToString());
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            return null;
+        }
+
+    }
+
 }

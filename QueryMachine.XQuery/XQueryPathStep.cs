@@ -35,10 +35,11 @@ namespace DataEngine.XQuery
         PositionFilter,
         ChildOverDescendants,   
         Expr,
-        DirectAccess
+        DirectAccess,
+        Root
     };
 
-    class XQueryPathStep
+    public class XQueryPathStep
     {
         public readonly object nodeTest;
         public readonly XPath2ExprType type;
@@ -63,7 +64,7 @@ namespace DataEngine.XQuery
         {
         }
 
-        public XQueryPathStep(ChildOverDescendantsNodeIterator.NodeTest nodeTest)
+        internal XQueryPathStep(ChildOverDescendantsNodeIterator.NodeTest nodeTest)
         {
             if (nodeTest.nameTest != null)
                 this.nodeTest = nodeTest.nameTest;

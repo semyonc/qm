@@ -43,7 +43,15 @@ namespace DataEngine.CoreServices.Data
             {
                 return _itemArray.Length;
             }
-        }        
+        }
+
+        public RowType Type
+        {
+            get
+            {
+                return _type;
+            }
+        }
 
         public void Clear()
         {
@@ -336,10 +344,10 @@ namespace DataEngine.CoreServices.Data
                 return 0;
 
             if (a == DBNull.Value || a == null)
-                return 1;
+                return -1;
 
             if (b == DBNull.Value || b == null)
-                return -1;
+                return 1;
 
             TypeCode typecode = TypeConverter.GetTypeCode(a, b);
             object val1 = TypeConverter.ChangeType(a, typecode);

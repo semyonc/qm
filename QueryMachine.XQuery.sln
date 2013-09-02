@@ -1,6 +1,6 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual Studio 2010
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QueryMachine.XQuery", "QueryMachine.XQuery\QueryMachine.XQuery.csproj", "{0FDD0A6C-E9FA-4CE2-B2A7-461C7444EEFF}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoreServices", "CoreServices\CoreServices.csproj", "{454016BE-0E1C-4DFB-A22F-2E642A1AE9A6}"

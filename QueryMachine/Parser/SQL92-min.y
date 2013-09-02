@@ -62,7 +62,7 @@ namespace DataEngine.Parser
 				throw new ESQLException ("Error during parse:\n"+ errorText.ToString(), e);
 			}
 		}
-
+		 
 		public object yyparseDebug (Tokenizer tok)
 		{
 			return yyparseSafe (tok, new yydebug.yyDebugSimple ());
@@ -289,6 +289,7 @@ namespace DataEngine.Parser
 %token XMLCDATA
 %token XMLROOT
 %token PASSING
+%token ROW
 
 %token TOP
 
@@ -324,6 +325,7 @@ namespace DataEngine.Parser
 %token double_colon							   "::"
 %token asterisk_tag                            ".*"
 %token double_slash                            "//"
+%token ref_operator                            "->"
 
 %token parameter_name
 %token embdd_variable_name
@@ -1466,6 +1468,7 @@ table_ref_simple
 table_ref_spec
     : table_name
     | dynamic_table
+	| tuple_stream
     | subquery
     ;   
     
@@ -1487,6 +1490,21 @@ dynamic_table
 		$$ = notation.Confirm(new Symbol(Tag.Dynatable), Descriptor.Dynatable, $2);
     }       
     ;     
+
+tuple_stream
+    : ROW funcall
+	{
+	    $$ = notation.Confirm(new Symbol(Tag.Tuple), Descriptor.Tuple, $2);
+	}
+	| ROW column_ref
+	{
+	    $$ = notation.Confirm(new Symbol(Tag.Tuple), Descriptor.Tuple, $2);
+	}
+	| ROW '(' value_exp ')'
+	{
+	    $$ = notation.Confirm(new Symbol(Tag.Tuple), Descriptor.Tuple, $2);
+	}
+	;
     
 table_correlation
     :  opt_AS id
@@ -1683,11 +1701,6 @@ prefixed_table_name
         
 implict_table_name
     : qualified_name 
-    | qualified_name '.' id
-    {
-       $$ = $1;
-       ((Qname)$1).Append((String)$3);
-    }
     ;
        
 column_ref 
@@ -1700,11 +1713,11 @@ column_ref
         
 column_ref_primary
     : qualified_name 
-    | column_ref_primary '.' id
+    | column_ref_primary ref_operator id
     {
        $$ = notation.Confirm(new Symbol(Tag.Dref), Descriptor.Dref, $1, new Literal((String)$3));
     }
-    | column_ref_primary '.' funcall
+    | column_ref_primary ref_operator funcall
     {       
        Notation.Record[] recs = notation.Select((Symbol)$3, Descriptor.Funcall, 2);       
        if (recs.Length > 0)
@@ -1715,11 +1728,11 @@ column_ref_primary
        }
        else
           throw new InvalidOperationException();
-    }
+    } 
     | column_ref_primary '[' value_exp ']'
     {
        $$ = notation.Confirm(new Symbol(Tag.Dref), Descriptor.At, $1, $3);
-    }
+    } 
     | column_ref_primary double_slash id 
     {
        $$ = notation.Confirm(new Symbol(Tag.Dref), Descriptor.Wref, $1, new Literal((String)$3));    
@@ -1727,10 +1740,11 @@ column_ref_primary
     ;
     
 qualified_name 
-    : id    
-    {
-      $$ = new Qname($1);
-    }
+    : column_name 
+	| id '.' id
+	{
+	   $$ = new Qname(new String[] { (string)$1, (string)$3 });
+	}
 	;        
                     
 unsigned_lit
@@ -1750,6 +1764,10 @@ unsigned_lit
     {
       $$ = new Literal($1);
     }
+	| DATE string_literal
+	{
+	  $$ = new DateTimeValue(DateTime.Parse((string)$2)); 
+	}
     ;	    
 
 /* SQX Extension */    
@@ -2032,7 +2050,7 @@ namespace_decl_item
 regular_decl_item
       : string_literal opt_AS column_name
       {
-         $$ = notation.Confirm(new Symbol(Tag.SQLX), 
+         $$ = notation.Confirm(new Symbol(Tag.SQLX),  
             Descriptor.DeclNamespace, new Literal($1), $3);  
       }
       ;

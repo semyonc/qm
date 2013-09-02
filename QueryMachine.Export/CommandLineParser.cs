@@ -15,11 +15,13 @@ namespace DataEngine.Export
     public enum ExportTarget
     {
         Xml,
+        Json,
         AdoNet,
         Csv,
         TabDelimited,
         FixedLength,
         Xls,
+        ZJson,
         AdoProvider
     }
 
@@ -51,6 +53,10 @@ namespace DataEngine.Export
                     Target = ExportTarget.TabDelimited;
                 else if (key.Equals("-db"))
                     Target = ExportTarget.AdoProvider;
+                else if (key.Equals("-json"))
+                    Target = ExportTarget.Json;
+                else if (key.Equals("-zjson"))
+                    Target = ExportTarget.ZJson;
                 else
                     return false;
             }

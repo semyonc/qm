@@ -1327,21 +1327,21 @@ namespace DataEngine.XQuery
 
         #region build-in
 
-        internal static XQuerySequenceType Void = new XQuerySequenceType(XmlTypeCode.None);
-        internal static XQuerySequenceType Item = new XQuerySequenceType(XmlTypeCode.Item);
-        internal static XQuerySequenceType ItemS = new XQuerySequenceType(XmlTypeCode.Item, XmlTypeCardinality.ZeroOrMore);
-        internal static XQuerySequenceType Node = new XQuerySequenceType(XmlTypeCode.Node);
-        internal static XQuerySequenceType ProcessingInstruction = new XQuerySequenceType(XmlTypeCode.ProcessingInstruction);
-        internal static XQuerySequenceType Text = new XQuerySequenceType(XmlTypeCode.Text);
-        internal static XQuerySequenceType Comment = new XQuerySequenceType(XmlTypeCode.Comment);
-        internal static XQuerySequenceType Element = new XQuerySequenceType(XmlTypeCode.Element);
-        internal static XQuerySequenceType Attribute = new XQuerySequenceType(XmlTypeCode.Attribute);
-        internal static XQuerySequenceType Document = new XQuerySequenceType(XmlTypeCode.Document);
+        public static XQuerySequenceType Void = new XQuerySequenceType(XmlTypeCode.None);
+        public static XQuerySequenceType Item = new XQuerySequenceType(XmlTypeCode.Item);
+        public static XQuerySequenceType ItemS = new XQuerySequenceType(XmlTypeCode.Item, XmlTypeCardinality.ZeroOrMore);
+        public static XQuerySequenceType Node = new XQuerySequenceType(XmlTypeCode.Node);
+        public static XQuerySequenceType ProcessingInstruction = new XQuerySequenceType(XmlTypeCode.ProcessingInstruction);
+        public static XQuerySequenceType Text = new XQuerySequenceType(XmlTypeCode.Text);
+        public static XQuerySequenceType Comment = new XQuerySequenceType(XmlTypeCode.Comment);
+        public static XQuerySequenceType Element = new XQuerySequenceType(XmlTypeCode.Element);
+        public static XQuerySequenceType Attribute = new XQuerySequenceType(XmlTypeCode.Attribute);
+        public static XQuerySequenceType Document = new XQuerySequenceType(XmlTypeCode.Document);
 
-        internal static XQuerySequenceType Boolean = new XQuerySequenceType(XmlTypeCode.Boolean);
-        internal static XQuerySequenceType AnyAtomicType = new XQuerySequenceType(XmlTypeCode.AnyAtomicType);
-        internal static XQuerySequenceType AnyAtomicTypeO = new XQuerySequenceType(XmlTypeCode.AnyAtomicType, XmlTypeCardinality.ZeroOrOne);
-        internal static XQuerySequenceType Double = new XQuerySequenceType(XmlTypeCode.Double);
+        public static XQuerySequenceType Boolean = new XQuerySequenceType(XmlTypeCode.Boolean);
+        public static XQuerySequenceType AnyAtomicType = new XQuerySequenceType(XmlTypeCode.AnyAtomicType);
+        public static XQuerySequenceType AnyAtomicTypeO = new XQuerySequenceType(XmlTypeCode.AnyAtomicType, XmlTypeCardinality.ZeroOrOne);
+        public static XQuerySequenceType Double = new XQuerySequenceType(XmlTypeCode.Double);
 
         #endregion
 

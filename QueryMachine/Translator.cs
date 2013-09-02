@@ -417,7 +417,7 @@ namespace DataEngine
             }
             if (sym is Qname)
             {
-                QueryNode accessor;
+                QueryNode accessor = null;
                 Qname qname = (Qname)sym;
                 if (alias == null)
                     alias = qname.Name;
@@ -428,37 +428,45 @@ namespace DataEngine
                     Literal lit = (Literal)recs[0].Arg0;
                     prefix = lit.Data;
                 }                    
-                TableType tableType = dictionary.GetTableType(prefix, Util.UnquoteName(qname.ToArray()));     
+                TableType tableType = dictionary.GetTableType(prefix, Util.UnquoteName(qname.ToArray()), null);     
                 switch (tableType.DataSource.TableAccessor)
                 {
-                    case AcessorType.DataProvider:
-                        {                            
-                            accessor = new DataProviderTableAccessor(tableType);
+                    case AccessorType.DataProvider:
+                    case AccessorType.MongoDb:
+                        {                     
+                            switch (tableType.DataSource.TableAccessor)
+                            {
+                                case AccessorType.DataProvider:
+                                    accessor = new DataProviderTableAccessor(tableType);
+                                    break;
+                                case AccessorType.MongoDb:
+                                    accessor = new MongoDBAccessor(tableType);
+                                    break;
+                            }
                             if (tableType.Smart)
                             {
                                 recs = notation.Select(sym, Descriptor.HintFilter, 1);
                                 if (recs.Length > 0)
-                                    ((DataProviderTableAccessor)accessor).FilterPredicate =
+                                    ((SmartTableAccessor)accessor).FilterPredicate =
                                         ProcessSearchCondition(notation, recs[0].Arg0);
                                 recs = notation.Select(sym, Descriptor.HintSort, 1);
                                 if (recs.Length > 0)
                                 {
                                     string[] columns = Lisp.ToArray<String>(recs[0].args[0]);
-                                    DataProviderTableAccessor.SortColumn[] sortColumns =
-                                        new DataProviderTableAccessor.SortColumn[columns.Length];
+                                    SortColumn[] sortColumns = new SortColumn[columns.Length];
                                     for (int k = 0; k < columns.Length; k++)
                                     {
-                                        sortColumns[k] = new DataProviderTableAccessor.SortColumn();
+                                        sortColumns[k] = new SortColumn();
                                         sortColumns[k].ColumnName = columns[k];
                                     }
-                                    ((DataProviderTableAccessor)accessor).SortColumns = sortColumns;
+                                    ((SmartTableAccessor)accessor).SortColumns = sortColumns;
                                     internal_sort = true;
                                 }
                             }
                         }
                         break;
 
-                    case AcessorType.XMLFile:
+                    case AccessorType.XMLFile:
                         {
                             FlatFileAccessor fileAccessor = new FlatFileAccessor(tableType.TableName);
                             accessor = new XmlDataAccessor();
@@ -466,7 +474,7 @@ namespace DataEngine
                         }
                         break;
 
-                    case AcessorType.FlatFile:
+                    case AccessorType.FlatFile:
                         {
                             FlatFileAccessor fileAccessor = new FlatFileAccessor(tableType.TableName);
                             accessor = new TextDataAccessor();
@@ -474,24 +482,35 @@ namespace DataEngine
                         }
                         break;
 
-                    case AcessorType.XlFile:
+                    case AccessorType.Json:
+                    case AccessorType.ZipJson:
+                        {
+                            FlatFileAccessor fileAccessor = new FlatFileAccessor(tableType.TableName);
+                            if (tableType.DataSource.TableAccessor == AccessorType.ZipJson)
+                                fileAccessor.Compressed = true;
+                            accessor = new JsonDataAccessor();
+                            accessor.ChildNodes.Add(fileAccessor);
+                        }
+                        break;
+
+                    case AccessorType.XlFile:
                         accessor = new XLDataAccessor(dictionary, tableType.QualifiedName, false);
                         break;
 
-                    case AcessorType.XlFileTable:
+                    case AccessorType.XlFileTable:
                         accessor = new XLDataAccessor(dictionary, tableType.QualifiedName, true);
                         break;
 
-                    case AcessorType.CustomAccessor:
+                    case AccessorType.CustomAccessor:
                         accessor = tableType.DataSource.DataAccessorFactory.CreateAccessor(tableType);
                         break;
 
-                    case AcessorType.DataSet:
+                    case AccessorType.DataSet:
                         DataSet ds = (DataSet)tableType.DataSource.DataContext;
                         accessor = new AdoTableAccessor(ds.Tables[tableType.TableName]);
                         break;
 
-                    case AcessorType.DataTable:
+                    case AccessorType.DataTable:
                         if (tableType.DataSource.DataContext != null)
                             accessor = new AdoTableAccessor((DataTable)tableType.DataSource.DataContext);
                         else
@@ -506,7 +525,7 @@ namespace DataEngine
             }
             else
             {
-                recs = notation.Select(sym, Descriptor.Dynatable, 1);
+                recs = notation.Select(sym, new Descriptor[] { Descriptor.Dynatable, Descriptor.Tuple },  1);
                 if (recs.Length > 0)
                 {
                     if (alias == null)
@@ -515,8 +534,15 @@ namespace DataEngine
                         writer.WriteValueExp(recs[0].Arg0);
                         alias = writer.ToString();
                     }
-                    collector = new DynatableAccessor(alias, Lisp.List(ID.Dyncast, 
-                        ProcessValueExpr(notation, recs[0].Arg0)), dictionary);
+                    if (recs[0].descriptor == Descriptor.Tuple)
+                    {
+                        collector = new DynatableAccessor(alias, Lisp.List(ID.TVal, alias, Lisp.List(ID.Dyncast,
+                            ProcessValueExpr(notation, recs[0].Arg0))), dictionary);
+                        ((DynatableAccessor)collector).Strong = true;
+                    }
+                    else
+                        collector = new DynatableAccessor(alias, Lisp.List(ID.Dyncast,
+                            ProcessValueExpr(notation, recs[0].Arg0)), dictionary);
                 }
                 else
                 {
@@ -1684,9 +1710,9 @@ namespace DataEngine
             if (recs.Length > 0)
             {
                 dsi = dictionary.GetDataSource((string)recs[0].args[0]);
-                if (dsi.TableAccessor == AcessorType.DataProvider)
+                if (dsi.TableAccessor == AccessorType.DataProvider)
                 {
-                    DataProviderHelper helper = new DataProviderHelper(dsi.ProviderInvariantName, dsi.ConnectionString);
+                    DataProviderHelper helper = new DataProviderHelper(dsi);
                     if (helper.Smart)
                         return true;
                 }
@@ -1726,8 +1752,7 @@ namespace DataEngine
                             return true;
                 }
             return false;
-        }
-
+        }        
         
         #region Analyzers
 

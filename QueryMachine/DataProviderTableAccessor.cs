@@ -1,22 +1,11 @@
-﻿/*    
-    SQLXEngine - Implementation of ANSI-SQL specification and 
-       SQL-engine for executing the SELECT SQL command across the different data sources.
-    Copyright (C) 2008-2009  Semyon A. Chertkov (semyonc@gmail.com)
+﻿//        Copyright (c) 2008-2012, Semyon A. Chertkov (semyonc@gmail.com)
+//        All rights reserved.
+//
+//        This program is free software: you can redistribute it and/or modify
+//        it under the terms of the GNU General Public License as published by
+//        the Free Software Foundation, either version 3 of the License, or
+//        any later version.
 
-    This library is free software; you can redistribute it and/or
-    modify it under the terms of the GNU Lesser General Public
-    License as published by the Free Software Foundation; either
-    version 2.1 of the License, or (at your option) any later version.
-
-    This library is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-    Lesser General Public License for more details.
-
-    You should have received a copy of the GNU Lesser General Public
-    License along with this library; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,34 +22,14 @@ namespace DataEngine
     /// <summary>
     /// Implement universal table accessor for .NET data provider
     /// </summary>
-    public class DataProviderTableAccessor: DataProviderAccessor
-    {
-        public class SortColumn
-        {
-            public String ColumnName { get; set; }
-            public SortDirection Direction { get; set; }
-
-            public SortColumn()
-            {
-            }
-
-            public SortColumn(string columnName)
-            {
-                ColumnName = columnName;
-            }
-
-            public SortColumn(string columnName, SortDirection direction)
-            {
-                ColumnName = columnName;
-                Direction = direction;
-            }
-        }
-
+    public class DataProviderTableAccessor: DataProviderAccessor, SmartTableAccessor
+    {        
         public TableType TableType { get; private set; }
 
         public SortColumn[] SortColumns { get; set; }
        
         public String[] AccessPredicate { get; set; }
+
         public Object[][] AccessPredicateValues { get; set; }
 
         public DataProviderTableAccessor(TableType tableType)
@@ -68,6 +37,7 @@ namespace DataEngine
         {
             TableType = tableType;
             _providerInvariantName = TableType.DataSource.ProviderInvariantName;
+            _x86Connection = TableType.DataSource.X86Connection;
             _connectionString = TableType.DataSource.ConnectionString;
         }
 
@@ -105,7 +75,7 @@ namespace DataEngine
 
         protected override void PrepareCommand(RowType.TypeInfo[] fields, DbCommand command, Object[] parameters)
         {            
-            DataProviderHelper helper = new DataProviderHelper(_providerInvariantName, _connectionString);
+            DataProviderHelper helper = new DataProviderHelper(_providerInvariantName, _connectionString, _x86Connection);
             Binder binder = new Binder(fields);
             StringBuilder sb = new StringBuilder();
             sb.Append("SELECT ");
@@ -187,6 +157,8 @@ namespace DataEngine
                 case TypeCode.DateTime:
                     return helper.FormatDateTime((DateTime)value);                    
 
+                case TypeCode.Int32:
+                case TypeCode.Int64:
                 case TypeCode.Single:
                 case TypeCode.Double:
                 case TypeCode.Decimal:
@@ -268,9 +240,10 @@ namespace DataEngine
                             WriteExpr(binder, helper, args[0], parameters, command),
                             WriteExpr(binder, helper, args[1], parameters, command));
                     else if (head.Equals(ID.Between))
-                        return String.Format(" BETWEEN {0} AND {1}",
+                        return String.Format(" {0} BETWEEN {1} AND {2}",
                             WriteExpr(binder, helper, args[0], parameters, command),
-                            WriteExpr(binder, helper, args[1], parameters, command));
+                            WriteExpr(binder, helper, args[1], parameters, command),
+                            WriteExpr(binder, helper, args[2], parameters, command));
                     else if (head.Equals(Funcs.Not))
                         return String.Format(" NOT {0}", WriteExpr(binder, helper, args[0], parameters, command));
                     else if (head.Equals(ID.IsNull))
@@ -356,49 +329,11 @@ namespace DataEngine
             {
                 _filterPredicate = value;
                 List<int> bindings = new List<int>();
-                GetParameterBindings(value, bindings);
+                Binder.GetParameterBindings(value, bindings);
                 if (bindings.Count == 0)
                     _parameterBindings = null;
                 else
                     _parameterBindings = bindings.ToArray();
-            }
-        }
-
-        private void GetParameterBindings(object lval, List<int> bindings)
-        {
-            if (!Lisp.IsNode(lval))
-            {
-                object head = Lisp.Car(lval);
-                if (Lisp.IsCons(head))
-                    foreach (object o in Lisp.getIterator(lval))
-                        GetParameterBindings(o, bindings);
-                else
-                {
-                    object[] args = Lisp.ToArray(Lisp.Cdr(lval));
-                    if (head.Equals(ID.ParamRef))
-                        bindings.Add((int)args[0] -1);
-                    else if (head.Equals(ID.Like1))
-                    {
-                        GetParameterBindings(args[0], bindings);
-                        GetParameterBindings(args[1], bindings);
-                        if (args.Length > 2)
-                            GetParameterBindings(args[2], bindings);
-                    }
-                    else if (head.Equals(ID.Member) || head.Equals(ID.Between) || head.Equals(Funcs.Div) ||
-                        head.Equals(Funcs.And) || head.Equals(Funcs.Or) || head.Equals(ID.LT) ||
-                        head.Equals(ID.GT) || head.Equals(ID.EQ) || head.Equals(ID.NE) ||
-                        head.Equals(ID.LE) || head.Equals(ID.GE) || head.Equals(ID.Concat) ||
-                        head.Equals(Funcs.Add) || head.Equals(Funcs.Sub) || head.Equals(Funcs.Mul))
-                    {
-                        GetParameterBindings(args[0], bindings);
-                        GetParameterBindings(args[1], bindings);
-                    }
-                    else if (head.Equals(Funcs.List))
-                        foreach (object arg in args)
-                            GetParameterBindings(args[0], bindings);
-                    else
-                        throw new UnproperlyFormatedExpr(Lisp.Format(lval));
-                }
             }
         }
 
@@ -417,5 +352,24 @@ namespace DataEngine
             w.WriteLine();
         }
 #endif
+        
+        public int GetTableEstimate(int threshold)
+        {
+            DataProviderHelper helper = new DataProviderHelper(TableType);
+            DbConnection connection = DataProviderHelper.CreateDbConnection(TableType.DataSource.ProviderInvariantName, 
+                TableType.DataSource.X86Connection);
+            connection.ConnectionString = TableType.DataSource.ConnectionString;
+            connection.Open();
+            try
+            {
+                DbCommand command = connection.CreateCommand();
+                command.CommandText = helper.GetEstimateRowCountQuery(TableType.ToString(helper), threshold);
+                return Convert.ToInt32(command.ExecuteScalar());
+            }
+            finally
+            {
+                connection.Close();
+            }
+        }
     }
 }

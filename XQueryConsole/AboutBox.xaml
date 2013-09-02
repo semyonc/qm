@@ -25,9 +25,9 @@
                     <Bold>QueryMachine.XQuery</Bold>
                     <Run Text="{x:Static w:AboutBox.VersionXQuery}"></Run>
                     <LineBreak/>
-                    Copyright © Semyon A. Chertkov, 2008-2012.
+                    Copyright © Semyon A. Chertkov, 2008-2013.
                     <LineBreak/>
-                    <Hyperlink NavigateUri="http://www.wmhelp.com" Click="Hyperlink_Click">http://www.wmhelp.com</Hyperlink>
+                    <Hyperlink NavigateUri="http://qm.codeplex.com" Click="Hyperlink_Click">http://qm.codeplex.com</Hyperlink>
                     <LineBreak/>
                     <Hyperlink NavigateUri="mailto:semyonc@gmail.com" Click="Hyperlink_Click">mailto:semyonc@gmail.com</Hyperlink>
                 </Paragraph>

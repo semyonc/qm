@@ -86,6 +86,23 @@
 				</node>
 			</SchemaBrowser>
 		</add>
+    <add invariant="System.Data.SQLite">
+      <providerHelper>
+        <qualifer>.</qualifer>
+        <stringSeparator>'</stringSeparator>
+        <leftQuote>[</leftQuote>
+        <rightQuote>]</rightQuote>
+        <parameterMarkerFormat>@{0}</parameterMarkerFormat>
+        <dateFormat>datetime('{0}')</dateFormat>
+        <rowCountQuery>select count(*) from {1} limit {0}</rowCountQuery>
+        <ignoreSchema>1</ignoreSchema>
+      </providerHelper>
+      <SchemaBrowser>
+        <node collection="Tables" caption="{TABLE_NAME}">
+          <target name="{TABLE_NAME}"/>
+        </node>
+      </SchemaBrowser>
+    </add>
 	</providers>
 </configuration>
 

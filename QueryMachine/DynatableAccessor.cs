@@ -58,25 +58,41 @@ namespace DataEngine
                     ATOM a = (ATOM)atom;
                     if (a.prefix != null)
                     {
-                        TableType tableType = _owner._dictionary.GetTableType(a.prefix, Util.UnquoteName(a.parts));
+                        TableType tableType = _owner._dictionary.GetTableType(a.prefix, Util.UnquoteName(a.parts), null);
                         switch (tableType.DataSource.TableAccessor)
                         {
-                            case AcessorType.DataProvider:
+                            case AccessorType.DataProvider:
                                 result = new SymbolLink(new DataProviderTableAccessor(tableType), _pool);
                                 break;
 
-                            case AcessorType.XMLFile:
+                            case AccessorType.MongoDb:
+                                result = new SymbolLink(new MongoDBAccessor(tableType), _pool);
+                                break;
+
+                            case AccessorType.XMLFile:
                                 result = new SymbolLink(XmlDataAccessor.OpenFile(_owner, _queryContext, tableType.TableName), _pool);
                                 break;
 
-                            case AcessorType.DataSet:
+                            case AccessorType.FlatFile:
+                                result = new SymbolLink(TextDataAccessor.OpenFile(_owner, _queryContext, tableType.TableName), _pool);
+                                break;
+
+                            case AccessorType.Json:
+                                result = new SymbolLink(JsonDataAccessor.OpenFile(_owner, _queryContext, tableType.TableName, false), _pool);
+                                break;
+
+                            case AccessorType.ZipJson:
+                                result = new SymbolLink(JsonDataAccessor.OpenFile(_owner, _queryContext, tableType.TableName, true), _pool);
+                                break;
+
+                            case AccessorType.DataSet:
                                 {
                                     DataSet ds = (DataSet)tableType.DataSource.DataContext;
                                     result = new SymbolLink(new AdoTableAccessor(ds.Tables[tableType.TableName]), _pool);
                                 }
                                 break;
 
-                            case AcessorType.DataTable:
+                            case AccessorType.DataTable:
                                 if (tableType.DataSource.DataContext != null)
                                     result = new SymbolLink(new AdoTableAccessor((DataTable)tableType.DataSource.DataContext), _pool);
                                 else
@@ -112,7 +128,7 @@ namespace DataEngine
 
             public DynatableContext(DynatableAccessor owner, Resultset source, Row current,
                 Object accessPredicate, QueryContext queryContext, Object[] parameters) 
-                : base(owner, source, queryContext, parameters)
+                : base(owner, new Resultset[] { null }, queryContext, parameters)
             {
                 List<ColumnBinding> bindings = new List<ColumnBinding>();
                 List<object> names = new List<object>();
@@ -163,7 +179,7 @@ namespace DataEngine
                 if (_rs == null)
                     return false;
 
-                if (Node.CopyContext)
+                if (Node.CopyContext || _rs.Persistent)
                 {
                     if (!_init)
                     {
@@ -197,7 +213,10 @@ namespace DataEngine
         }
 
         public String Name { get { return _name; } }
+        
         public bool CopyContext { get; set; }
+
+        public bool Strong { get; set; }
 
         public DynatableAccessor(String name, object accessPredicate, DatabaseDictionary dictionary)
         {

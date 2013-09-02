@@ -19,11 +19,11 @@ using System.Diagnostics;
 using System.ComponentModel.Composition;
 using System.ComponentModel.Composition.Hosting;
 using Microsoft.Win32;
+using System.Reflection;
 
 using DataEngine.CoreServices;
 using DataEngine.XQuery;
-using System.Reflection;
-
+using Data.Remote;
 
 
 namespace XQueryConsole
@@ -37,6 +37,8 @@ namespace XQueryConsole
 
         public App()
         {
+            AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
+
             HighlightingManager.Instance.RegisterHighlighting("XQuery", new string[] { ".xq" }, 
                 GetHighlightingDefinition("XQueryConsole.XQuery.xshd"));
             HighlightingManager.Instance.RegisterHighlighting("SQLX", new string[] { ".xsql" }, 
@@ -82,6 +84,27 @@ namespace XQueryConsole
             _compositionContainer.ComposeParts(this);
         }
 
+        Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
+        {
+            if (args.Name == "System.Data.SQLite")
+            {
+                string location = Assembly.GetExecutingAssembly().Location;
+                if (RemoteDbProviderFactories.Isx64())
+                {
+                    string fileName = Path.Combine(Path.GetDirectoryName(location), "lib", "x64", "System.Data.SQLite.dll");
+                    if (File.Exists(fileName))
+                        return Assembly.LoadFile(fileName);
+                }
+                else
+                {
+                    string fileName = Path.Combine(Path.GetDirectoryName(location), "lib", "win32", "System.Data.SQLite.dll");
+                    if (File.Exists(fileName))
+                        return Assembly.LoadFile(fileName);
+                }
+            }
+            return null;
+        }
+
         private IHighlightingDefinition GetHighlightingDefinition(string resourceName)
         {
             // Load our custom highlighting definition
@@ -97,7 +120,7 @@ namespace XQueryConsole
                 }
             }
             return customHighlighting;
-        }
+        }   
 
         [ImportMany]
         public IEnumerable<IServiceExtension> Addins { get; set; }

@@ -292,4 +292,7 @@
   <data name="AccessorPrefixAlreadyRegistered" xml:space="preserve">
     <value>Accessor prefix {0} is already registered</value>
   </data>
+  <data name="EmptyKeySetForNaturalJoin" xml:space="preserve">
+    <value>Error executing natural join: join recordset has an empty key set, no matching column names found</value>
+  </data>
 </root>

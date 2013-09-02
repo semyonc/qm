@@ -40,6 +40,7 @@ namespace DataEngine.CoreServices
         public static readonly object Cast = ATOM.Create("cast");
         public static readonly object If = ATOM.Create("if");
         public static readonly object LambdaQuote = ATOM.Create("lambda-qoute");
+        public static readonly object ForEach = ATOM.Create("for-each");
 
         public static readonly object Let1 = ATOM.Create("let");
         public static readonly object Let2 = ATOM.Create("let*");

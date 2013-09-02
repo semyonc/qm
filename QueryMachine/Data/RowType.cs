@@ -25,6 +25,7 @@ using System.Data;
 
 namespace DataEngine.CoreServices.Data
 {   
+    [Serializable]
     public class RowType
     {
         protected class ValueConverter
@@ -83,6 +84,7 @@ namespace DataEngine.CoreServices.Data
             }
         }
 
+        [Serializable]
         public class TypeInfo
         {
             public readonly int Ordinal;
@@ -113,6 +115,7 @@ namespace DataEngine.CoreServices.Data
             public readonly bool IsContainer;
             public readonly bool IsCaseSensitive;
             public readonly Object Tag;
+            public readonly bool IsRowID;
             public bool ExportAsPk;
             public bool ExportAsUnique;
             public String ExportDataType;
@@ -148,6 +151,7 @@ namespace DataEngine.CoreServices.Data
                 IsContainer = false;
                 IsCaseSensitive = false;
                 Tag = null;
+                IsRowID = false;
             }
 
             public TypeInfo(int ordinal, String name, TypeInfo src)
@@ -181,6 +185,7 @@ namespace DataEngine.CoreServices.Data
                 IsContainer = src.IsContainer;
                 IsCaseSensitive = src.IsCaseSensitive;
                 Tag = src.Tag;
+                IsRowID = src.IsRowID;
             }
 
             public TypeInfo(int ordinal, TypeInfo src1, TypeInfo src2)
@@ -261,6 +266,7 @@ namespace DataEngine.CoreServices.Data
                     Tag = src1.Tag;
                 else
                     Tag = null;
+                IsRowID = src1.IsRowID && src2.IsRowID;
             }
             
             public TypeInfo(TypeInfo src)
@@ -310,11 +316,12 @@ namespace DataEngine.CoreServices.Data
                 IsCaseSensitive = convert.ToNullable<Boolean>(r, "IsCaseSensitive") ?? false;
 
                 Tag = convert.ToObject(r, "Tag");
+                IsRowID = convert.ToNullable<Boolean>(r, "IsRowID") ?? false;
             }
         }
 
-        private TypeInfo[] _fields;
-        private bool _hasNestedRows;
+        private TypeInfo[] _fields;       
+        private bool _hasNestedRows;        
 
         public struct Locator
         {
@@ -371,7 +378,7 @@ namespace DataEngine.CoreServices.Data
             r["DataType"] = typeof(System.String);
             r["IsContainer"] = true;
             dt.Rows.Add(r);
-            return new RowType(dt);
+            return new RowType(dt) { IsContainerType = true };
         }
 
         public static DataTable CreateSchemaTable()
@@ -405,6 +412,7 @@ namespace DataEngine.CoreServices.Data
             dt.Columns.Add("ProviderColumnName", typeof(String));
             dt.Columns.Add("IsContainer", typeof(Boolean));
             dt.Columns.Add("IsCaseSensitive", typeof(Boolean));
+            dt.Columns.Add("IsRowID", typeof(Boolean));
             return dt;
         }
 
@@ -443,6 +451,7 @@ namespace DataEngine.CoreServices.Data
                 r["ProviderColumnName"] = convert.ToDBNullable(ti.ProviderColumnName);
                 r["IsContainer"] = ti.IsContainer;
                 r["IsCaseSensitive"] = ti.IsCaseSensitive;
+                r["IsRowID"] = ti.IsRowID;
                 dt.Rows.Add(r);
             }
 
@@ -488,5 +497,8 @@ namespace DataEngine.CoreServices.Data
                 return _hasNestedRows;
             }
         }
+
+        public bool IsContainerType { get; private set; }
+
     }
 }

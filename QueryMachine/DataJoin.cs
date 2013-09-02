@@ -132,19 +132,22 @@ namespace DataEngine
                 List<Key> keys = new List<Key>();
                 foreach (ColumnBinding b1 in binder1.Bindings)
                 {
-                    ColumnBinding b2 = binder2.Get(b1.Name);
-                    if (b2 != null)
+                    if (!b1.fieldType.IsRowID)
                     {
-                        Key key = new Key();
-                        RowType.Locator loc1 = binder1.GetLocator(b1.Name);
-                        RowType.Locator loc2 = binder2.GetLocator(b2.Name);
-                        key.r1 = loc1.master;
-                        key.c1 = loc1.detail.Value;
-                        key.r2 = loc2.master;
-                        key.c2 = loc2.detail.Value;
-                        key.name1 = b1.Name;
-                        key.name2 = b2.Name;
-                        keys.Add(key);
+                        ColumnBinding b2 = binder2.Get(b1.Name, false);
+                        if (b2 != null && !b2.fieldType.IsRowID)
+                        {
+                            Key key = new Key();
+                            RowType.Locator loc1 = binder1.GetLocator(b1.Name);
+                            RowType.Locator loc2 = binder2.GetLocator(b2.Name);
+                            key.r1 = loc1.master;
+                            key.c1 = loc1.detail.Value;
+                            key.r2 = loc2.master;
+                            key.c2 = loc2.detail.Value;
+                            key.name1 = b1.Name;
+                            key.name2 = b2.Name;
+                            keys.Add(key);
+                        }
                     }
                 }
                 return keys.ToArray();
@@ -250,6 +253,8 @@ namespace DataEngine
                 keys = _resolver.GetJoinKeys(binder1, binder2, _joinSpec);
                 if (_resolver.IsNatural)
                 {
+                    if (keys.Length == 0)
+                        throw new ESQLException(Properties.Resources.EmptyKeySetForNaturalJoin);
                     RowType.TypeInfo[] fields = new RowType.TypeInfo[keys.Length];
                     for (int k = 0; k < keys.Length; k++)
                     {
@@ -364,8 +369,8 @@ namespace DataEngine
         private bool IsSmartTableAccessor(QueryNode node)
         {
             return (node is DataCollector) &&
-               (node.ChildNodes[0] is DataProviderTableAccessor) &&
-                 ((DataProviderTableAccessor)node.ChildNodes[0]).TableType.Smart;
+               (node.ChildNodes[0] is SmartTableAccessor) &&
+                 ((SmartTableAccessor)node.ChildNodes[0]).TableType.Smart;
         }
 
         private const int Threshold1 = 10000;
@@ -402,9 +407,9 @@ namespace DataEngine
                             C1 = Threshold3;
                         else
                         {
-                            DataProviderTableAccessor node1 = (DataProviderTableAccessor)(ChildNodes[0].ChildNodes[0]);
+                            SmartTableAccessor node1 = (SmartTableAccessor)(ChildNodes[0].ChildNodes[0]);
                             int threshold = threshold1;
-                            int C = queryContext.GetTableEstimate(node1.TableType, threshold1 = NextThreshold(threshold1));
+                            int C = queryContext.GetTableEstimate(node1, threshold1 = NextThreshold(threshold1));
                             if (C != threshold1 || (C2 != 0 && C2 < threshold))
                                 C1 = C;
                         }
@@ -423,9 +428,9 @@ namespace DataEngine
                             C2 = Threshold3;
                         else
                         {
-                            DataProviderTableAccessor node2 = (DataProviderTableAccessor)(ChildNodes[1].ChildNodes[0]);
+                            SmartTableAccessor node2 = (SmartTableAccessor)(ChildNodes[1].ChildNodes[0]);
                             int threshold = threshold2;
-                            int C = queryContext.GetTableEstimate(node2.TableType, threshold2 = NextThreshold(threshold2));
+                            int C = queryContext.GetTableEstimate(node2, threshold2 = NextThreshold(threshold2));
                             if (C != threshold2 || (C1 != 0 && C1 < threshold))
                                 C2 = C;
                         }
@@ -456,11 +461,11 @@ namespace DataEngine
             {
                 if (IsSmartTableAccessor(ChildNodes[0]))
                 {
-                    DataProviderTableAccessor node1 = (DataProviderTableAccessor)(ChildNodes[0].ChildNodes[0]);
-                    node1.SortColumns = new DataProviderTableAccessor.SortColumn[keys.Length];
+                    SmartTableAccessor node1 = (SmartTableAccessor)(ChildNodes[0].ChildNodes[0]);
+                    node1.SortColumns = new SortColumn[keys.Length];
                     for (int k = 0; k < keys.Length; k++)
                     {
-                        node1.SortColumns[k] = new DataProviderTableAccessor.SortColumn();
+                        node1.SortColumns[k] = new SortColumn();
                         node1.SortColumns[k].ColumnName = rs1.RowType.Fields[keys[k].r1].NestedType.Fields[keys[k].c1].BaseColumnName;
                     }                                
                 }
@@ -477,11 +482,11 @@ namespace DataEngine
                 }
                 if (IsSmartTableAccessor(ChildNodes[1]))
                 {
-                    DataProviderTableAccessor node2 = (DataProviderTableAccessor)(ChildNodes[1].ChildNodes[0]);
-                    node2.SortColumns = new DataProviderTableAccessor.SortColumn[keys.Length];
+                    SmartTableAccessor node2 = (SmartTableAccessor)(ChildNodes[1].ChildNodes[0]);
+                    node2.SortColumns = new SortColumn[keys.Length];
                     for (int k = 0; k < keys.Length; k++)
                     {
-                        node2.SortColumns[k] = new DataProviderTableAccessor.SortColumn();
+                        node2.SortColumns[k] = new SortColumn();
                         node2.SortColumns[k].ColumnName = rs2.RowType.Fields[keys[k].r2].NestedType.Fields[keys[k].c2].BaseColumnName;
                     }
                 }

@@ -124,6 +124,7 @@ Added SQLX extensions support
         <Key word="SETUSER" />
         <Key word="SOME" />
         <Key word="TABLE" />
+        <Key word="ROW" />
         <Key word="THEN" />
         <Key word="TO" />
         <Key word="TRIGGER" />

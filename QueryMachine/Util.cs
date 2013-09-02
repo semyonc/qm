@@ -256,6 +256,6 @@ namespace DataEngine.CoreServices
                         return typecode;
                 }
             }
-        }
+        }        
     }
 }

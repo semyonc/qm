@@ -118,6 +118,7 @@ namespace DataEngine
             DatabaseDictionary = dictionary;
             LdapSearchLimit = 0;
             CacheEnabled = true;
+            LimitInputQuery = -1;
         }
 
         public DatabaseDictionary DatabaseDictionary { get; private set; }
@@ -161,34 +162,21 @@ namespace DataEngine
             }
         }
 
-        public int GetTableEstimate(TableType tableType, int threshold)
+        public int GetTableEstimate(SmartTableAccessor smartAccesstor, int threshold)
         {
             TableEstimate tableEstimate;
             lock (estimate)
-                if (!estimate.TryGetValue(tableType, out tableEstimate))
+                if (!estimate.TryGetValue(smartAccesstor.TableType, out tableEstimate))
                 {
                     tableEstimate = new TableEstimate();
-                    estimate.Add(tableType, tableEstimate);
+                    estimate.Add(smartAccesstor.TableType, tableEstimate);
                 }
             lock (tableEstimate)
             {
                 if (tableEstimate.count == tableEstimate.threshold || tableEstimate.threshold < threshold)
                 {
-                    DataProviderHelper helper = new DataProviderHelper(tableType);
-                    DbConnection connection = DataProviderHelper.CreateDbConnection(tableType.DataSource.ProviderInvariantName);
-                    connection.ConnectionString = tableType.DataSource.ConnectionString;
-                    connection.Open();
-                    try
-                    {
-                        DbCommand command = connection.CreateCommand();
-                        command.CommandText = helper.GetEstimateRowCountQuery(tableType.ToString(helper), threshold);
-                        tableEstimate.count = Convert.ToInt32(command.ExecuteScalar());
-                        tableEstimate.threshold = threshold;
-                    }
-                    finally
-                    {
-                        connection.Close();
-                    }
+                    tableEstimate.count = smartAccesstor.GetTableEstimate(threshold);
+                    tableEstimate.threshold = threshold;
                 }
                 return tableEstimate.count;
             }
@@ -250,6 +238,10 @@ namespace DataEngine
 #endif
 
         public bool EnableHPC { get; set; }
+
+        public int LimitInputQuery { get; set; }
+
+        public bool DisableLimitInput { get; set; }
 
         public CancellationToken Token
         {

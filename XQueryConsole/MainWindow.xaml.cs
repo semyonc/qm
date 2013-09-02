@@ -61,7 +61,7 @@ namespace XQueryConsole
         public static readonly ICommand CloneQueryCommand =
             new RoutedUICommand("Clone Query", "CloneQuery", typeof(MainWindow));
         public static readonly ICommand ShowResultsCommand =
-            new RoutedUICommand("Show Results Panel", "ShowResults", typeof(MainWindow));        
+            new RoutedUICommand("Show Results Panel", "ShowResults", typeof(MainWindow));
 
 
         public QueryPage SelectedPage
@@ -85,7 +85,7 @@ namespace XQueryConsole
                 return false;
             }
         }
-
+        
         public MainWindow()
         {
             InitializeComponent();
@@ -387,9 +387,37 @@ namespace XQueryConsole
                 SelectedPage.ShowResultPane = !SelectedPage.ShowResultPane;
         }
 
+        private void ContextMenu_Opened(object sender, RoutedEventArgs e)
+        {
+            RefreshConnectionItem.IsEnabled = DatasourceController.CanRefreshConnection();
+            DeleteNodeItem.IsEnabled = DatasourceController.CanRemoveNode();
+            RunMongodItem.IsEnabled = DatasourceController.CanRunMongoDb();
+            GetTableSchema.IsEnabled = DatasourceController.CanGetTableSchema();
+        }
+
+        private void RefreshConnectionItem_Click(object sender, RoutedEventArgs e)
+        {
+            DatasourceController.RefreshConnection();
+        }
+
+        private void DeleteNodeItem_Click(object sender, RoutedEventArgs e)
+        {
+            DatasourceController.RemoveNode();
+        }
+
         private void MenuItem_PreferencesClick(object sender, RoutedEventArgs e)
         {
             PreferencesDialog.ShowDialog(Controller, false);
+        }
+
+        private void MenuItem_ConnectionBuilderClick(object sender, RoutedEventArgs e)
+        {
+            DatasourceController.ManageConnections();
+        }
+
+        private void GetTableSchema_Click(object sender, RoutedEventArgs e)
+        {
+            DatasourceController.CacheTableSchema();
         }
 
         private void HyperlinkSetFolder_Click(object sender, RoutedEventArgs e)
@@ -400,21 +428,6 @@ namespace XQueryConsole
         private void HyperlinkOrganize_Click(object sender, RoutedEventArgs e)
         {
             Extensions.ShellExecute(Controller.MyQueriesPath);
-        }
-
-        private void RefreshConnection_Click(object sender, RoutedEventArgs e)
-        {
-            DatasourceController.RefreshConnection();
-        }
-
-        private void EditConnection_Click(object sender, RoutedEventArgs e)
-        {
-            DatasourceController.EditConnection();
-        }
-
-        private void DeleteConnection_Click(object sender, RoutedEventArgs e)
-        {
-            DatasourceController.RemoveConnection();
         }
 
         private void HelpPrj_Click(object sender, RoutedEventArgs e)
@@ -446,6 +459,16 @@ namespace XQueryConsole
         {
             Extensions.ShellExecute("http://dl.dropbox.com/u/8070414/QueryMachine.pdf");
         }
+
+        private void RunMongodItem_Click(object sender, RoutedEventArgs e)
+        {
+            Extensions.ShellExecute("mongod.exe");
+        }
+
+        private void StartMongo_Click(object sender, RoutedEventArgs e)
+        {
+            Extensions.ShellExecute("mongo.exe");
+        }        
 
         private void HelpAbout_Click(object sender, RoutedEventArgs e)
         {

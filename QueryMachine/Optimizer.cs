@@ -485,6 +485,7 @@ namespace DataEngine
                     case Descriptor.Substring:
                     case Descriptor.XMLAgg:
                     case Descriptor.Dynatable:
+                    case Descriptor.Tuple:
                     case Descriptor.Dref:
                     case Descriptor.Wref:
                     case Descriptor.At:
@@ -578,7 +579,7 @@ namespace DataEngine
         public void Process(Notation notation)
         {
             CompileHints(notation);            
-            GenerateColumnRef(notation);
+            //GenerateColumnRef(notation);
             ExpandExplitTable(notation);
             EvaluteConstant(notation);
             if (EnableServerQuery && Context != null)
@@ -602,9 +603,9 @@ namespace DataEngine
         private bool CheckProvider(string ProviderKey, DatabaseDictionary dictionary)
         {
             DataSourceInfo dsi = dictionary.GetDataSource(ProviderKey);
-            if (dsi != null && dsi.TableAccessor == AcessorType.DataProvider)
+            if (dsi != null && dsi.TableAccessor == AccessorType.DataProvider)
             {
-                DataProviderHelper helper = new DataProviderHelper(dsi.ProviderInvariantName, dsi.ConnectionString);
+                DataProviderHelper helper = new DataProviderHelper(dsi);
                 if (helper.Smart)
                     return true;
             }
@@ -772,6 +773,13 @@ namespace DataEngine
                     TraceFileName = elem.GetAttribute("file");
                 }
 #endif
+                nodeList = xmldoc.SelectNodes("//limit");
+                if (nodeList.Count > 0)
+                {
+                    XmlElement elem = (XmlElement)nodeList.Item(0);
+                    if (elem.HasAttribute("value") && !Context.DisableLimitInput)
+                        Context.LimitInputQuery = Int32.Parse(elem.GetAttribute("value"));
+                }
             }
             notation.Remove(recs);
         }

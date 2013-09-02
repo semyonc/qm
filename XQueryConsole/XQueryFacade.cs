@@ -61,7 +61,7 @@ namespace XQueryConsole
             List<XPathItem> res = new List<XPathItem>();
             while (iter.MoveNext())
             {
-                if (limitResults && res.Count == 1000)
+                if (limitResults && res.Count == 100)
                 {
                     IsTruncated = true;
                     command.Terminate();
@@ -103,7 +103,7 @@ namespace XQueryConsole
             return ex is XQueryException;
         }
 
-        public bool CanExportDS(GridCellGroup rootCell)
+        public bool IsFlatTable(GridCellGroup rootCell)
         {
             return false;
         }

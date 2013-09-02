@@ -34,11 +34,11 @@ namespace DataEngine.Export
 
         public override void Write(Resultset rs)
         {
-            DataProviderHelper helper =
-                new DataProviderHelper(m_batchMove.ProviderInvariantName, m_batchMove.ConnectionString);
+            DataProviderHelper helper = new DataProviderHelper(m_batchMove.ProviderInvariantName, 
+                m_batchMove.ConnectionString, m_batchMove.X86Connection);
 
             if (RemoteDbProviderFactories.Isx64() &&
-                 (DataProviderHelper.HostADOProviders || m_batchMove.ProviderInvariantName == "System.Data.OleDb"))
+                 (m_batchMove.X86Connection || m_batchMove.ProviderInvariantName == "System.Data.OleDb"))
             {
                 ProxyDataAdapter proxy = m_batchMove.CreateProxyDataAdapter();
                 Load(rs, (DataTable dt) => proxy.Update(dt));
@@ -46,7 +46,7 @@ namespace DataEngine.Export
             else
             {
                 DbDataAdapter adapter = m_batchMove.CreateDataAdapter();
-                Load(rs, (DataTable dt) => adapter.Update(dt));
+                Load(rs, (DataTable dt) => adapter.Update(dt)); 
             }
         }
 

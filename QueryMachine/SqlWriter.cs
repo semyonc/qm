@@ -355,10 +355,19 @@ namespace DataEngine
             }
             else
             {
-                Notation.Record[] recs1 = notation.Select(sym, Descriptor.Dynatable, 1);
+                Notation.Record[] recs1 = notation.Select(sym, new Descriptor[] { Descriptor.Dynatable, Descriptor.Tuple },  1);
                 if (recs1.Length > 0)
                 {
-                    WriteText("TABLE ");
+                    switch (recs1[0].descriptor)
+                    {
+                        case Descriptor.Dynatable:
+                            WriteText("TABLE ");
+                            break;
+
+                        case Descriptor.Tuple:
+                            WriteText("TUPLE ");
+                            break;
+                    }                    
                     WriteValueExp(recs1[0].Arg0);
                 }
                 else
@@ -1283,7 +1292,7 @@ namespace DataEngine
             if (recs.Length > 0)
             {
                 WriteValueExp(recs[0].Arg0);                
-                WriteText(".");
+                WriteText("->");
                 Literal lit = (Literal)recs[0].Arg1;
                 WriteText(lit.Data);
                 return;
@@ -1718,6 +1727,11 @@ namespace DataEngine
             {
                 IntegerValue uinteger = (IntegerValue)value;
                 WriteText(uinteger.Data.ToString(CultureInfo.InvariantCulture));
+            }
+            else if (value is DateTimeValue)
+            {
+                DateTimeValue udateTime = (DateTimeValue)value;
+                WriteText(ProviderHelper.FormatDateTime(udateTime.Data));
             }
         }
 

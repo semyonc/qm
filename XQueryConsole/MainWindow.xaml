@@ -14,6 +14,7 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+        <w:BooleanToEnumConverter x:Key="BooleanToEnumConverter"></w:BooleanToEnumConverter>
     </Window.Resources>
     <Window.CommandBindings>
         <CommandBinding Command="{x:Static w:MainWindow.NewXQueryCommand}"
@@ -73,6 +74,7 @@
                     </MenuItem.Icon>
                 </MenuItem>-->
                 <Separator/>
+                <MenuItem Header="Manage Connections..." Click="MenuItem_ConnectionBuilderClick"></MenuItem>
                 <MenuItem Header="Preferences..." Click="MenuItem_PreferencesClick"></MenuItem>
                 <Separator/>
                 <MenuItem Header="Exit" Click="MenuItem_ExitClick"></MenuItem>
@@ -129,6 +131,8 @@
                 <MenuItem Name="HelpXQTS"  Header="XQuery Test Suite 1.0.2 Result Summary" Click="HelpXQTS_Click"></MenuItem>
                 <MenuItem Name="HelpXQ"  Header="XQuery on w3.org" Click="HelpXQ_Click"></MenuItem>
                 <Separator/>
+                <MenuItem Name="StartMongo" Header="Run Mongo shell (current path)" Click="StartMongo_Click"></MenuItem>
+                <Separator/>
                 <MenuItem Header="About" Click="HelpAbout_Click"></MenuItem>
             </MenuItem>
         </Menu>
@@ -141,10 +145,67 @@
                 </StackPanel>
             </my:WindowsFormsHost.ToolTip>
             <my:WindowsFormsHost.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Name="RefreshConnection"  Header="Refresh" Click="RefreshConnection_Click"></MenuItem>
-                    <MenuItem Name="EditConnection" Header="Edit..." Click="EditConnection_Click"></MenuItem>
-                    <MenuItem Name="DeleteConnection" Header="Delete" Click="DeleteConnection_Click"></MenuItem>
+                <ContextMenu Opened="ContextMenu_Opened">
+                    <MenuItem Name="RunMongodItem" Header="Start Mongod" Click="RunMongodItem_Click">
+                        <MenuItem.Visibility>
+                            <Binding Path="IsEnabled" Converter="{StaticResource BooleanToEnumConverter}" Mode="OneWay">
+                                <Binding.RelativeSource>
+                                    <RelativeSource Mode="Self"></RelativeSource>
+                                </Binding.RelativeSource>
+                                <Binding.ConverterParameter>
+                                    <x:Array Type="Visibility">
+                                        <Visibility>Collapsed</Visibility>
+                                        <Visibility>Visible</Visibility>
+                                    </x:Array>
+                                </Binding.ConverterParameter>
+                            </Binding>
+                        </MenuItem.Visibility>
+                    </MenuItem>
+                    <MenuItem Name="RefreshConnectionItem" Header="Refresh" Click="RefreshConnectionItem_Click">
+                        <MenuItem.Visibility>
+                            <Binding Path="IsEnabled" Converter="{StaticResource BooleanToEnumConverter}" Mode="OneWay">
+                                <Binding.RelativeSource>
+                                    <RelativeSource Mode="Self"></RelativeSource>
+                                </Binding.RelativeSource>
+                                <Binding.ConverterParameter>
+                                    <x:Array Type="Visibility">
+                                        <Visibility>Collapsed</Visibility>
+                                        <Visibility>Visible</Visibility>
+                                    </x:Array>
+                                </Binding.ConverterParameter>
+                            </Binding>
+                        </MenuItem.Visibility>
+                    </MenuItem>
+                    <MenuItem Name="GetTableSchema" Header="Analyze" Click="GetTableSchema_Click">
+                        <MenuItem.Visibility>
+                            <Binding Path="IsEnabled" Converter="{StaticResource BooleanToEnumConverter}" Mode="OneWay">
+                                <Binding.RelativeSource>
+                                    <RelativeSource Mode="Self"></RelativeSource>
+                                </Binding.RelativeSource>
+                                <Binding.ConverterParameter>
+                                    <x:Array Type="Visibility">
+                                        <Visibility>Collapsed</Visibility>
+                                        <Visibility>Visible</Visibility>
+                                    </x:Array>
+                                </Binding.ConverterParameter>
+                            </Binding>
+                        </MenuItem.Visibility>
+                    </MenuItem>
+                    <MenuItem Name="DeleteNodeItem" Header="Delete" Click="DeleteNodeItem_Click">
+                        <MenuItem.Visibility>
+                            <Binding Path="IsEnabled" Converter="{StaticResource BooleanToEnumConverter}" Mode="OneWay">
+                                <Binding.RelativeSource>
+                                    <RelativeSource Mode="Self"></RelativeSource>
+                                </Binding.RelativeSource>
+                                <Binding.ConverterParameter>
+                                    <x:Array Type="Visibility">
+                                        <Visibility>Collapsed</Visibility>
+                                        <Visibility>Visible</Visibility>
+                                    </x:Array>
+                                </Binding.ConverterParameter>
+                            </Binding>
+                        </MenuItem.Visibility>
+                    </MenuItem>
                 </ContextMenu>
             </my:WindowsFormsHost.ContextMenu>
         </my:WindowsFormsHost>

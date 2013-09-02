@@ -26,6 +26,7 @@ using System.Xml;
 
 using DataEngine.CoreServices;
 using DataEngine.CoreServices.Data;
+using System.Globalization;
 
 namespace DataEngine
 {
@@ -356,7 +357,7 @@ namespace DataEngine
 
         private sealed class Sum : Aggregator
         {
-            private decimal _value;
+            private double _value;
             private bool _hasValue;
 
             public Sum(RowType.Locator locator, Column column)
@@ -367,13 +368,13 @@ namespace DataEngine
             public override void Reset()
             {
                 base.Reset();
-                _value = 0.0M;
+                _value = 0.0;
                 _hasValue = false;
             }
 
             public override void Aggregate(object value, Row row)
             {
-                _value += Convert.ToDecimal(value);
+                _value += Convert.ToDouble(value);
                 _hasValue = true;
             }
 
@@ -398,7 +399,7 @@ namespace DataEngine
 
         private sealed class Avg : Aggregator
         {
-            private decimal _value;
+            private double _value;
             private int _count;
 
             public Avg(RowType.Locator locator, Column column)
@@ -409,13 +410,13 @@ namespace DataEngine
             public override void Reset()
             {
                 base.Reset();
-                _value = 0.0M;
+                _value = 0.0;
                 _count = 0;
             }
 
             public override void Aggregate(object value, Row row)
             {
-                _value += Convert.ToDecimal(value);
+                _value += Convert.ToDouble(value);
                 _count++;
             }
 
@@ -620,7 +621,7 @@ namespace DataEngine
                         if (_columns[k].Functor == AggregateFunctor.XMLAgg)
                             r["DataType"] = typeof(System.Object);
                         else
-                            r["DataType"] = typeof(System.Decimal);
+                            r["DataType"] = typeof(System.Double);
                     r["BaseServerName"] = t.BaseServerName;
                     r["BaseSchemaName"] = t.BaseSchemaName;
                     r["BaseCatalogName"] = t.BaseCatalogName;

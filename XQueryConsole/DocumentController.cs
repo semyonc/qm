@@ -160,7 +160,6 @@ namespace XQueryConsole
             showDragDropPromo = true;
             startupPanel = StartupPanel.XQuery;
             enableServerQuery = true;
-            DataProviderHelper.HostADOProviders = true;
             using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\WMHelp Software\\QueryMachine", true))
             {
                 if (key != null)
@@ -190,10 +189,6 @@ namespace XQueryConsole
                     object enableServerQueryValue = key.GetValue("EnableServerQuery");
                     if (enableServerQueryValue != null)
                         enableServerQuery = (int)enableServerQueryValue == 1;
-
-                    object hostADOProvidersValue = key.GetValue("HostADOProviders");
-                    if (hostADOProvidersValue != null)
-                        DataProviderHelper.HostADOProviders = (int)hostADOProvidersValue == 1;
 
                     object limitSQLQueryResultsValue = key.GetValue("LimitQueryResults");
                     if (limitSQLQueryResultsValue != null)
@@ -228,7 +223,6 @@ namespace XQueryConsole
             key.SetValue("QueryPath", MyQueriesPath);
             key.SetValue("StartupPanel", (int)DefaultPanel);
             key.SetValue("EnableServerQuery", Convert.ToInt32(EnableServerQuery));
-            key.SetValue("HostADOProviders", Convert.ToInt32(DataProviderHelper.HostADOProviders));
             key.SetValue("LimitQueryResults", Convert.ToInt32(LimitSQLQueryResults));
             key.Close();
         }

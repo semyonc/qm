@@ -72,8 +72,8 @@ namespace DataEngine
         {
             if (_rowType == null)
             {
-                DataProviderHelper helper = new DataProviderHelper(_providerInvariantName, _connectionString);
-                DbConnection connection = DataProviderHelper.CreateDbConnection(_providerInvariantName);
+                DataProviderHelper helper = new DataProviderHelper(_providerInvariantName, _connectionString, _x86Connection);
+                DbConnection connection = DataProviderHelper.CreateDbConnection(_providerInvariantName, _x86Connection);
                 connection.ConnectionString = _connectionString;
                 connection.Open();
                 DbCommand command = connection.CreateCommand();
@@ -130,7 +130,8 @@ namespace DataEngine
             _rowType = null;
             _connectionString = dataSourceInfo.ConnectionString;
             _providerInvariantName = dataSourceInfo.ProviderInvariantName;
-            _helper = new DataProviderHelper(_providerInvariantName, _connectionString);
+            _x86Connection = dataSourceInfo.X86Connection;
+            _helper = new DataProviderHelper(_providerInvariantName, _connectionString, _x86Connection);
             SqlQueryWriter writer = new SqlQueryWriter(notation);
             writer.ProviderHelper = _helper;
             if (squery.Tag == Tag.Stmt)

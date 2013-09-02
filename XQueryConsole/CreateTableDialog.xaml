@@ -39,7 +39,7 @@
             </Grid.RowDefinitions>
             <Border Grid.Row="1"  Grid.Column="0" BorderBrush="{x:Static SystemColors.ActiveBorderBrush}" BorderThickness="1">
                 <avalonEdit:TextEditor Name="textEditor" FontFamily="Consolas" Margin="15,0,0,0"
-				    FontSize="9pt" SyntaxHighlighting="SQLX" WordWrap="True">
+				    FontSize="9pt" WordWrap="True">
                 </avalonEdit:TextEditor>
             </Border>
         </Grid>

@@ -58,6 +58,8 @@ namespace DataEngine
             public char StringSeparator;
             public char LeftQuote;
             public char RightQuote;
+            public bool IgnoreSchema;
+            public bool IgnoreCatalog;
 
             public int UpdateBatchSize;
             public bool NormalizeColumnName;
@@ -75,17 +77,15 @@ namespace DataEngine
         
         private ProviderInfo _providerInfo;
 
-        public static bool HostADOProviders { get; set; }
-
         static DataProviderHelper()
         {
             _cached_info = new Dictionary<string, ProviderInfo>();
         }
 
-        public static DbConnection CreateDbConnection(string providerInvariantName)
+        public static DbConnection CreateDbConnection(string providerInvariantName, bool x86Connection)
         {
-            if (RemoteDbProviderFactories.Isx64() && 
-                (HostADOProviders || providerInvariantName == "System.Data.OleDb"))
+            if (RemoteDbProviderFactories.Isx64() &&
+                (x86Connection || providerInvariantName == "System.Data.OleDb"))
             {
                 RemoteDbProviderFactory f = RemoteDbProviderFactories.GetFactory(providerInvariantName);
                 return f.CreateConnection();
@@ -107,11 +107,16 @@ namespace DataEngine
         }
 
         public DataProviderHelper(TableType tableType)
-            : this(tableType.DataSource.ProviderInvariantName, tableType.DataSource.ConnectionString)
+            : this(tableType.DataSource)
         {
         }
 
-        public DataProviderHelper(string providerInvariantName, string connectionString)
+        public DataProviderHelper(DataSourceInfo dsi)
+            : this(dsi.ProviderInvariantName, dsi.ConnectionString, dsi.X86Connection)
+        {
+        }
+
+        public DataProviderHelper(string providerInvariantName, string connectionString, bool x86Connection)
         {
             string configName = providerInvariantName;
             if (providerInvariantName == "System.Data.OleDb")
@@ -139,7 +144,7 @@ namespace DataEngine
                 {
                     _providerInfo = new ProviderInfo();
 
-                    using (DbConnection connection = CreateDbConnection(providerInvariantName))
+                    using (DbConnection connection = CreateDbConnection(providerInvariantName, x86Connection))
                     {
                         connection.ConnectionString = connectionString;
                         connection.Open();
@@ -246,6 +251,21 @@ namespace DataEngine
                         item.InnerXml == "t" || item.InnerXml == "true")
                         _providerInfo.NormalizeColumnName = true;
                 }
+
+                item = node.SelectSingleNode("ignoreSchema");
+                if (item != null)
+                {
+                    if (item.InnerXml == "1" || item.InnerXml == "T" || item.InnerXml == "True" ||
+                        item.InnerXml == "t" || item.InnerXml == "true")
+                        _providerInfo.IgnoreSchema = true;
+                }
+                item = node.SelectSingleNode("ignoreCatalog");
+                if (item != null)
+                {
+                    if (item.InnerXml == "1" || item.InnerXml == "T" || item.InnerXml == "True" ||
+                        item.InnerXml == "t" || item.InnerXml == "true")
+                        _providerInfo.IgnoreCatalog = true;
+                }
             }
             else
                 SetDefaultProperties();
@@ -261,17 +281,28 @@ namespace DataEngine
             _providerInfo.IdentifierCase = IdentifierCase.Sensitive;            
         }
 
-        public bool RequiresQuoting(string identifierPart)
+        public bool RequiresQuotingNoKeywords(string identifierPart)
         {
             if (String.IsNullOrEmpty(identifierPart))
                 return false;
 
-            if (RequiresQuotingDefault(identifierPart, 
+            if (RequiresQuotingDefault(identifierPart,
                 _providerInfo.IdentifierCase == IdentifierCase.Sensitive))
                 return true;
 
             if (!String.IsNullOrEmpty(_providerInfo.IdentifierPattern) &&
                 !Regex.IsMatch(identifierPart, _providerInfo.IdentifierPattern))
+                return true;
+
+            return false;
+        }
+
+        public bool RequiresQuoting(string identifierPart)
+        {
+            if (String.IsNullOrEmpty(identifierPart))
+                return false;
+
+            if (RequiresQuotingNoKeywords(identifierPart))
                 return true;
 
             if (_providerInfo.keywords.ContainsKey(identifierPart.ToUpperInvariant()))
@@ -590,6 +621,22 @@ namespace DataEngine
             get
             {
                 return _providerInfo.NormalizeColumnName;
+            }
+        }
+
+        public bool IgnoreSchema
+        {
+            get
+            {
+                return _providerInfo.IgnoreSchema;
+            }
+        }
+
+        public bool IgnoreCatalog
+        {
+            get
+            {
+                return _providerInfo.IgnoreCatalog;
             }
         }
 
