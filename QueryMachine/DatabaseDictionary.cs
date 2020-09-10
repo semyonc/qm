@@ -85,9 +85,23 @@ namespace DataEngine
         }
 
         public DataSourceInfo(Guid uuid, string prefix, bool isDefault, AccessorType tableAccessor, String providerInvariantName, bool x86Connection,
-            String connectionString, FormatIdentifierDelegate formatIdentifier)
+            String connectionString, Object dataContext)
         {
             UUID = uuid;
+            Prefix = prefix;
+            Default = isDefault;
+            TableAccessor = tableAccessor;
+            ProviderInvariantName = providerInvariantName;
+            X86Connection = x86Connection;
+            ConnectionString = connectionString;
+            FormatIdentifier = null;
+            DataContext = dataContext;
+        }
+
+        public DataSourceInfo(string prefix, bool isDefault, AccessorType tableAccessor, String providerInvariantName, bool x86Connection,
+            String connectionString, FormatIdentifierDelegate formatIdentifier)
+        {
+            UUID = Guid.Empty;
             Prefix = prefix;
             Default = isDefault;
             TableAccessor = tableAccessor;
@@ -374,7 +388,7 @@ namespace DataEngine
                     sb.Append(helper.Qualifer);
                 sb.Append(formattedIdentifiers[k]);
             }
-            return sb.ToString();
+            return sb.ToString();            
         }
 
         private TableType GetDataProviderTableType(DataSourceInfo dsi, String identifier)
@@ -408,6 +422,14 @@ namespace DataEngine
                     }
 
                     DataTable dt_src = reader.GetSchemaTable();
+                    if (dt_src == null)
+                    {
+                        reader.Close();
+                        reader = command.ExecuteReader(CommandBehavior.SchemaOnly);
+                        dt_src = reader.GetSchemaTable();
+                        hasKeyInfo = false;
+                    }
+
                     DataTable dt = RowType.CreateSchemaTable();
                     int n = 0;
                     foreach (DataRow r in dt_src.Rows)

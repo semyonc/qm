@@ -1,0 +1,17 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs
+/CoreServices/bin
+/CoreServices/obj
+/XQueryConsole/obj
+/XQueryConsole/bin
+/QueryMachine.XQuery.OpenXML/bin
+/QueryMachine.XQuery.OpenXML/obj
+/QueryMachine.XQuery/bin
+/QueryMachine.XQuery/obj
+/QueryMachine.Export/bin
+/QueryMachine.Export/obj
+/QueryMachine/bin
+/QueryMachine/obj

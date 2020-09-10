@@ -220,6 +220,10 @@ namespace DataEngine
                 if (item != null)
                     _providerInfo.Qualifer = item.InnerText[0];
 
+                item = node.SelectSingleNode("identifierCase");
+                if (item != null)
+                    _providerInfo.IdentifierCase = (IdentifierCase)int.Parse(item.InnerText);
+
                 item = node.SelectSingleNode("stringSeparator");
                 if (item != null)
                     _providerInfo.StringSeparator = item.InnerText[0];
