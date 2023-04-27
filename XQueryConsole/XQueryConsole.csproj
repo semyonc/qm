@@ -75,7 +75,7 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup>
-    <Win32Resource>C:\Work\vsnet05\XQuery\Repository\XQueryConsole\app.manifest.res</Win32Resource>
+    <Win32Resource>app.manifest.res</Win32Resource>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release-1|x86'">
     <DebugSymbols>true</DebugSymbols>
